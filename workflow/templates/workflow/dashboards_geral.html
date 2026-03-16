@@ -2,7 +2,97 @@
 {% load formatacoes %}
 {% block content %}
 <h2>Dashboards gerais dos processos</h2>
-<p class="muted">Acompanhamento integral com filtros globais, visao individual, ranking por secretaria, itens, valores, homologacao e processos parados.</p>
+<p class="muted">Acompanhamento integral com filtros globais, agenda operacional, calendario de processos, visao por condutor, itens, valores, homologacao e pendencias administrativas.</p>
+
+<style>
+  .event-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  .event-chip[data-tone="open"] { background: #e9f3ff; border-color: #b7d1f3; color: #173f72; }
+  .event-chip[data-tone="deadline"] { background: #fff1e3; border-color: #f2c28c; color: #84521a; }
+  .event-chip[data-tone="warn"] { background: #fff7dd; border-color: #ebd08a; color: #7c6414; }
+  .event-chip[data-tone="start"] { background: #e9f8ef; border-color: #9dd8b2; color: #1d5a37; }
+  .event-chip[data-tone="pub"] { background: #eef1ff; border-color: #c5ceff; color: #3f4799; }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .calendar-head {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 0 4px;
+  }
+  .calendar-day {
+    min-height: 132px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 10px;
+    background: var(--surface-elevated);
+    display: grid;
+    gap: 8px;
+    align-content: start;
+  }
+  .calendar-day.is-outside {
+    opacity: .48;
+    background: var(--surface-soft);
+  }
+  .calendar-day.is-today {
+    border-color: var(--primary-3);
+    box-shadow: 0 0 0 2px rgba(43, 104, 174, 0.12);
+  }
+  .calendar-daynum {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 800;
+  }
+  .calendar-count {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .calendar-events {
+    display: grid;
+    gap: 6px;
+  }
+  .calendar-event {
+    font-size: 12px;
+    line-height: 1.35;
+    padding-left: 8px;
+    border-left: 3px solid var(--primary-3);
+  }
+  .calendar-event small {
+    display: block;
+    color: var(--muted);
+  }
+  .ops-list {
+    display: grid;
+    gap: 10px;
+  }
+  .ops-item {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    background: var(--surface-elevated);
+  }
+  .ops-item strong {
+    display: block;
+    margin-bottom: 2px;
+  }
+</style>
 
 <div class="card" style="margin-bottom:16px;">
   <form method="get" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
@@ -45,6 +135,15 @@
         <option value="">Todas</option>
         {% for s in secretaria_opts %}
           <option value="{{ s.id }}" {% if filtros.secretaria_id == s.id|stringformat:'s' %}selected{% endif %}>{{ s.sigla }} - {{ s.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Pregoeiro / condutor</label>
+      <select name="condutor_id">
+        <option value="">Todos</option>
+        {% for p in condutor_opts %}
+          <option value="{{ p.id }}" {% if filtros.condutor_id == p.id|stringformat:'s' %}selected{% endif %}>{{ p.nome }}{% if p.cargo %} - {{ p.cargo }}{% endif %}</option>
         {% endfor %}
       </select>
     </div>
@@ -95,6 +194,18 @@
         <option value="itens_desc" {% if filtros.ordem == 'itens_desc' %}selected{% endif %}>Mais itens</option>
       </select>
     </div>
+    <div>
+      <label>Calendario - mes</label>
+      <select name="agenda_mes">
+        {% for opt in agenda_mes_opts %}
+          <option value="{{ opt.value }}" {% if agenda_mes == opt.value %}selected{% endif %}>{{ opt.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Calendario - ano</label>
+      <input type="number" min="2000" max="2100" name="agenda_ano" value="{{ agenda_ano }}">
+    </div>
     <div style="display:flex;align-items:flex-end;gap:8px;">
       <button type="submit">Aplicar filtros</button>
     </div>
@@ -109,6 +220,186 @@
   <div class="card"><div class="muted">Quantidade total</div><div class="kpi">{{ total_quantidade|floatformat:3 }}</div></div>
   <div class="card"><div class="muted">Valor estimado total</div><div class="kpi">{{ total_valor_estimado|moeda_brl }}</div></div>
   <div class="card"><div class="muted">Valor homologado total</div><div class="kpi">{{ total_valor_homologado|moeda_brl }}</div></div>
+  <div class="card"><div class="muted">Eventos hoje</div><div class="kpi">{{ agenda_eventos_hoje|length }}</div></div>
+  <div class="card"><div class="muted">Sem condutor</div><div class="kpi">{{ total_sem_condutor }}</div></div>
+  <div class="card"><div class="muted">Sem agenda critica</div><div class="kpi">{{ total_sem_agenda }}</div></div>
+</div>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <h3>Operacao do dia</h3>
+    <div class="ops-list">
+      {% for ev in agenda_eventos_hoje %}
+        <div class="ops-item">
+          <strong>{{ ev.processo.numero_processo_principal }} - {{ ev.label }}</strong>
+          <div class="muted">{{ ev.exibicao }}</div>
+          <div>{{ ev.processo.objeto|truncatechars:110 }}</div>
+          <div class="muted">
+            {% if ev.processo.secretaria %}{{ ev.processo.secretaria.sigla }}{% else %}-{% endif %}
+            {% if ev.condutor %} | {{ ev.condutor.nome }}{% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="ops-item">Nenhum evento operacional previsto para hoje com os filtros atuais.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Proximos eventos</h3>
+    <table>
+      <thead><tr><th>Data</th><th>Evento</th><th>Processo</th><th>Condutor</th></tr></thead>
+      <tbody>
+        {% for ev in agenda_proximos_eventos %}
+          <tr>
+            <td>{{ ev.exibicao }}</td>
+            <td><span class="event-chip" data-tone="{{ ev.tone }}">{{ ev.label }}</span></td>
+            <td>{{ ev.processo.numero_processo_principal }}</td>
+            <td>{% if ev.condutor %}{{ ev.condutor.nome }}{% else %}-{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Nenhum evento futuro encontrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+      <div>
+        <h3 style="margin:0;">Calendario de processos</h3>
+        <div class="muted">{{ agenda_mes_nome }} / {{ agenda_ano }}</div>
+      </div>
+      <div class="event-chip" data-tone="open">{{ agenda_eventos_hoje|length }} hoje</div>
+    </div>
+    <div class="calendar-grid" style="margin-bottom:8px;">
+      <div class="calendar-head">Seg</div>
+      <div class="calendar-head">Ter</div>
+      <div class="calendar-head">Qua</div>
+      <div class="calendar-head">Qui</div>
+      <div class="calendar-head">Sex</div>
+      <div class="calendar-head">Sab</div>
+      <div class="calendar-head">Dom</div>
+    </div>
+    <div class="calendar-grid">
+      {% for week in agenda_calendar_weeks %}
+        {% for day in week %}
+          <div class="calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %}">
+            <div class="calendar-daynum">
+              <span>{{ day.day }}</span>
+              {% if day.count %}<span class="calendar-count">{{ day.count }} evento{{ day.count|pluralize }}</span>{% endif %}
+            </div>
+            <div class="calendar-events">
+              {% for ev in day.events %}
+                <div class="calendar-event">
+                  {{ ev.label }}
+                  <small>{{ ev.processo.numero_processo_principal }}</small>
+                </div>
+              {% empty %}
+                {% if day.in_month %}
+                  <div class="muted" style="font-size:12px;">Sem agenda</div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Pendencias operacionais</h3>
+    <table style="margin-bottom:12px;">
+      <thead><tr><th>Tipo</th><th>Total</th></tr></thead>
+      <tbody>
+        <tr><td>Sem condutor definido</td><td>{{ total_sem_condutor }}</td></tr>
+        <tr><td>Sem agenda critica</td><td>{{ total_sem_agenda }}</td></tr>
+        <tr><td>Eventos atrasados</td><td>{{ agenda_atrasados|length }}</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Eventos atrasados</h3>
+    <table style="margin-bottom:12px;">
+      <thead><tr><th>Data</th><th>Evento</th><th>Processo</th></tr></thead>
+      <tbody>
+        {% for ev in agenda_atrasados %}
+          <tr>
+            <td>{{ ev.exibicao }}</td>
+            <td>{{ ev.label }}</td>
+            <td>{{ ev.processo.numero_processo_principal }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Nenhum evento atrasado nos filtros atuais.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h3>Processos sem agenda ou responsavel</h3>
+    <table>
+      <thead><tr><th>Processo</th><th>Pendencia</th><th>Acao</th></tr></thead>
+      <tbody>
+        {% for r in processos_sem_condutor %}
+          <tr>
+            <td>{{ r.processo.numero_processo_principal }}</td>
+            <td>Sem pregoeiro / condutor</td>
+            <td><a href="{% url 'workflow:processo_resumo' r.processo.id %}">Abrir</a></td>
+          </tr>
+        {% endfor %}
+        {% for r in processos_sem_agenda %}
+          <tr>
+            <td>{{ r.processo.numero_processo_principal }}</td>
+            <td>Sem data critica cadastrada</td>
+            <td><a href="{% url 'workflow:processo_resumo' r.processo.id %}">Abrir</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Nenhuma pendencia operacional encontrada.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <h3>Ranking por pregoeiro / condutor</h3>
+    <table>
+      <thead><tr><th>Responsavel</th><th>Cargo</th><th>Processos</th><th>Eventos hoje</th><th>Aberturas</th></tr></thead>
+      <tbody>
+        {% for p in ranking_condutores %}
+          <tr>
+            <td>{{ p.nome }}</td>
+            <td>{{ p.cargo|default:'-' }}</td>
+            <td>{{ p.processos }}</td>
+            <td>{{ p.eventos_hoje }}</td>
+            <td>{{ p.aberturas }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Nenhum condutor identificado nos filtros atuais.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Processos com proximo evento definido</h3>
+    <table>
+      <thead><tr><th>Processo</th><th>Condutor</th><th>Proximo evento</th><th>Data</th></tr></thead>
+      <tbody>
+        {% for r in rows|slice:":20" %}
+          <tr>
+            <td>{{ r.processo.numero_processo_principal }}</td>
+            <td>{% if r.condutor %}{{ r.condutor.nome }}{% else %}-{% endif %}</td>
+            <td>{% if r.proximo_evento %}{{ r.proximo_evento.label }}{% else %}-{% endif %}</td>
+            <td>{% if r.proximo_evento %}{{ r.proximo_evento.exibicao }}{% else %}-{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Nenhum processo encontrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
 <h3>Monitoramento integral dos processos</h3>
@@ -118,6 +409,8 @@
       <th>Processo</th>
       <th>Objeto</th>
       <th>Secretaria</th>
+      <th>Pregoeiro / condutor</th>
+      <th>Proximo evento</th>
       <th>Módulo</th>
       <th>Situação</th>
       <th>Status</th>
@@ -144,6 +437,26 @@
         </td>
         <td>{{ r.processo.objeto|truncatechars:95 }}</td>
         <td>{% if r.processo.secretaria %}{{ r.processo.secretaria.sigla }}{% else %}-{% endif %}</td>
+        <td>
+          {% if r.condutor %}
+            <span class="process-num">
+              <span class="process-num-main">{{ r.condutor.nome }}</span>
+              {% if r.condutor.cargo %}<span class="process-num-ref">{{ r.condutor.cargo }}</span>{% endif %}
+            </span>
+          {% else %}
+            <span class="muted">Nao definido</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r.proximo_evento %}
+            <span class="process-num">
+              <span class="process-num-main">{{ r.proximo_evento.label }}</span>
+              <span class="process-num-ref">{{ r.proximo_evento.exibicao }}</span>
+            </span>
+          {% else %}
+            <span class="muted">Sem agenda</span>
+          {% endif %}
+        </td>
         <td>{% if r.workflow %}{{ r.workflow.get_modulo_atual_display }}{% else %}-{% endif %}</td>
         <td>{% if r.workflow %}{{ r.workflow.get_situacao_display }}{% else %}-{% endif %}</td>
         <td>{% if r.processo.status %}{{ r.processo.status.nome }}{% else %}-{% endif %}</td>
@@ -164,7 +477,7 @@
         </td>
       </tr>
     {% empty %}
-      <tr><td colspan="14">Nenhum processo encontrado com os filtros informados.</td></tr>
+      <tr><td colspan="16">Nenhum processo encontrado com os filtros informados.</td></tr>
     {% endfor %}
   </tbody>
 </table>

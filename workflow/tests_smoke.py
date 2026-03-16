@@ -1,11 +1,13 @@
+from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from io import BytesIO
 from unittest.mock import patch
 import openpyxl
 
-from core.models import Modalidade, Processo, ProcessoItem
+from core.models import Modalidade, Pessoa, Processo, ProcessoItem, Secretaria, StatusProcesso
 from docs.models import ProcessoAnexo
 from core.utils.bll_export import export_bll_xlsx
 from core.utils.bll_import import import_bll_file
@@ -301,6 +303,47 @@ class SmokeLicitacaoExternaChecklistTest(TestCase):
         self.assertContains(resp_relatorio, 'Relatório de pendências documentais')
         self.assertContains(resp_relatorio, 'FASE DE JULGAMENTO')
         self.assertContains(resp_relatorio, 'PLANEJADO')
+
+
+class SmokeDashboardsGeraisTest(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='dash-smoke',
+            password='senha-smoke',
+        )
+        self.client.login(username='dash-smoke', password='senha-smoke')
+
+    def test_dashboard_exibe_agenda_calendario_e_ranking_condutor(self):
+        secretaria = Secretaria.objects.create(sigla='SMPS', nome='Secretaria Municipal de Promocao Social')
+        modalidade = Modalidade.objects.create(nome='Pregao')
+        status = StatusProcesso.objects.create(nome='Em andamento')
+        condutor = Pessoa.objects.create(nome='Jonatas Sousa', cargo='Pregoeiro', secretaria=secretaria)
+        processo = Processo.objects.create(
+            numero_processo_sirel='0099/2026',
+            numero_processo_adm='ADM-0099',
+            ano_referencia=2026,
+            objeto='Processo smoke para agenda operacional',
+            secretaria=secretaria,
+            modalidade=modalidade,
+            status=status,
+            condutor_processo=condutor,
+            data_hora_abertura=timezone.now() + timedelta(hours=2),
+            fim_recolhimento_propostas=timezone.now() + timedelta(days=1),
+        )
+        ProcessoWorkflow.objects.create(
+            processo=processo,
+            modulo_atual=ModuloSistema.LICITACAO,
+            etapa_atual='LICITACAO - FASE EXTERNA',
+            situacao='EM_ANDAMENTO',
+        )
+
+        resp = self.client.get('/sirel/dashboards/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Operacao do dia')
+        self.assertContains(resp, 'Calendario de processos')
+        self.assertContains(resp, 'Ranking por pregoeiro / condutor')
+        self.assertContains(resp, 'Jonatas Sousa')
+        self.assertContains(resp, '0099/2026')
 
 
 class SmokeModuloDocumentosTest(TestCase):

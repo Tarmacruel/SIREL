@@ -1,7 +1,7 @@
 ﻿import json
 import unicodedata
 import mimetypes
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 from html import unescape as html_unescape
@@ -5654,6 +5654,98 @@ def _parse_mes_referencia(raw):
             pass
     hoje = timezone.localdate()
     return hoje.year, hoje.month
+_DASHBOARD_EVENT_SPECS = (
+    ('data_publicacao', 'Publicacao', 'date', 'pub'),
+    ('inicio_recolhimento_propostas', 'Inicio de propostas', 'datetime', 'start'),
+    ('fim_impugnacao_esclarecimentos', 'Impugnacao/esclarecimentos', 'datetime', 'warn'),
+    ('fim_recolhimento_propostas', 'Fim de propostas', 'datetime', 'deadline'),
+    ('data_hora_abertura', 'Abertura / sessao', 'datetime', 'open'),
+)
+
+
+def _format_date_br(valor) -> str:
+    if not valor:
+        return '-'
+    if isinstance(valor, datetime):
+        valor = timezone.localtime(valor).date() if timezone.is_aware(valor) else valor.date()
+    if isinstance(valor, date):
+        return valor.strftime('%d/%m/%Y')
+    try:
+        return datetime.fromisoformat(str(valor)).strftime('%d/%m/%Y')
+    except Exception:
+        return str(valor)
+
+
+def _dashboard_eventos_processo(processo: Processo, *, hoje: date) -> list[dict]:
+    eventos = []
+    for ordem, (field, label, tipo, tone) in enumerate(_DASHBOARD_EVENT_SPECS, start=1):
+        valor = getattr(processo, field, None)
+        if not valor:
+            continue
+        if tipo == 'datetime':
+            if isinstance(valor, datetime):
+                valor_dt = timezone.localtime(valor) if timezone.is_aware(valor) else valor
+            else:
+                try:
+                    valor_dt = datetime.fromisoformat(str(valor))
+                except Exception:
+                    continue
+            data_ref = valor_dt.date()
+            hora_ref = valor_dt.time().replace(second=0, microsecond=0)
+            exibicao = _format_datetime_br(valor_dt)
+        else:
+            data_ref = valor if isinstance(valor, date) else None
+            if data_ref is None:
+                try:
+                    data_ref = datetime.fromisoformat(str(valor)).date()
+                except Exception:
+                    continue
+            hora_ref = None
+            exibicao = _format_date_br(data_ref)
+
+        if data_ref < hoje:
+            situacao = 'atrasado'
+        elif data_ref == hoje:
+            situacao = 'hoje'
+        else:
+            situacao = 'proximo'
+
+        eventos.append(
+            {
+                'field': field,
+                'label': label,
+                'tipo': tipo,
+                'tone': tone,
+                'data': data_ref,
+                'hora': hora_ref,
+                'exibicao': exibicao,
+                'situacao': situacao,
+                'ordem': ordem,
+            }
+        )
+    eventos.sort(key=lambda e: (e['data'], e['hora'] or time(0, 0), e['ordem']))
+    return eventos
+
+
+def _dashboard_calendar_weeks(ano: int, mes: int, eventos_por_dia: dict[date, list[dict]], hoje: date) -> list[list[dict]]:
+    semanas = []
+    cal = calendar.Calendar(firstweekday=0)
+    for semana in cal.monthdatescalendar(ano, mes):
+        linha = []
+        for dia_ref in semana:
+            eventos = list(eventos_por_dia.get(dia_ref, []))
+            linha.append(
+                {
+                    'date': dia_ref,
+                    'day': dia_ref.day,
+                    'in_month': dia_ref.month == mes,
+                    'is_today': dia_ref == hoje,
+                    'events': eventos[:3],
+                    'count': len(eventos),
+                }
+            )
+        semanas.append(linha)
+    return semanas
 
 
 def dashboards_geral(request):
@@ -5663,12 +5755,15 @@ def dashboards_geral(request):
         'status_id': (request.GET.get('status_id') or '').strip(),
         'modalidade_id': (request.GET.get('modalidade_id') or '').strip(),
         'secretaria_id': (request.GET.get('secretaria_id') or '').strip(),
+        'condutor_id': (request.GET.get('condutor_id') or '').strip(),
         'modulo': (request.GET.get('modulo') or '').strip().upper(),
         'situacao': (request.GET.get('situacao') or '').strip().upper(),
         'homologado': (request.GET.get('homologado') or 'todos').strip().lower(),
         'parados_dias': (request.GET.get('parados_dias') or '15').strip(),
         'somente_parados': (request.GET.get('somente_parados') or '').strip(),
         'ordem': (request.GET.get('ordem') or 'atualizado_desc').strip(),
+        'agenda_mes': (request.GET.get('agenda_mes') or '').strip(),
+        'agenda_ano': (request.GET.get('agenda_ano') or '').strip(),
     }
 
     try:
@@ -5676,8 +5771,19 @@ def dashboards_geral(request):
     except Exception:
         parados_dias = 15
     somente_parados = filtros['somente_parados'] in {'1', 'true', 'True', 'on'}
+    hoje = timezone.localdate()
+    try:
+        agenda_mes = min(12, max(1, int(filtros['agenda_mes'] or hoje.month)))
+    except Exception:
+        agenda_mes = hoje.month
+    try:
+        agenda_ano = min(2100, max(2000, int(filtros['agenda_ano'] or hoje.year)))
+    except Exception:
+        agenda_ano = hoje.year
 
-    processos_qs = Processo.objects.select_related('secretaria', 'status', 'modalidade').all()
+    processos_qs = Processo.objects.select_related(
+        'secretaria', 'status', 'modalidade', 'condutor_processo', 'autoridade_competente'
+    ).all()
 
     if filtros['q']:
         termo = filtros['q']
@@ -5696,6 +5802,8 @@ def dashboards_geral(request):
         processos_qs = processos_qs.filter(modalidade_id=int(filtros['modalidade_id']))
     if filtros['secretaria_id'].isdigit():
         processos_qs = processos_qs.filter(secretaria_id=int(filtros['secretaria_id']))
+    if filtros['condutor_id'].isdigit():
+        processos_qs = processos_qs.filter(condutor_processo_id=int(filtros['condutor_id']))
     if filtros['modulo']:
         processos_qs = processos_qs.filter(workflow__modulo_atual=filtros['modulo'])
     if filtros['situacao']:
@@ -5767,11 +5875,12 @@ def dashboards_geral(request):
         row['processo_id']: row['ultima']
         for row in ProcessoMovimentacao.objects.filter(processo_id__in=processo_ids).values('processo_id').annotate(ultima=Max('criado_em'))
     }
-
-    hoje = timezone.localdate()
     rows = []
     for p in processos:
         wf = workflows_map.get(p.id)
+        eventos_agenda = _dashboard_eventos_processo(p, hoje=hoje)
+        proximos = [ev for ev in eventos_agenda if ev['data'] >= hoje]
+        proximo_evento = proximos[0] if proximos else (eventos_agenda[-1] if eventos_agenda else None)
         row_core = itens_core_map.get(p.id, {})
         row_dfd = itens_dfd_map.get(p.id, {})
         total_itens = int(row_core.get('total_itens') or 0) or int(row_dfd.get('total_itens') or 0)
@@ -5801,6 +5910,7 @@ def dashboards_geral(request):
         row = {
             'processo': p,
             'workflow': wf,
+            'condutor': getattr(p, 'condutor_processo', None),
             'modulo_atual': wf.modulo_atual if wf else '',
             'situacao': wf.situacao if wf else '',
             'total_itens': total_itens,
@@ -5813,6 +5923,10 @@ def dashboards_geral(request):
             'is_parado': is_parado,
             'dias_sem_atualizacao': dias_sem_atualizacao,
             'ultima_atualizacao': referencia_atualizacao,
+            'agenda_eventos': eventos_agenda,
+            'proximo_evento': proximo_evento,
+            'sem_condutor': getattr(p, 'condutor_processo_id', None) is None,
+            'sem_data_critica': len(eventos_agenda) == 0,
         }
         rows.append(row)
 
@@ -5838,6 +5952,70 @@ def dashboards_geral(request):
     total_qtd = sum(Decimal(str(r['quantidade_total'] or 0)) for r in rows)
     total_valor_estimado = sum(Decimal(str(r['processo'].valor_estimado or 0)) for r in rows)
     total_valor_homologado = sum(Decimal(str(r['processo'].valor_homologado or 0)) for r in rows)
+    total_sem_condutor = sum(1 for r in rows if r['sem_condutor'] and not r['is_homologado'])
+    total_sem_agenda = sum(1 for r in rows if r['sem_data_critica'] and not r['is_homologado'])
+
+    agenda_eventos_hoje = []
+    agenda_proximos_eventos = []
+    agenda_atrasados = []
+    eventos_por_dia = {}
+    ranking_condutores_map = {}
+    for r in rows:
+        processo = r['processo']
+        condutor = r['condutor']
+        if condutor:
+            chave = condutor.nome
+            item = ranking_condutores_map.setdefault(
+                chave,
+                {
+                    'nome': condutor.nome,
+                    'cargo': condutor.cargo or '',
+                    'processos': 0,
+                    'aberturas': 0,
+                    'eventos_hoje': 0,
+                }
+            )
+            item['processos'] += 1
+            if processo.data_hora_abertura:
+                item['aberturas'] += 1
+        for evento in r['agenda_eventos']:
+            payload = {
+                'processo': processo,
+                'row': r,
+                'label': evento['label'],
+                'tone': evento['tone'],
+                'data': evento['data'],
+                'hora': evento['hora'],
+                'exibicao': evento['exibicao'],
+                'situacao': evento['situacao'],
+                'condutor': condutor,
+            }
+            eventos_por_dia.setdefault(evento['data'], []).append(payload)
+            if evento['situacao'] == 'hoje':
+                agenda_eventos_hoje.append(payload)
+                if condutor:
+                    ranking_condutores_map[condutor.nome]['eventos_hoje'] += 1
+            elif evento['situacao'] == 'proximo':
+                agenda_proximos_eventos.append(payload)
+            elif evento['situacao'] == 'atrasado' and evento['field'] != 'data_publicacao' and not r['is_homologado']:
+                agenda_atrasados.append(payload)
+
+    for lista in (agenda_eventos_hoje, agenda_proximos_eventos, agenda_atrasados):
+        lista.sort(key=lambda e: (e['data'], e['hora'] or time(0, 0), e['processo'].numero_processo_principal))
+    for data_ref, lista in eventos_por_dia.items():
+        eventos_por_dia[data_ref] = sorted(
+            lista,
+            key=lambda e: (e['hora'] or time(0, 0), e['label'], e['processo'].numero_processo_principal),
+        )
+
+    ranking_condutores = sorted(
+        ranking_condutores_map.values(),
+        key=lambda x: (x['processos'], x['eventos_hoje'], x['aberturas'], x['nome']),
+        reverse=True,
+    )[:15]
+    processos_sem_condutor = [r for r in rows if r['sem_condutor'] and not r['is_homologado']][:20]
+    processos_sem_agenda = [r for r in rows if r['sem_data_critica'] and not r['is_homologado']][:20]
+    agenda_calendar_weeks = _dashboard_calendar_weeks(agenda_ano, agenda_mes, eventos_por_dia, hoje)
 
     ranking_secretarias_map = {}
     ranking_status_map = {}
@@ -5930,18 +6108,35 @@ def dashboards_geral(request):
         'total_quantidade': total_qtd,
         'total_valor_estimado': total_valor_estimado,
         'total_valor_homologado': total_valor_homologado,
+        'total_sem_condutor': total_sem_condutor,
+        'total_sem_agenda': total_sem_agenda,
         'ranking_secretarias': ranking_secretarias,
+        'ranking_condutores': ranking_condutores,
         'ranking_status': ranking_status,
         'ranking_modulos': ranking_modulos,
         'top_valores': top_valores,
         'processos_parados': processos_parados,
         'processos_homologados': processos_homologados,
+        'agenda_eventos_hoje': agenda_eventos_hoje[:25],
+        'agenda_proximos_eventos': agenda_proximos_eventos[:30],
+        'agenda_atrasados': agenda_atrasados[:20],
+        'processos_sem_condutor': processos_sem_condutor,
+        'processos_sem_agenda': processos_sem_agenda,
+        'agenda_calendar_weeks': agenda_calendar_weeks,
+        'agenda_mes': agenda_mes,
+        'agenda_ano': agenda_ano,
+        'agenda_mes_nome': str(MESES_PT_BR[agenda_mes - 1]).title(),
+        'agenda_mes_opts': [
+            {'value': idx, 'label': str(MESES_PT_BR[idx - 1]).title()}
+            for idx in range(1, 13)
+        ],
         'top_itens_core': top_itens_core,
         'top_itens_dfd': top_itens_dfd,
         'processos_opts': Processo.objects.order_by('-ano_referencia', '-numero_processo_sirel', '-numero_processo_adm')[:600],
         'status_opts': StatusProcesso.objects.order_by('nome'),
         'modalidade_opts': Modalidade.objects.order_by('nome'),
         'secretaria_opts': Secretaria.objects.order_by('sigla'),
+        'condutor_opts': Pessoa.objects.filter(proc_condutor__isnull=False).distinct().order_by('nome')[:300],
         'modulo_opts': ModuloSistema.choices,
         'situacao_opts': SituacaoWorkflow.choices,
     }
