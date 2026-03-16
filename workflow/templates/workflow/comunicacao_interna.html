@@ -1,0 +1,788 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .ci-layout {
+    display: grid;
+    grid-template-columns: minmax(340px, 500px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .ci-panel {
+    display: grid;
+    gap: 14px;
+  }
+  .ci-card {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .ci-card h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+  }
+  .form-field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .form-field label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .field-error {
+    color: #bf1f1f;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .ci-actions {
+    margin-top: 10px;
+    display: grid;
+    gap: 8px;
+  }
+  .ci-actions > * {
+    width: 100%;
+    text-align: center;
+  }
+  .ci-preview-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    padding: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  .ci-preview {
+    background: #fff;
+    color: #1b2b40;
+    border: 1px solid #d6e0ef;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .ci-preview-head {
+    padding: 12px;
+    border-bottom: 2px solid #1c4d86;
+    background: linear-gradient(90deg, #184783, #2a68ae);
+    color: #fff;
+  }
+  .ci-preview-head-line {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .ci-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid #d6e0ef;
+  }
+  .ci-orgao-nome {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .ci-orgao-sub {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.9;
+    line-height: 1.3;
+  }
+  .ci-preview-body {
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+  .ci-center {
+    text-align: center;
+  }
+  .ci-title-top {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #5d6f8a;
+    font-weight: 700;
+    letter-spacing: .06em;
+  }
+  .ci-numero {
+    margin-top: 4px;
+    font-size: 34px;
+    font-weight: 800;
+    color: #123a67;
+    line-height: 1;
+  }
+  .ci-meta {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #d6e0ef;
+  }
+  .ci-meta td {
+    border: 1px solid #d6e0ef;
+    padding: 7px;
+    font-size: 13px;
+    vertical-align: top;
+  }
+  .ci-meta td:first-child {
+    width: 120px;
+    background: #eef3fb;
+    font-weight: 700;
+  }
+  .ci-section-title {
+    font-size: 12px;
+    color: #5d6f8a;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .ci-assunto {
+    border-left: 3px solid #1c4d86;
+    background: #f3f7fd;
+    padding: 8px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .ci-msg {
+    min-height: 160px;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: normal;
+  }
+  .ci-msg p {
+    margin: 0 0 8px;
+  }
+  .ci-msg ul,
+  .ci-msg ol {
+    margin: 4px 0 8px 22px;
+  }
+  .ci-signatarios {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .ci-sign-item {
+    text-align: center;
+    font-size: 13px;
+  }
+  .ci-sign-item-cargo {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #5d6f8a;
+    font-weight: 600;
+  }
+  .ci-sign-line {
+    border-top: 1px solid #76859a;
+    margin-bottom: 6px;
+  }
+  .ci-preview-foot {
+    border-top: 1px solid #d6e0ef;
+    background: #f7f9fd;
+    color: #5d6f8a;
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+  .rich-editor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .rich-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-soft);
+  }
+  .rich-toolbar .btn-mini {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .rich-content {
+    min-height: 180px;
+    padding: 10px;
+    outline: none;
+    white-space: normal;
+    line-height: 1.45;
+  }
+  .rich-content p {
+    margin: 0 0 8px;
+  }
+  .rich-content ul,
+  .rich-content ol {
+    margin: 4px 0 8px 22px;
+  }
+  #id_mensagem,
+  #id_signatarios {
+    display: none !important;
+  }
+  .sign-picker {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+  }
+  .sign-picker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .sign-picker-panel {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .sign-picker-title {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .table-wrap {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .sign-picker table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .sign-picker th,
+  .sign-picker td {
+    font-size: 12px;
+    padding: 7px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .sign-picker thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface-soft);
+    text-align: left;
+  }
+  .sign-picker tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .sign-picker-empty {
+    text-align: center;
+    color: var(--muted);
+  }
+  .ci-upload-list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+  }
+  @media (max-width: 1100px) {
+    .ci-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 760px) {
+    .sign-picker-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media print {
+    header,
+    .ci-panel,
+    .toast-stack {
+      display: none !important;
+    }
+    main {
+      max-width: none;
+      padding: 0;
+    }
+    .ci-layout {
+      display: block;
+    }
+    .ci-preview-wrap {
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+      background: #fff;
+    }
+    .ci-preview {
+      border: 0;
+      border-radius: 0;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Gerador de Comunicação Interna (C.I.)</h2>
+<p class="muted">Origem: {{ modulo_origem_label }} | Processo {{ processo.numero_processo_principal }}</p>
+
+<div class="ci-layout">
+  <div class="ci-panel">
+    <div class="ci-card">
+      <h3>Dados da comunicação</h3>
+      <form method="post" id="ci-form">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="field-error">{{ form.non_field_errors|striptags }}</div>
+        {% endif %}
+
+        {% for field in form %}
+          {% if field.name != 'signatarios' and field.name != 'mensagem' %}
+            <div class="form-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        <div class="form-field">
+          <label for="ci-mensagem-editor">{{ form.mensagem.label }}</label>
+          {{ form.mensagem }}
+          <div class="rich-editor">
+            <div class="rich-toolbar" id="ci-mensagem-toolbar">
+              <button type="button" class="btn-mini" data-cmd="bold" title="Negrito"><strong>N</strong></button>
+              <button type="button" class="btn-mini" data-cmd="italic" title="Itálico"><em>I</em></button>
+              <button type="button" class="btn-mini" data-cmd="underline" title="Sublinhado"><u>S</u></button>
+              <button type="button" class="btn-mini" data-cmd="justifyLeft" title="Alinhar à esquerda">Esq</button>
+              <button type="button" class="btn-mini" data-cmd="justifyCenter" title="Centralizar">Centro</button>
+              <button type="button" class="btn-mini" data-cmd="justifyRight" title="Alinhar à direita">Dir</button>
+              <button type="button" class="btn-mini" data-cmd="justifyFull" title="Justificar">Justif.</button>
+              <button type="button" class="btn-mini" data-cmd="insertUnorderedList" title="Marcadores">Lista *</button>
+              <button type="button" class="btn-mini" data-cmd="insertOrderedList" title="Numeração">Lista 1.</button>
+              <button type="button" class="btn-mini" data-cmd="removeFormat" title="Limpar formatação">Limpar</button>
+            </div>
+            <div id="ci-mensagem-editor" class="rich-content" contenteditable="true"></div>
+          </div>
+          {% if form.mensagem.errors %}<div class="field-error">{{ form.mensagem.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <div class="form-field">
+          <label for="ci-sign-search">Signatários</label>
+          <div class="sign-picker" id="ci-sign-picker">
+            <input id="ci-sign-search" type="text" placeholder="Buscar signatário por nome, cargo ou secretaria">
+            <div class="sign-picker-grid">
+              <section class="sign-picker-panel">
+                <div class="sign-picker-title">Disponíveis</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nome / Cargo</th>
+                        <th style="width: 86px;">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ci-sign-results-body">
+                      <tr><td colspan="2" class="sign-picker-empty">Carregando...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="sign-picker-panel">
+                <div class="sign-picker-title">Selecionados</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nome / Cargo</th>
+                        <th style="width: 96px;">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody id="ci-sign-cart-body">
+                      <tr><td colspan="2" class="sign-picker-empty">Nenhum signatário selecionado.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+            <div id="ci-sign-hidden-inputs"></div>
+          </div>
+          {% if form.signatarios.errors %}<div class="field-error">{{ form.signatarios.errors|striptags }}</div>{% endif %}
+        </div>
+
+        <div class="ci-actions">
+          <button type="submit">Gerar C.I. e encaminhar</button>
+          <button type="submit" class="btn-secondary" name="action" value="preview_pdf">Gerar PDF</button>
+          <a class="btn" href="{% url 'workflow:processo_resumo' processo.id %}">Cancelar</a>
+          <button type="button" class="btn-secondary" onclick="window.print()">Imprimir rascunho</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="ci-card">
+      <h3>Anexar C.I. assinada</h3>
+      <form method="post" enctype="multipart/form-data" action="{% url 'workflow:processo_upload_documento_assinado' processo.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="doc_key" value="ci">
+        <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
+        <div class="form-field">
+          <label for="ci_assinado_arquivo">Arquivo assinado</label>
+          <input id="ci_assinado_arquivo" type="file" name="arquivo" required>
+        </div>
+        <button type="submit">Anexar documento assinado</button>
+      </form>
+
+      {% if docs_ci_assinados %}
+        <ul class="ci-upload-list">
+          {% for doc in docs_ci_assinados %}
+            <li>
+              <a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a>
+              <span class="muted">({{ doc.criado_em|date:'d/m/Y H:i' }})</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Nenhuma C.I. assinada anexada para este processo.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="ci-preview-wrap">
+    <article class="ci-preview">
+      <header class="ci-preview-head">
+        <div class="ci-preview-head-line">
+          {% if orgao and orgao.logo %}
+            <img class="ci-logo" src="{{ orgao.logo.url }}" alt="Logo do órgão">
+          {% endif %}
+          <div>
+            <div class="ci-orgao-nome">
+              {% if orgao %}{{ orgao.nome_fantasia|default:orgao.razao_social }}{% else %}Órgão não cadastrado{% endif %}
+            </div>
+            <div class="ci-orgao-sub">
+              {% if orgao and orgao.razao_social %}{{ orgao.razao_social }}<br>{% endif %}
+              {% if orgao and orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}
+              {% if orgao and orgao.endereco_completo %}<br>{{ orgao.endereco_completo }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="ci-preview-body">
+        <div class="ci-center">
+          <div class="ci-title-top">Comunicação Interna</div>
+          <div class="ci-numero" id="ci-preview-numero">CI n. {{ numero_ci_preview }}</div>
+        </div>
+
+        <table class="ci-meta">
+          <tbody>
+            <tr><td>De:</td><td id="ci-preview-origem">{{ modulo_origem_label }}</td></tr>
+            <tr><td>Para:</td><td id="ci-preview-destino">-</td></tr>
+            <tr><td>Data:</td><td id="ci-preview-data">-</td></tr>
+            <tr><td>Ref.:</td><td id="ci-preview-ref">{{ processo.numero_processo_principal }} - {{ processo.objeto|truncatechars:90 }}</td></tr>
+          </tbody>
+        </table>
+
+        <div>
+          <div class="ci-section-title">Assunto</div>
+          <div class="ci-assunto" id="ci-preview-assunto">-</div>
+        </div>
+
+        <div>
+          <div class="ci-section-title">Mensagem</div>
+          <div class="ci-msg" id="ci-preview-mensagem">-</div>
+        </div>
+
+        <div>
+          <div class="ci-section-title">Signatários</div>
+          <div class="ci-signatarios" id="ci-preview-signatarios"></div>
+        </div>
+      </section>
+
+      <footer class="ci-preview-foot">
+        <strong>Documento gerado pelo SIREL Modular</strong><br>
+        Controle de C.I. por departamento de origem e exercício.
+      </footer>
+    </article>
+  </div>
+</div>
+
+{{ signatarios_catalogo|json_script:"ci-signatarios-catalogo" }}
+{{ signatarios_selecionados|json_script:"ci-signatarios-selecionados" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const formEl = document.getElementById('ci-form');
+    const destinatario = document.getElementById('id_destinatario_modulo');
+    const dataCom = document.getElementById('id_data_comunicacao');
+    const processoRef = document.getElementById('id_processo_referencia');
+    const assunto = document.getElementById('id_assunto');
+    const mensagem = document.getElementById('id_mensagem');
+    const responsavelEnvio = document.getElementById('id_responsavel_envio');
+    const mensagemEditor = document.getElementById('ci-mensagem-editor');
+    const mensagemToolbar = document.getElementById('ci-mensagem-toolbar');
+
+    const destinoPreview = document.getElementById('ci-preview-destino');
+    const dataPreview = document.getElementById('ci-preview-data');
+    const refPreview = document.getElementById('ci-preview-ref');
+    const assuntoPreview = document.getElementById('ci-preview-assunto');
+    const mensagemPreview = document.getElementById('ci-preview-mensagem');
+    const signatariosPreview = document.getElementById('ci-preview-signatarios');
+
+    const signSearch = document.getElementById('ci-sign-search');
+    const signResultsBody = document.getElementById('ci-sign-results-body');
+    const signCartBody = document.getElementById('ci-sign-cart-body');
+    const signHiddenInputs = document.getElementById('ci-sign-hidden-inputs');
+
+    function esc(texto) {
+      return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function parseJsonScript(id, fallbackValue) {
+      const node = document.getElementById(id);
+      if (!node) return fallbackValue;
+      try {
+        return JSON.parse(node.textContent || '');
+      } catch (e) {
+        return fallbackValue;
+      }
+    }
+
+    function sanitizeRichHtml(html) {
+      const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'DIV', 'UL', 'OL', 'LI']);
+      const container = document.createElement('div');
+      container.innerHTML = String(html || '');
+
+      function clean(node) {
+        Array.from(node.children || []).forEach(function (child) {
+          const tag = (child.tagName || '').toUpperCase();
+          if (!allowedTags.has(tag)) {
+            const text = document.createTextNode(child.textContent || '');
+            child.replaceWith(text);
+            return;
+          }
+          Array.from(child.attributes || []).forEach(function (attr) {
+            const name = (attr.name || '').toLowerCase();
+            if (name !== 'style') {
+              child.removeAttribute(attr.name);
+              return;
+            }
+            const value = String(attr.value || '').toLowerCase();
+            const align = value.match(/text-align\s*:\s*(left|right|center|justify)/);
+            if (align) {
+              child.setAttribute('style', 'text-align:' + align[1]);
+            } else {
+              child.removeAttribute('style');
+            }
+          });
+          clean(child);
+        });
+      }
+
+      clean(container);
+      return container.innerHTML.trim();
+    }
+
+    function getRichHtml() {
+      if (!mensagemEditor) return '';
+      return sanitizeRichHtml(mensagemEditor.innerHTML || '');
+    }
+
+    function setRichHtml(value) {
+      if (!mensagemEditor) return;
+      const html = sanitizeRichHtml(value || '');
+      mensagemEditor.innerHTML = html || '<p></p>';
+    }
+
+    function syncRichToInput() {
+      if (!mensagem) return;
+      mensagem.value = getRichHtml();
+    }
+
+    function formatDatePtBr(isoDate) {
+      if (!isoDate) return '-';
+      const dt = new Date(isoDate + 'T00:00:00');
+      if (isNaN(dt.getTime())) return isoDate;
+      return dt.toLocaleDateString('pt-BR');
+    }
+
+    const signCatalog = parseJsonScript('ci-signatarios-catalogo', []);
+    const signSelectedInitial = parseJsonScript('ci-signatarios-selecionados', []);
+    const signById = new Map(signCatalog.map(function (row) { return [String(row.id), row]; }));
+    const selectedMap = new Map();
+
+    (signSelectedInitial || []).forEach(function (row) {
+      const sid = String(row.id || '');
+      if (!sid) return;
+      const full = signById.get(sid) || row;
+      selectedMap.set(sid, {
+        id: sid,
+        nome: String(full.nome || ''),
+        cargo: String(full.cargo || ''),
+        secretaria: String(full.secretaria || ''),
+      });
+    });
+
+    function renderSignResults() {
+      if (!signResultsBody) return;
+      const q = String((signSearch && signSearch.value) || '').trim().toLowerCase();
+      const rows = [];
+
+      signCatalog.forEach(function (row) {
+        const sid = String(row.id || '');
+        if (!sid || selectedMap.has(sid)) return;
+        const nome = String(row.nome || '');
+        const cargo = String(row.cargo || '');
+        const sec = String(row.secretaria || '');
+        const haystack = (nome + ' ' + cargo + ' ' + sec).toLowerCase();
+        if (q && !haystack.includes(q)) return;
+        const sub = [cargo, sec].filter(Boolean).join(' | ');
+        rows.push(
+          '<tr>' +
+            '<td><strong>' + esc(nome) + '</strong>' + (sub ? '<br><span class="muted">' + esc(sub) + '</span>' : '') + '</td>' +
+            '<td><button type="button" class="btn-mini" data-sign-add="' + esc(sid) + '">Adicionar</button></td>' +
+          '</tr>'
+        );
+      });
+
+      signResultsBody.innerHTML = rows.length
+        ? rows.join('')
+        : '<tr><td colspan="2" class="sign-picker-empty">Nenhum signatário disponível.</td></tr>';
+    }
+
+    function syncHiddenInputs() {
+      if (!signHiddenInputs) return;
+      signHiddenInputs.innerHTML = Array.from(selectedMap.values()).map(function (row) {
+        return '<input type="hidden" name="signatarios" value="' + esc(row.id) + '">';
+      }).join('');
+    }
+
+    function renderSignatariosPreview() {
+      if (!signatariosPreview) return;
+      const rows = Array.from(selectedMap.values());
+      if (!rows.length) {
+        const nome = responsavelEnvio && responsavelEnvio.value ? responsavelEnvio.value : '-';
+        signatariosPreview.innerHTML =
+          '<div class="ci-sign-item"><div class="ci-sign-line"></div>' + esc(nome) + '</div>';
+        return;
+      }
+      signatariosPreview.innerHTML = rows.map(function (row) {
+        const cargo = row.cargo ? '<span class="ci-sign-item-cargo">' + esc(row.cargo) + '</span>' : '';
+        return '<div class="ci-sign-item"><div class="ci-sign-line"></div>' + esc(row.nome) + cargo + '</div>';
+      }).join('');
+    }
+
+    function renderSignCart() {
+      if (!signCartBody) return;
+      const rows = Array.from(selectedMap.values()).map(function (row) {
+        const sub = [row.cargo, row.secretaria].filter(Boolean).join(' | ');
+        return (
+          '<tr>' +
+            '<td><strong>' + esc(row.nome) + '</strong>' + (sub ? '<br><span class="muted">' + esc(sub) + '</span>' : '') + '</td>' +
+            '<td><button type="button" class="btn-mini" data-sign-remove="' + esc(row.id) + '">Remover</button></td>' +
+          '</tr>'
+        );
+      });
+
+      signCartBody.innerHTML = rows.length
+        ? rows.join('')
+        : '<tr><td colspan="2" class="sign-picker-empty">Nenhum signatário selecionado.</td></tr>';
+
+      syncHiddenInputs();
+      renderSignatariosPreview();
+      renderSignResults();
+    }
+
+    function updatePreview() {
+      if (destinoPreview) {
+        const opt = destinatario && destinatario.options ? destinatario.options[destinatario.selectedIndex] : null;
+        destinoPreview.textContent = (opt && opt.text) ? opt.text : '-';
+      }
+      if (dataPreview) dataPreview.textContent = formatDatePtBr(dataCom && dataCom.value ? dataCom.value : '');
+      if (refPreview) {
+        const optRef = processoRef && processoRef.options ? processoRef.options[processoRef.selectedIndex] : null;
+        refPreview.textContent = (optRef && optRef.text) ? optRef.text : '-';
+      }
+      if (assuntoPreview) assuntoPreview.textContent = assunto && assunto.value ? assunto.value : '-';
+      if (mensagemPreview) mensagemPreview.innerHTML = getRichHtml() || '-';
+      renderSignatariosPreview();
+    }
+
+    if (mensagemToolbar && mensagemEditor) {
+      mensagemToolbar.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-cmd]');
+        if (!btn) return;
+        const cmd = btn.getAttribute('data-cmd');
+        if (!cmd) return;
+        mensagemEditor.focus();
+        document.execCommand(cmd, false, null);
+        syncRichToInput();
+        updatePreview();
+      });
+
+      mensagemEditor.addEventListener('input', function () {
+        syncRichToInput();
+        updatePreview();
+      });
+
+      setRichHtml(mensagem && mensagem.value ? mensagem.value : '');
+      syncRichToInput();
+    }
+
+    if (formEl) {
+      formEl.addEventListener('submit', function () {
+        syncRichToInput();
+        syncHiddenInputs();
+      });
+    }
+
+    if (signResultsBody) {
+      signResultsBody.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-sign-add]');
+        if (!btn) return;
+        const sid = String(btn.getAttribute('data-sign-add') || '');
+        const row = signById.get(sid);
+        if (!row) return;
+        selectedMap.set(sid, {
+          id: sid,
+          nome: String(row.nome || ''),
+          cargo: String(row.cargo || ''),
+          secretaria: String(row.secretaria || ''),
+        });
+        renderSignCart();
+      });
+    }
+
+    if (signCartBody) {
+      signCartBody.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-sign-remove]');
+        if (!btn) return;
+        const sid = String(btn.getAttribute('data-sign-remove') || '');
+        selectedMap.delete(sid);
+        renderSignCart();
+      });
+    }
+
+    if (signSearch) {
+      signSearch.addEventListener('input', function () {
+        renderSignResults();
+      });
+    }
+
+    [destinatario, dataCom, processoRef, assunto, responsavelEnvio].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('change', updatePreview);
+      el.addEventListener('input', updatePreview);
+    });
+
+    renderSignCart();
+    renderSignResults();
+    updatePreview();
+  })();
+</script>
+{% endblock %}

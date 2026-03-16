@@ -1,0 +1,177 @@
+{% extends "publico/base_publico.html" %}
+{% load formatacoes %}
+
+{% block extra_head %}
+<style>
+  .public-filters {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 2fr 130px 1fr 1fr 1fr auto;
+  }
+  .public-filters input,
+  .public-filters select {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 11px;
+    background: var(--surface);
+    color: var(--text);
+    min-height: 40px;
+  }
+  @media (max-width: 980px) {
+    .public-filters {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  @media (max-width: 640px) {
+    .public-filters {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1 style="margin:0;font-size:24px;">Consulta publica de processos</h1>
+  <p class="muted" style="margin:8px 0 0;">
+    Painel com processos ja publicados, em linguagem cidada e com dados de interesse publico.
+  </p>
+</section>
+
+<section class="grid cols-4 section">
+  <div class="card">
+    <div class="muted">Processos publicados</div>
+    <div class="kpi">{{ total_processos }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Valor estimado acumulado</div>
+    <div class="kpi" style="font-size:22px;">{{ total_estimado|moeda_brl }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Valor homologado acumulado</div>
+    <div class="kpi" style="font-size:22px;">{{ total_homologado|moeda_brl }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Atualizacao</div>
+    <div class="kpi" style="font-size:18px;">{% now "d/m/Y H:i" %}</div>
+  </div>
+</section>
+
+<section class="card section">
+  <form method="get" style="display:grid;gap:10px;">
+    <div class="public-filters">
+      <input name="q" placeholder="Objeto, edital, número SIREL/externo ou controle PNCP" value="{{ q }}">
+      <select name="ano">
+        <option value="">Ano</option>
+        {% for ano_op in anos_disponiveis %}
+          <option value="{{ ano_op }}" {% if ano == ano_op|stringformat:"s" %}selected{% endif %}>{{ ano_op }}</option>
+        {% endfor %}
+      </select>
+      <select name="modalidade">
+        <option value="">Modalidade</option>
+        {% for m in modalidades %}
+          <option value="{{ m.id }}" {% if m.id|stringformat:"s" == modalidade %}selected{% endif %}>{{ m.nome }}</option>
+        {% endfor %}
+      </select>
+      <select name="secretaria">
+        <option value="">Secretaria</option>
+        {% for s in secretarias %}
+          <option value="{{ s.id }}" {% if s.id|stringformat:"s" == secretaria %}selected{% endif %}>{{ s.sigla|default:s.nome }}</option>
+        {% endfor %}
+      </select>
+      <select name="status">
+        <option value="">Situacao</option>
+        {% for st in statuses %}
+          <option value="{{ st.id }}" {% if st.id|stringformat:"s" == status %}selected{% endif %}>{{ st.nome }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-primary" type="submit" style="min-width:110px;">Filtrar</button>
+    </div>
+    <div>
+      <a class="btn btn-light" href="{% url 'publico:lista' %}">Limpar filtros</a>
+    </div>
+  </form>
+</section>
+
+<section class="section">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:13%;">Processo/Edital</th>
+          <th>Objeto</th>
+          <th style="width:12%;">Modalidade</th>
+          <th style="width:8%;">Ano</th>
+          <th style="width:12%;">Secretaria</th>
+          <th style="width:12%;">Publicacao</th>
+          <th style="width:13%;">Situacao</th>
+          <th style="width:10%;">Acompanhamento</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in lista %}
+          <tr>
+            <td>
+              <span class="process-num">
+                <span class="process-num-main">{{ p.numero_processo_principal }}</span>
+                {% if p.numero_processo_secundario %}
+                  <span class="process-num-ref">{{ p.numero_processo_secundario }}</span>
+                {% endif %}
+              </span>
+            </td>
+            <td>{{ p.objeto|truncatechars:160 }}</td>
+            <td>{% if p.modalidade %}{{ p.modalidade.nome }}{% else %}-{% endif %}</td>
+            <td>{{ p.ano_referencia }}</td>
+            <td>
+              {% if p.secretaria %}
+                {{ p.secretaria.sigla|default:p.secretaria.nome }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if p.data_publicacao_ref %}
+                {{ p.data_publicacao_ref|date:"d/m/Y" }}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>
+              {% if p.status %}
+                {% if "HOMOLOG" in p.status.nome|upper %}
+                  <span class="pill ok">{{ p.status.nome }}</span>
+                {% elif "SUSPENS" in p.status.nome|upper or "ANUL" in p.status.nome|upper or "REVOG" in p.status.nome|upper %}
+                  <span class="pill danger">{{ p.status.nome }}</span>
+                {% elif "FRACASS" in p.status.nome|upper or "DESERT" in p.status.nome|upper %}
+                  <span class="pill warn">{{ p.status.nome }}</span>
+                {% else %}
+                  <span class="pill">{{ p.status.nome }}</span>
+                {% endif %}
+              {% else %}
+                <span class="pill">Publicado</span>
+              {% endif %}
+            </td>
+            <td><a class="btn btn-light" href="{% url 'publico:detalhe' p.id %}">Ver detalhes</a></td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="muted">Nenhum processo publicado encontrado para os filtros informados.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <div class="pagination">
+      {% if page_obj.has_previous %}
+        <a href="?q={{ q }}&ano={{ ano }}&modalidade={{ modalidade }}&secretaria={{ secretaria }}&status={{ status }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+      {% endif %}
+      <span>Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?q={{ q }}&ano={{ ano }}&modalidade={{ modalidade }}&secretaria={{ secretaria }}&status={{ status }}&page={{ page_obj.next_page_number }}">Proxima</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

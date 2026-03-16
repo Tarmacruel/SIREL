@@ -1,0 +1,827 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .doc-layout {
+    display: grid;
+    grid-template-columns: minmax(340px, 500px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .doc-panel {
+    display: grid;
+    gap: 14px;
+  }
+  .doc-card {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .doc-card h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+  }
+  .form-field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .form-field label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .doc-actions {
+    margin-top: 10px;
+    display: grid;
+    gap: 8px;
+  }
+  .doc-actions > * {
+    width: 100%;
+    text-align: center;
+  }
+  .doc-preview-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    padding: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  .doc-preview {
+    background: #fff;
+    color: #1b2b40;
+    border: 1px solid #d6e0ef;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .doc-preview-head {
+    padding: 12px;
+    border-bottom: 2px solid #1c4d86;
+    background: linear-gradient(90deg, #184783, #2a68ae);
+    color: #fff;
+  }
+  .doc-preview-head-line {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .doc-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: contain;
+    background: #fff;
+    border: 1px solid #d6e0ef;
+  }
+  .doc-orgao-nome {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .doc-orgao-sub {
+    margin-top: 4px;
+    font-size: 12px;
+    opacity: 0.9;
+    line-height: 1.3;
+  }
+  .doc-preview-body {
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+  .doc-center {
+    text-align: center;
+  }
+  .doc-title-top {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #5d6f8a;
+    font-weight: 700;
+    letter-spacing: .06em;
+  }
+  .doc-numero {
+    margin-top: 4px;
+    font-size: 34px;
+    font-weight: 800;
+    color: #123a67;
+    line-height: 1;
+  }
+  .doc-meta {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #d6e0ef;
+  }
+  .doc-meta td {
+    border: 1px solid #d6e0ef;
+    padding: 7px;
+    font-size: 13px;
+    vertical-align: top;
+  }
+  .doc-meta td:first-child {
+    width: 120px;
+    background: #eef3fb;
+    font-weight: 700;
+  }
+  .doc-section-title {
+    font-size: 12px;
+    color: #5d6f8a;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .doc-assunto {
+    border-left: 3px solid #1c4d86;
+    background: #f3f7fd;
+    padding: 8px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .doc-msg {
+    min-height: 160px;
+    font-size: 14px;
+    line-height: 1.45;
+    white-space: normal;
+  }
+  .doc-msg p {
+    margin: 0 0 8px;
+  }
+  .doc-msg ul,
+  .doc-msg ol {
+    margin: 4px 0 8px 22px;
+  }
+  .doc-signatarios {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  }
+  .doc-sign-item {
+    text-align: center;
+    font-size: 13px;
+  }
+  .doc-sign-item-cargo {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #5d6f8a;
+    font-weight: 600;
+  }
+  .doc-sign-line {
+    border-top: 1px solid #76859a;
+    margin-bottom: 6px;
+  }
+  .doc-preview-foot {
+    border-top: 1px solid #d6e0ef;
+    background: #f7f9fd;
+    color: #5d6f8a;
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+  .rich-editor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .rich-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-soft);
+  }
+  .rich-toolbar .btn-mini {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .rich-content {
+    min-height: 220px;
+    padding: 10px;
+    outline: none;
+    white-space: normal;
+    line-height: 1.45;
+  }
+  .rich-content p {
+    margin: 0 0 8px;
+  }
+  .rich-content ul,
+  .rich-content ol {
+    margin: 4px 0 8px 22px;
+  }
+  #id_corpo {
+    display: none !important;
+  }
+  .sign-picker {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+  }
+  .sign-picker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .sign-picker-panel {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .sign-picker-title {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .table-wrap {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .sign-picker table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .sign-picker th,
+  .sign-picker td {
+    font-size: 12px;
+    padding: 7px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .sign-picker thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface-soft);
+    text-align: left;
+  }
+  .sign-picker tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .sign-picker-empty {
+    text-align: center;
+    color: var(--muted);
+  }
+  @media (max-width: 1100px) {
+    .doc-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 760px) {
+    .sign-picker-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media print {
+    header,
+    .doc-panel,
+    .toast-stack {
+      display: none !important;
+    }
+    main {
+      max-width: none;
+      padding: 0;
+    }
+    .doc-layout {
+      display: block;
+    }
+    .doc-preview-wrap {
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+      background: #fff;
+    }
+    .doc-preview {
+      border: 0;
+      border-radius: 0;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>{{ titulo_pagina|default:'Gerador de Documento' }}</h2>
+<p class="muted">
+  Processo {{ processo.numero_processo_principal }}
+  {% if ci_documento_label %}| {{ ci_documento_label }}{% endif %}
+  {% if ci_fase %}| {{ ci_fase }}{% endif %}
+</p>
+
+<div class="doc-layout">
+  <div class="doc-panel">
+    <div class="doc-card">
+      <h3>Dados do documento</h3>
+      <form method="post" id="doc-form">
+        {% csrf_token %}
+
+        <div class="form-field">
+          <label for="id_localidade">Localidade</label>
+          <input id="id_localidade" type="text" name="localidade" value="{{ localidade }}">
+        </div>
+        <div class="form-field">
+          <label for="id_data_documento">Data do documento</label>
+          <input id="id_data_documento" type="date" name="data_documento" value="{{ data_documento_iso }}">
+        </div>
+        <div class="form-field">
+          <label for="id_numero_documento">Número</label>
+          <input id="id_numero_documento" type="text" name="numero_documento" value="{{ numero_documento }}">
+        </div>
+        <div class="form-field">
+          <label for="id_de_origem">De</label>
+          <input id="id_de_origem" type="text" name="de_origem" value="{{ de_origem }}">
+        </div>
+        <div class="form-field">
+          <label for="id_para_destino">Para</label>
+          <input id="id_para_destino" type="text" name="para_destino" value="{{ para_destino }}">
+        </div>
+        <div class="form-field">
+          <label for="id_referencia">Referência</label>
+          <input id="id_referencia" type="text" name="referencia" value="{{ referencia }}">
+        </div>
+        <div class="form-field">
+          <label for="id_assunto">Assunto</label>
+          <input id="id_assunto" type="text" name="assunto" value="{{ assunto }}">
+        </div>
+
+        <div class="form-field">
+          <label for="doc-corpo-editor">Conteúdo do documento</label>
+          <textarea id="id_corpo" name="corpo" rows="15">{{ corpo }}</textarea>
+          <div class="rich-editor">
+            <div class="rich-toolbar" id="doc-corpo-toolbar">
+              <button type="button" class="btn-mini" data-cmd="bold" title="Negrito"><strong>N</strong></button>
+              <button type="button" class="btn-mini" data-cmd="italic" title="Itálico"><em>I</em></button>
+              <button type="button" class="btn-mini" data-cmd="underline" title="Sublinhado"><u>S</u></button>
+              <button type="button" class="btn-mini" data-cmd="justifyLeft" title="Alinhar à esquerda">Esq</button>
+              <button type="button" class="btn-mini" data-cmd="justifyCenter" title="Centralizar">Centro</button>
+              <button type="button" class="btn-mini" data-cmd="justifyRight" title="Alinhar à direita">Dir</button>
+              <button type="button" class="btn-mini" data-cmd="justifyFull" title="Justificar">Justif.</button>
+              <button type="button" class="btn-mini" data-cmd="insertUnorderedList" title="Marcadores">Lista *</button>
+              <button type="button" class="btn-mini" data-cmd="insertOrderedList" title="Numeração">Lista 1.</button>
+              <button type="button" class="btn-mini" data-cmd="removeFormat" title="Limpar formatação">Limpar</button>
+            </div>
+            <div id="doc-corpo-editor" class="rich-content" contenteditable="true"></div>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="id_responsavel_nome">Responsável</label>
+          <input id="id_responsavel_nome" type="text" name="responsavel_nome" value="{{ responsavel_nome }}">
+        </div>
+        <div class="form-field">
+          <label for="id_responsavel_cargo">Cargo/Função</label>
+          <input id="id_responsavel_cargo" type="text" name="responsavel_cargo" value="{{ responsavel_cargo }}">
+        </div>
+
+        <div class="form-field">
+          <label for="doc-sign-search">Signatários</label>
+          <div class="sign-picker" id="doc-sign-picker">
+            <input id="doc-sign-search" type="text" placeholder="Buscar signatário por nome, cargo ou secretaria">
+            <div class="sign-picker-grid">
+              <section class="sign-picker-panel">
+                <div class="sign-picker-title">Disponíveis</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nome / Cargo</th>
+                        <th style="width: 86px;">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody id="doc-sign-results-body">
+                      <tr><td colspan="2" class="sign-picker-empty">Carregando...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="sign-picker-panel">
+                <div class="sign-picker-title">Selecionados</div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Nome / Cargo</th>
+                        <th style="width: 96px;">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody id="doc-sign-cart-body">
+                      <tr><td colspan="2" class="sign-picker-empty">Nenhum signatário selecionado.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+            <div id="doc-sign-hidden-inputs"></div>
+          </div>
+        </div>
+
+        <div class="doc-actions">
+          <button type="submit" name="action" value="preview_pdf">Gerar PDF</button>
+          <button type="submit" class="btn-secondary" name="action" value="download_docx">Gerar DOCX</button>
+          <button type="button" class="btn-secondary" onclick="window.print()">Imprimir rascunho</button>
+          {% if voltar_url %}
+            <a class="btn" href="{{ voltar_url }}">{{ voltar_label|default:'Voltar' }}</a>
+          {% else %}
+            <a class="btn" href="{% url 'workflow:processo_resumo' processo.id %}">{{ voltar_label|default:'Voltar' }}</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="doc-preview-wrap">
+    <article class="doc-preview">
+      <header class="doc-preview-head">
+        <div class="doc-preview-head-line">
+          {% if orgao and orgao.logo %}
+            <img class="doc-logo" src="{{ orgao.logo.url }}" alt="Logo do órgão">
+          {% endif %}
+          <div>
+            <div class="doc-orgao-nome">
+              {% if orgao %}{{ orgao.nome_fantasia|default:orgao.razao_social }}{% else %}Órgão não cadastrado{% endif %}
+            </div>
+            <div class="doc-orgao-sub">
+              {% if orgao and orgao.razao_social %}{{ orgao.razao_social }}<br>{% endif %}
+              {% if orgao and orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}
+              {% if orgao and orgao.endereco_completo %}<br>{{ orgao.endereco_completo }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="doc-preview-body">
+        <div class="doc-center">
+          <div class="doc-title-top" id="doc-preview-tipo">{{ modelo_titulo }}</div>
+          <div class="doc-numero" id="doc-preview-numero">{{ numero_prefixo }} {{ numero_documento }}</div>
+        </div>
+
+        <table class="doc-meta">
+          <tbody>
+            <tr><td>Processo</td><td>{{ processo.numero_processo_principal }}</td></tr>
+            <tr><td>De</td><td id="doc-preview-de">{{ de_origem|default:'-' }}</td></tr>
+            <tr><td>Para</td><td id="doc-preview-para">{{ para_destino|default:'-' }}</td></tr>
+            <tr><td>Data</td><td id="doc-preview-data">{{ localidade }}, {{ data_documento_extenso }}</td></tr>
+            <tr><td>Referência</td><td id="doc-preview-ref">{{ referencia|default:'-' }}</td></tr>
+          </tbody>
+        </table>
+
+        <div>
+          <div class="doc-section-title">Assunto</div>
+          <div class="doc-assunto" id="doc-preview-assunto">{{ assunto|default:'-' }}</div>
+        </div>
+
+        <div class="doc-msg" id="doc-preview-corpo">{{ corpo|safe|default:'-' }}</div>
+
+        <div>
+          <div class="doc-section-title">Assinaturas</div>
+          <div class="doc-signatarios" id="doc-preview-signatarios">
+            {% if signatarios_selecionados %}
+              {% for sig in signatarios_selecionados %}
+                <div class="doc-sign-item">
+                  <div class="doc-sign-line"></div>{{ sig.nome }}
+                  {% if sig.cargo %}<span class="doc-sign-item-cargo">{{ sig.cargo }}</span>{% endif %}
+                </div>
+              {% endfor %}
+            {% else %}
+              <div class="doc-sign-item">
+                <div class="doc-sign-line"></div>
+                <span id="doc-preview-responsavel">{{ responsavel_nome|default:'-' }}</span>
+                {% if responsavel_cargo %}<span id="doc-preview-cargo" class="doc-sign-item-cargo">{{ responsavel_cargo }}</span>{% endif %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+      <footer class="doc-preview-foot">
+        <strong>Documento gerado pelo SIREL Modular</strong><br>
+        {{ rodape_documento|default:'Documento gerado automaticamente.' }}
+      </footer>
+    </article>
+  </div>
+</div>
+
+{{ signatarios_catalogo|json_script:"doc-signatarios-catalogo" }}
+{{ signatarios_selecionados|json_script:"doc-signatarios-selecionados" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const formEl = document.getElementById('doc-form');
+    const fieldLocalidade = document.getElementById('id_localidade');
+    const fieldData = document.getElementById('id_data_documento');
+    const fieldNumero = document.getElementById('id_numero_documento');
+    const fieldDe = document.getElementById('id_de_origem');
+    const fieldPara = document.getElementById('id_para_destino');
+    const fieldRef = document.getElementById('id_referencia');
+    const fieldAssunto = document.getElementById('id_assunto');
+    const fieldCorpo = document.getElementById('id_corpo');
+    const fieldResponsavel = document.getElementById('id_responsavel_nome');
+    const fieldCargo = document.getElementById('id_responsavel_cargo');
+    const corpoEditor = document.getElementById('doc-corpo-editor');
+    const corpoToolbar = document.getElementById('doc-corpo-toolbar');
+
+    const signSearch = document.getElementById('doc-sign-search');
+    const signResultsBody = document.getElementById('doc-sign-results-body');
+    const signCartBody = document.getElementById('doc-sign-cart-body');
+    const signHiddenInputs = document.getElementById('doc-sign-hidden-inputs');
+
+    const previewNumero = document.getElementById('doc-preview-numero');
+    const previewDe = document.getElementById('doc-preview-de');
+    const previewPara = document.getElementById('doc-preview-para');
+    const previewData = document.getElementById('doc-preview-data');
+    const previewRef = document.getElementById('doc-preview-ref');
+    const previewAssunto = document.getElementById('doc-preview-assunto');
+    const previewCorpo = document.getElementById('doc-preview-corpo');
+    const previewSignatarios = document.getElementById('doc-preview-signatarios');
+
+    const numeroPrefixo = '{{ numero_prefixo|default_if_none:""|escapejs }}';
+
+    function esc(texto) {
+      return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function parseJsonScript(id, fallbackValue) {
+      const node = document.getElementById(id);
+      if (!node) return fallbackValue;
+      try {
+        return JSON.parse(node.textContent || '');
+      } catch (e) {
+        return fallbackValue;
+      }
+    }
+
+    function sanitizeRichHtml(html) {
+      const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'DIV', 'UL', 'OL', 'LI']);
+      const container = document.createElement('div');
+      container.innerHTML = String(html || '');
+
+      function clean(node) {
+        Array.from(node.children || []).forEach(function (child) {
+          const tag = (child.tagName || '').toUpperCase();
+          if (!allowedTags.has(tag)) {
+            const text = document.createTextNode(child.textContent || '');
+            child.replaceWith(text);
+            return;
+          }
+          Array.from(child.attributes || []).forEach(function (attr) {
+            const name = (attr.name || '').toLowerCase();
+            if (name !== 'style') {
+              child.removeAttribute(attr.name);
+              return;
+            }
+            const value = String(attr.value || '').toLowerCase();
+            const align = value.match(/text-align\s*:\s*(left|right|center|justify)/);
+            if (align) {
+              child.setAttribute('style', 'text-align:' + align[1]);
+            } else {
+              child.removeAttribute('style');
+            }
+          });
+          clean(child);
+        });
+      }
+
+      clean(container);
+      return container.innerHTML.trim();
+    }
+
+    function getRichHtml() {
+      if (!corpoEditor) return '';
+      return sanitizeRichHtml(corpoEditor.innerHTML || '');
+    }
+
+    function setRichHtml(value) {
+      if (!corpoEditor) return;
+      const html = sanitizeRichHtml(value || '');
+      corpoEditor.innerHTML = html || '<p></p>';
+    }
+
+    function syncRichToInput() {
+      if (!fieldCorpo) return;
+      fieldCorpo.value = getRichHtml();
+    }
+
+    function formatDateExtenso(isoDate) {
+      if (!isoDate) return '';
+      const parts = String(isoDate).split('-');
+      if (parts.length !== 3) return isoDate;
+      const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      const day = parseInt(parts[2], 10);
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const year = parts[0];
+      const month = months[monthIdx] || '';
+      if (!day || !month) return isoDate;
+      return day + ' de ' + month + ' de ' + year;
+    }
+
+    const signCatalog = parseJsonScript('doc-signatarios-catalogo', []);
+    const signSelectedInitial = parseJsonScript('doc-signatarios-selecionados', []);
+    const signById = new Map(signCatalog.map(function (row) { return [String(row.id), row]; }));
+    const selectedMap = new Map();
+
+    (signSelectedInitial || []).forEach(function (row) {
+      const sid = String(row.id || '');
+      if (!sid) return;
+      const full = signById.get(sid) || row;
+      selectedMap.set(sid, {
+        id: sid,
+        nome: String(full.nome || ''),
+        cargo: String(full.cargo || ''),
+        secretaria: String(full.secretaria || ''),
+      });
+    });
+
+    function renderSignResults() {
+      if (!signResultsBody) return;
+      const q = String((signSearch && signSearch.value) || '').trim().toLowerCase();
+      const rows = [];
+
+      signCatalog.forEach(function (row) {
+        const sid = String(row.id || '');
+        if (!sid || selectedMap.has(sid)) return;
+        const nome = String(row.nome || '');
+        const cargo = String(row.cargo || '');
+        const sec = String(row.secretaria || '');
+        const haystack = (nome + ' ' + cargo + ' ' + sec).toLowerCase();
+        if (q && !haystack.includes(q)) return;
+        const sub = [cargo, sec].filter(Boolean).join(' | ');
+        rows.push(
+          '<tr>' +
+            '<td><strong>' + esc(nome) + '</strong>' + (sub ? '<br><span class="muted">' + esc(sub) + '</span>' : '') + '</td>' +
+            '<td><button type="button" class="btn-mini" data-sign-add="' + esc(sid) + '">Adicionar</button></td>' +
+          '</tr>'
+        );
+      });
+
+      signResultsBody.innerHTML = rows.length
+        ? rows.join('')
+        : '<tr><td colspan="2" class="sign-picker-empty">Nenhum signatário disponível.</td></tr>';
+    }
+
+    function syncHiddenInputs() {
+      if (!signHiddenInputs) return;
+      signHiddenInputs.innerHTML = Array.from(selectedMap.values()).map(function (row) {
+        return '<input type="hidden" name="signatarios" value="' + esc(row.id) + '">';
+      }).join('');
+    }
+
+    function renderSignatariosPreview() {
+      if (!previewSignatarios) return;
+      const rows = Array.from(selectedMap.values());
+      if (!rows.length) {
+        const nome = fieldResponsavel && fieldResponsavel.value ? fieldResponsavel.value : '-';
+        const cargo = fieldCargo && fieldCargo.value ? fieldCargo.value : '';
+        previewSignatarios.innerHTML =
+          '<div class="doc-sign-item"><div class="doc-sign-line"></div>' +
+          esc(nome) + (cargo ? '<span class="doc-sign-item-cargo">' + esc(cargo) + '</span>' : '') +
+          '</div>';
+        return;
+      }
+      previewSignatarios.innerHTML = rows.map(function (row) {
+        const cargo = row.cargo ? '<span class="doc-sign-item-cargo">' + esc(row.cargo) + '</span>' : '';
+        return '<div class="doc-sign-item"><div class="doc-sign-line"></div>' + esc(row.nome) + cargo + '</div>';
+      }).join('');
+    }
+
+    function renderSignCart() {
+      if (!signCartBody) return;
+      const rows = Array.from(selectedMap.values()).map(function (row) {
+        const sub = [row.cargo, row.secretaria].filter(Boolean).join(' | ');
+        return (
+          '<tr>' +
+            '<td><strong>' + esc(row.nome) + '</strong>' + (sub ? '<br><span class="muted">' + esc(sub) + '</span>' : '') + '</td>' +
+            '<td><button type="button" class="btn-mini" data-sign-remove="' + esc(row.id) + '">Remover</button></td>' +
+          '</tr>'
+        );
+      });
+
+      signCartBody.innerHTML = rows.length
+        ? rows.join('')
+        : '<tr><td colspan="2" class="sign-picker-empty">Nenhum signatário selecionado.</td></tr>';
+
+      syncHiddenInputs();
+      renderSignatariosPreview();
+      renderSignResults();
+    }
+
+    function updatePreview() {
+      if (previewNumero) {
+        const num = fieldNumero && fieldNumero.value ? fieldNumero.value : '-';
+        previewNumero.textContent = (numeroPrefixo ? (numeroPrefixo + ' ') : '') + num;
+      }
+      if (previewDe) previewDe.textContent = fieldDe && fieldDe.value ? fieldDe.value : '-';
+      if (previewPara) previewPara.textContent = fieldPara && fieldPara.value ? fieldPara.value : '-';
+      if (previewRef) previewRef.textContent = fieldRef && fieldRef.value ? fieldRef.value : '-';
+      if (previewAssunto) previewAssunto.textContent = fieldAssunto && fieldAssunto.value ? fieldAssunto.value : '-';
+      if (previewCorpo) previewCorpo.innerHTML = getRichHtml() || '-';
+
+      if (previewData) {
+        const localidade = fieldLocalidade && fieldLocalidade.value ? fieldLocalidade.value : '-';
+        const dataText = formatDateExtenso(fieldData && fieldData.value ? fieldData.value : '');
+        previewData.textContent = dataText ? (localidade + ', ' + dataText) : localidade;
+      }
+
+      renderSignatariosPreview();
+    }
+
+    if (corpoToolbar && corpoEditor) {
+      corpoToolbar.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-cmd]');
+        if (!btn) return;
+        const cmd = btn.getAttribute('data-cmd');
+        if (!cmd) return;
+        corpoEditor.focus();
+        document.execCommand(cmd, false, null);
+        syncRichToInput();
+        updatePreview();
+      });
+
+      corpoEditor.addEventListener('input', function () {
+        syncRichToInput();
+        updatePreview();
+      });
+
+      setRichHtml(fieldCorpo && fieldCorpo.value ? fieldCorpo.value : '');
+      syncRichToInput();
+    }
+
+    if (formEl) {
+      formEl.addEventListener('submit', function () {
+        syncRichToInput();
+        syncHiddenInputs();
+      });
+    }
+
+    if (signResultsBody) {
+      signResultsBody.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-sign-add]');
+        if (!btn) return;
+        const sid = String(btn.getAttribute('data-sign-add') || '');
+        const row = signById.get(sid);
+        if (!row) return;
+        selectedMap.set(sid, {
+          id: sid,
+          nome: String(row.nome || ''),
+          cargo: String(row.cargo || ''),
+          secretaria: String(row.secretaria || ''),
+        });
+        renderSignCart();
+      });
+    }
+
+    if (signCartBody) {
+      signCartBody.addEventListener('click', function (event) {
+        const btn = event.target.closest('[data-sign-remove]');
+        if (!btn) return;
+        const sid = String(btn.getAttribute('data-sign-remove') || '');
+        selectedMap.delete(sid);
+        renderSignCart();
+      });
+    }
+
+    if (signSearch) {
+      signSearch.addEventListener('input', function () {
+        renderSignResults();
+      });
+    }
+
+    [
+      fieldLocalidade,
+      fieldData,
+      fieldNumero,
+      fieldDe,
+      fieldPara,
+      fieldRef,
+      fieldAssunto,
+      fieldResponsavel,
+      fieldCargo,
+    ].forEach(function (el) {
+      if (!el) return;
+      el.addEventListener('change', updatePreview);
+      el.addEventListener('input', updatePreview);
+    });
+
+    renderSignCart();
+    renderSignResults();
+    updatePreview();
+  })();
+</script>
+{% endblock %}

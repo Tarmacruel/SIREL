@@ -1,0 +1,18 @@
+{% extends 'workflow/base.html' %}
+
+{% block content %}
+<h2>Módulo de Cadastros</h2>
+<p class="muted">Gerencie os cadastros base do sistema: edição, inclusão e exclusão.</p>
+
+<div class="grid">
+  {% for card in cards %}
+    <div class="card">
+      <div class="pill">{{ card.pill }}</div>
+      <h3>{{ card.titulo }}</h3>
+      <p class="muted">{{ card.descricao }}</p>
+      <div class="kpi">{{ card.total }}</div>
+      <a href="{% url 'workflow:cadastros_tipo' card.slug %}">Gerenciar cadastro</a>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

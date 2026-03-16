@@ -1,0 +1,54 @@
+{% extends "admin/change_list.html" %}
+{% load admin_urls %}
+
+{% block object-tools %}
+  <ul class="object-tools">
+    <li><a href="dashboard/" class="button">Dashboard</a></li>
+  </ul>
+  {{ block.super }}
+{% endblock %}
+{% block object-tools-items %}
+  {{ block.super }}
+  <li>
+    <a class="addlink" href="{% url 'admin:core_processo_dashboard_filtro' %}?{{ request.GET.urlencode }}">Dashboard (filtro)</a>
+  </li>
+  <li>
+    <a class="historylink" href="{% url 'admin:core_processo_exportar_filtro_csv' %}?{{ request.GET.urlencode }}">Exportar CSV (filtro)</a>
+  </li>
+{% endblock %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+  {% if cl.result_count %}
+    <p>Mostrando {{ cl.result_count }} resultados.</p>
+  {% else %}
+    <p>Nenhum resultado encontrado.</p>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+{% block result_list %}
+  <h2>Resultados</h2>
+  <ul>
+    {% for result in cl.result_list %}
+      <li>{{ result }}</li>
+    {% empty %}
+      <li>Nenhum resultado encontrado.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
+{% block pagination %}
+  <div class="pagination">
+    <span class="step-links">
+      {% if cl.has_previous %}
+        <a href="?{{ request.GET.urlencode|remove:'page' }}&page=1">Primeira</a>
+        <a href="?{{ request.GET.urlencode|remove:'page' }}&page={{ cl.previous_page_number }}">Anterior</a>
+      {% endif %}
+      <span class="current">
+        Página {{ cl.number }} de {{ cl.paginator.num_pages }}.
+      </span>
+      {% if cl.has_next %}
+        <a href="?{{ request.GET.urlencode|remove:'page' }}&page={{ cl.next_page_number }}">Próxima</a>
+        <a href="?{{ request.GET.urlencode|remove:'page' }}&page={{ cl.paginator.num_pages }}">Última</a>
+      {% endif %}
+    </span>
+  </div>

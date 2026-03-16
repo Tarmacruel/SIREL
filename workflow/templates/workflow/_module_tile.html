@@ -1,0 +1,18 @@
+<a
+  class="module-tile"
+  href="{{ m.href }}"
+  style="
+    --module-color: {{ m.cor|default:'#1f5fa8' }};
+    --module-color-soft: {{ m.cor|default:'#1f5fa8' }}2a;
+    --module-color-mid: {{ m.cor|default:'#1f5fa8' }}70;
+    --tile-index: {{ forloop.counter0|default:0 }};
+  "
+>
+  <div class="module-tile-head">
+    <span class="module-icon">{% include 'workflow/_module_icon.html' with slug=m.slug %}</span>
+    <span class="module-pill">{{ m.slug }}</span>
+  </div>
+  <h4>{{ m.titulo }}</h4>
+  <p>{{ m.descricao }}</p>
+  <span class="module-action">Abrir modulo <span class="module-action-arrow">-></span></span>
+</a>

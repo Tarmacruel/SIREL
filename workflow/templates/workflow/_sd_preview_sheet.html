@@ -1,0 +1,136 @@
+﻿{% load formatacoes %}
+<article class="sd-sheet">
+  <div class="sd-banner">
+    {% if orgao %}
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        {% if orgao.obj and orgao.obj.logo %}
+          <img src="{{ orgao.obj.logo.url }}" alt="Logo do orgao" style="width:56px;height:56px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:4px;background:var(--surface);">
+        {% endif %}
+        <div>
+          <h3 style="margin:0;">{{ orgao.nome }}</h3>
+          <p class="sd-subtitle" style="margin:2px 0 0;">
+            {% if orgao.razao_social and orgao.razao_social != orgao.nome %}{{ orgao.razao_social }} | {% endif %}
+            {% if orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}
+            {% if orgao.endereco %}<br>{{ orgao.endereco }}{% endif %}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+    <h3 style="margin:0 0 6px;">Solicitação de Despesa (SD)</h3>
+    <p class="sd-subtitle">
+      Processo {{ processo.numero_processo_principal }} |
+      Total estimado: {{ total_geral|moeda_brl }} ({{ total_geral|por_extenso }})
+    </p>
+  </div>
+
+  <div class="sd-grid">
+    <section class="sd-card">
+      <h4>Processo</h4>
+      <p>{{ processo.numero_processo_principal }}</p>
+    </section>
+    <section class="sd-card">
+      <h4>Objeto</h4>
+      <p>{{ processo.objeto|default:'-' }}</p>
+    </section>
+    <section class="sd-card">
+      <h4>Secretaria de assinatura</h4>
+      <p>
+        {% if secretaria_assinatura %}
+          {{ secretaria_assinatura.sigla }} - {{ secretaria_assinatura.nome }}
+          {% if multiplas_secretarias %}(multiplas secretarias demandantes){% endif %}
+        {% else %}
+          -
+        {% endif %}
+      </p>
+    </section>
+    <section class="sd-card">
+      <h4>Signatario</h4>
+      <p>{% if signatario %}{{ signatario.nome }}{% else %}-{% endif %}</p>
+    </section>
+
+    <section class="sd-card full">
+      <h4>Justificativa da contratação</h4>
+      <p>{{ justificativa|default:'-' }}</p>
+    </section>
+
+    <section class="sd-card full">
+      <h4>Itens e valores estimados</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Lote</th><th>No item</th><th>Codigo</th><th>Descricao</th><th>Unidade</th><th>Quantidade</th><th>Valor unitario</th><th>Total item</th></tr></thead>
+          <tbody>
+            {% for lote in lotes %}
+              {% for row in lote.itens %}
+                <tr>
+                  <td>{{ lote.numero }}</td>
+                  <td>{{ row.item.codigo }}</td>
+                  <td>{{ row.item.codigo }}</td>
+                  <td>{{ row.item.descricao }}</td>
+                  <td>{{ row.item.unidade }}</td>
+                  <td>{{ row.quantidade|floatformat:3 }}</td>
+                  <td>{{ row.valor_unitario|moeda_brl }}</td>
+                  <td>{{ row.total_item|moeda_brl }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="8">Sem itens cadastrados.</td></tr>
+              {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sd-card full">
+      <h4>Totais por lote</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Lote</th><th>Titulo</th><th>Total</th></tr></thead>
+          <tbody>
+            {% for lote in lotes %}
+              <tr>
+                <td>{{ lote.numero }}</td>
+                <td>{{ lote.titulo }}</td>
+                <td>{{ lote.total_lote|moeda_brl }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3">Sem lotes.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sd-card full">
+      <h4>Dotacoes orcamentarias</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Secretaria</th><th>Unidade</th><th>Projeto</th><th>Elemento</th><th>Fonte</th></tr></thead>
+          <tbody>
+            {% for d in dotacoes %}
+              <tr>
+                <td>{% if d.secretaria %}{{ d.secretaria.sigla }} - {{ d.secretaria.nome }}{% else %}-{% endif %}</td>
+                <td>{% if d.unidade_orcamentaria %}{{ d.unidade_orcamentaria.sigla }} - {{ d.unidade_orcamentaria.nome }}{% else %}-{% endif %}</td>
+                <td>{% if d.projeto_atividade %}{{ d.projeto_atividade.codigo }} - {{ d.projeto_atividade.descricao }}{% else %}-{% endif %}</td>
+                <td>{% if d.elemento_despesa %}{{ d.elemento_despesa.codigo }} - {{ d.elemento_despesa.descricao }}{% else %}-{% endif %}</td>
+                <td>{% if d.fonte_recurso %}{{ d.fonte_recurso.codigo }} - {{ d.fonte_recurso.descricao }}{% else %}-{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5">Sem dotacoes informadas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="sd-card full">
+      <h4>Assinatura</h4>
+      <div class="assinatura-box">
+        <div class="assinatura-line"></div>
+        <div>{% if signatario %}{{ signatario.nome }}{% else %}Responsavel pela assinatura{% endif %}</div>
+        <div class="sd-subtitle">{% if signatario and signatario.cargo %}{{ signatario.cargo }}{% endif %}</div>
+        <div class="sd-subtitle">{% if secretaria_assinatura %}{{ secretaria_assinatura.sigla }} - {{ secretaria_assinatura.nome }}{% endif %}</div>
+      </div>
+    </section>
+  </div>
+</article>
+

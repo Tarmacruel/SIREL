@@ -1,0 +1,818 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .help-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .help-tip {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    cursor: help;
+    user-select: none;
+  }
+  .hint-box {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--surface-soft);
+    margin-bottom: 10px;
+  }
+  .hint-box p {
+    margin: 0;
+    color: var(--muted);
+  }
+  .process-picker {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .process-picker-help {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .process-picker-help button {
+    width: auto;
+    min-width: 0;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .pncp-error-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 18, 30, 0.72);
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+  }
+  .pncp-error-backdrop.show {
+    display: flex;
+  }
+  .pncp-error-modal {
+    width: min(980px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .pncp-error-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pncp-error-head h3 {
+    margin: 0;
+  }
+  .pncp-error-pre {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--danger-border);
+    background: var(--danger-bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .pncp-success-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 16, 29, 0.68);
+    z-index: 1190;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+  }
+  .pncp-success-backdrop.show {
+    display: flex;
+  }
+  .pncp-success-modal {
+    width: min(980px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    padding: 14px;
+  }
+  .pncp-success-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .pncp-success-head h3 {
+    margin: 0;
+  }
+  .pncp-success-pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #2fa167;
+    color: #2fa167;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .pncp-success-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 8px;
+  }
+  .pncp-success-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: var(--surface-soft);
+  }
+  .pncp-loading-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1400;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(93, 161, 255, 0.18), transparent 34%),
+      radial-gradient(circle at 80% 30%, rgba(66, 220, 199, 0.12), transparent 36%),
+      rgba(7, 14, 24, 0.86);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 14px;
+    backdrop-filter: blur(2px);
+  }
+  .pncp-loading-backdrop.show {
+    display: flex;
+  }
+  .pncp-loading-card {
+    width: min(520px, 100%);
+    border: 1px solid rgba(138, 176, 237, 0.38);
+    border-radius: 16px;
+    background: linear-gradient(160deg, rgba(19, 34, 55, 0.96), rgba(10, 22, 39, 0.96));
+    color: #e7f1ff;
+    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.35);
+    padding: 18px;
+  }
+  .pncp-loading-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .pncp-loading-spinner {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 3px solid rgba(158, 196, 255, 0.28);
+    border-top-color: #86b8ff;
+    animation: pncp-spin 0.8s linear infinite;
+    flex: 0 0 auto;
+  }
+  .pncp-loading-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .pncp-loading-subtitle {
+    margin: 4px 0 0;
+    color: rgba(222, 236, 255, 0.82);
+    font-size: 13px;
+  }
+  .pncp-loading-bar {
+    margin-top: 12px;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(130, 168, 231, 0.25);
+  }
+  .pncp-loading-bar::before {
+    content: '';
+    display: block;
+    width: 38%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #69a8ff, #78dbe2);
+    animation: pncp-loading-move 1.05s ease-in-out infinite alternate;
+  }
+  @keyframes pncp-spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes pncp-loading-move {
+    0% { transform: translateX(-14%); }
+    100% { transform: translateX(176%); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Integracoes</h2>
+<div class="two">
+  <div class="card">
+    <h3>Importar PNCP (numero de controle)</h3>
+    <p class="muted">Se nenhum processo for selecionado, o sistema pode criar um processo novo automaticamente com base no retorno da API.</p>
+    <div class="hint-box" style="margin-bottom:12px;">
+      Envio ao PNCP: funcionalidade opcional.
+      {% if pncp_envio_habilitado %}
+        {% if pncp_envio_dry_run %}<strong>Modo simulação ativo</strong>.{% else %}<strong>Envio real habilitado</strong>.{% endif %}
+      {% else %}
+        <strong>Desabilitado por configuração</strong>.
+      {% endif %}
+    </div>
+    <form method="post" action="{% url 'workflow:importar_pncp' %}" class="js-pncp-import-simple" data-loading-label="Consultando contratacao no PNCP...">{% csrf_token %}
+      <label for="pncp-processo-filtro">Processo (opcional)</label>
+      <div class="process-picker">
+        <input
+          id="pncp-processo-filtro"
+          type="text"
+          placeholder="Digite numero, ano ou objeto para filtrar"
+          data-process-filter-for="pncp-processo-select"
+          autocomplete="off"
+        >
+        <div class="process-picker-help">
+          <span data-process-filter-count-for="pncp-processo-select">Exibindo todos os processos</span>
+          <button type="button" class="btn" data-process-filter-clear-for="pncp-processo-select">Limpar busca</button>
+        </div>
+      </div>
+      <select id="pncp-processo-select" name="processo_id">
+        <option value="">-- criar/identificar automaticamente --</option>
+        {% for p in processos %}<option value="{{ p.id }}">{{ p.numero_processo_principal }}{% if p.numero_processo_secundario %} (ref: {{ p.numero_processo_secundario }}){% endif %} - {{ p.objeto|truncatechars:140 }}</option>{% endfor %}
+      </select>
+      <label>Numero de controle PNCP</label>
+      <input type="text" name="numero_controle" placeholder="Ex.: 12345678000190-1-12345/2026 ou link /app/editais/..." required>
+      <div class="muted" style="font-size:12px;margin-top:-6px;">Tambem aceita link do PNCP no formato <code>/app/editais/CNPJ/ANO/SEQUENCIAL</code>.</div>
+      <label style="display:flex;align-items:center;gap:8px;">
+        <input style="width:auto;" type="checkbox" name="criar_novo_se_ausente" checked>
+        Criar novo processo se não existir no sistema
+      </label>
+      <label>Modo da importacao</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 8px;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input style="width:auto;" type="radio" name="modo_importacao" value="rapida" checked>
+          Rapida (recomendada)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input style="width:auto;" type="radio" name="modo_importacao" value="completa">
+          Completa (itens/resultados agora)
+        </label>
+      </div>
+      <button type="submit">Importar PNCP</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Importar PNCP em lote (publicacoes)</h3>
+    <p class="muted">Consulta automática por período na API pública do PNCP, cobrindo todas as modalidades e atualizando/criando processos no SIREL.</p>
+    <div class="hint-box">
+      <p>Informe somente o período. O sistema usa automaticamente o CNPJ do órgão cadastrado, consulta todas as modalidades PNCP e define a paginação mais adequada.</p>
+    </div>
+
+    <form method="post" action="{% url 'workflow:importar_pncp_publicacoes' %}" class="js-pncp-import-batch" data-loading-label="Importando publicacoes em lote do PNCP..." data-status-url="{% url 'workflow:importar_pncp_publicacoes_status' %}">{% csrf_token %}
+      <label class="help-label">
+        Data inicial
+        <span class="help-tip" title="Data inicial da publicação no PNCP (filtro por período).">i</span>
+      </label>
+      <input type="date" name="data_inicial" value="{{ today|date:'Y-m-d' }}" required title="Data inicial do filtro">
+
+      <label class="help-label">
+        Data final
+        <span class="help-tip" title="Data final da publicação no PNCP. Deve ser maior ou igual à data inicial.">i</span>
+      </label>
+      <input type="date" name="data_final" value="{{ today|date:'Y-m-d' }}" required title="Data final do filtro">
+
+      <div class="card" style="padding:10px;margin:10px 0;">
+        <strong>Escopo automatico da importacao</strong>
+        <div class="muted" style="margin-top:6px;">
+          CNPJ do órgão: <strong>{{ cnpj_orgao_default|default:'Não cadastrado' }}</strong> |
+          UF: <strong>{{ uf_default|default:'Não cadastrada' }}</strong>
+        </div>
+        <div class="muted" style="margin-top:4px;">
+          Modalidades consultadas: todas as modalidades PNCP padrao ({{ pncp_modalidades|length }}).
+        </div>
+      </div>
+      <label>Modo da importacao em lote</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin:4px 0 8px;">
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input style="width:auto;" type="radio" name="modo_importacao" value="rapida" checked>
+          Rapida (enfileira detalhamento)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input style="width:auto;" type="radio" name="modo_importacao" value="completa">
+          Completa (mais lenta)
+        </label>
+      </div>
+      <button type="submit">Importar publicacoes PNCP</button>
+    </form>
+  </div>
+</div>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <h3>Importar BLL (CSV/XLSX)</h3>
+    <form method="post" enctype="multipart/form-data" action="{% url 'workflow:importar_bll' %}">{% csrf_token %}
+      <label for="bll-processo-filtro">Processo</label>
+      <div class="process-picker">
+        <input
+          id="bll-processo-filtro"
+          type="text"
+          placeholder="Digite numero, ano ou objeto para filtrar"
+          data-process-filter-for="bll-processo-select"
+          autocomplete="off"
+        >
+        <div class="process-picker-help">
+          <span data-process-filter-count-for="bll-processo-select">Exibindo todos os processos</span>
+          <button type="button" class="btn" data-process-filter-clear-for="bll-processo-select">Limpar busca</button>
+        </div>
+      </div>
+      <select id="bll-processo-select" name="processo_id" required>
+        <option value="">Selecione o processo</option>
+        {% for p in processos %}<option value="{{ p.id }}">{{ p.numero_processo_principal }}{% if p.numero_processo_secundario %} (ref: {{ p.numero_processo_secundario }}){% endif %} - {{ p.objeto|truncatechars:140 }}</option>{% endfor %}
+      </select>
+      <input type="file" name="arquivo" accept=".csv,.xlsx,.txt" required>
+      <div class="muted" style="font-size:12px;margin-top:-6px;">Layouts aceitos: multisseções BLL por <code>|</code> e exportações CSV/XLSX.</div>
+      <button type="submit">Importar arquivo BLL</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Snapshots PNCP recentes</h3>
+    <table>
+      <thead><tr><th>Numero controle</th><th>Processo</th><th>Modalidade</th><th>Atualizado em</th></tr></thead>
+      <tbody>
+        {% for snap in pncp_snapshots %}
+          <tr>
+            <td>{{ snap.numero_controle_pncp }}</td>
+            <td>
+              <a href="{% url 'workflow:processo_resumo' snap.processo.id %}" class="process-num">
+                <span class="process-num-main">{{ snap.processo.numero_processo_principal }}</span>
+                {% if snap.processo.numero_processo_secundario %}
+                  <span class="process-num-ref">{{ snap.processo.numero_processo_secundario }}</span>
+                {% endif %}
+              </a>
+            </td>
+            <td>{{ snap.modalidade_nome|default:'-' }}</td>
+            <td>{{ snap.atualizado_em|date:'d/m/Y H:i' }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Nenhum snapshot PNCP registrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h3>Fila de detalhamento PNCP</h3>
+  <p class="muted">
+    Pendentes: <strong>{{ fila_status_total.pendente }}</strong> |
+    Processando: <strong>{{ fila_status_total.processando }}</strong> |
+    Concluidos: <strong>{{ fila_status_total.concluido }}</strong> |
+    Parciais: <strong>{{ fila_status_total.parcial }}</strong> |
+    Erros: <strong>{{ fila_status_total.erro }}</strong>
+  </p>
+  <form method="post" action="{% url 'workflow:processar_fila_pncp' %}" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;">
+    {% csrf_token %}
+    <div>
+      <label for="fila-limite">Processar agora (limite)</label>
+      <input id="fila-limite" type="number" min="1" max="200" name="limite" value="20">
+    </div>
+    <button type="submit" style="width:auto;min-width:170px;">Processar fila PNCP</button>
+  </form>
+  <table style="margin-top:10px;">
+    <thead><tr><th>Status</th><th>Processo</th><th>Numero controle</th><th>Tentativas</th><th>Atualizado em</th></tr></thead>
+    <tbody>
+      {% for job in fila_detalhamento %}
+        <tr>
+          <td>{{ job.get_status_display }}</td>
+          <td>
+            <a href="{% url 'workflow:processo_resumo' job.processo.id %}" class="process-num">
+              <span class="process-num-main">{{ job.processo.numero_processo_principal }}</span>
+              {% if job.processo.numero_processo_secundario %}
+                <span class="process-num-ref">{{ job.processo.numero_processo_secundario }}</span>
+              {% endif %}
+            </a>
+          </td>
+          <td>{{ job.numero_controle_pncp|default:'-' }}</td>
+          <td>{{ job.tentativas }}</td>
+          <td>{{ job.atualizado_em|date:'d/m/Y H:i' }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Fila vazia.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h3 style="margin-top:28px">Logs recentes</h3>
+<table>
+  <thead><tr><th>Data</th><th>Processo</th><th>Tipo</th><th>Status</th><th>Mensagem</th></tr></thead>
+  <tbody>
+    {% for log in logs %}
+      <tr>
+        <td>{{ log.criado_em|date:'d/m/Y H:i' }}</td>
+        <td>
+          <span class="process-num">
+            <span class="process-num-main">{{ log.processo.numero_processo_principal }}</span>
+            {% if log.processo.numero_processo_secundario %}
+              <span class="process-num-ref">{{ log.processo.numero_processo_secundario }}</span>
+            {% endif %}
+          </span>
+        </td>
+        <td>{{ log.get_tipo_display }}</td>
+        <td>{{ log.status }}</td>
+        <td>{{ log.mensagem|truncatechars:220 }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhuma integracao registrada.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if pncp_sucesso_popup %}
+<div id="pncp-success-backdrop" class="pncp-success-backdrop show" role="dialog" aria-modal="true" aria-labelledby="pncp-success-title">
+  <div class="pncp-success-modal">
+    <div class="pncp-success-head">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <h3 id="pncp-success-title">{{ pncp_sucesso_popup.titulo }}</h3>
+        <span class="pncp-success-pill">Sucesso</span>
+      </div>
+      <button type="button" id="pncp-success-close" class="btn" style="width:auto;min-width:110px;">Fechar</button>
+    </div>
+
+    <p class="muted" style="margin:0 0 10px;">Gerado em: {{ pncp_sucesso_popup.criado_em }}</p>
+
+    {% if pncp_sucesso_popup.contexto %}
+      <div class="card" style="padding:10px;margin-bottom:10px;">
+        <strong>Resumo</strong>
+        <table style="margin-top:8px;">
+          <tbody>
+            {% for chave, valor in pncp_sucesso_popup.contexto.items %}
+              <tr><td style="width:280px;"><strong>{{ chave }}</strong></td><td>{{ valor }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    <div class="card" style="padding:10px;">
+      <strong>Processos importados</strong>
+      {% if pncp_sucesso_popup.processos %}
+        <ul class="pncp-success-list" style="margin-top:8px;">
+          {% for p in pncp_sucesso_popup.processos %}
+            <li class="pncp-success-item">
+              <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                <strong>{{ p.numero }}</strong>
+                <span class="muted">{{ p.acao }}</span>
+              </div>
+              <div class="muted" style="margin-top:4px;">{{ p.objeto|default:'-' }}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted" style="margin:8px 0 0;">Nenhum processo listado no retorno da importacao.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const backdrop = document.getElementById('pncp-success-backdrop');
+    const closeBtn = document.getElementById('pncp-success-close');
+    if (!backdrop) return;
+    function closeModal() { backdrop.classList.remove('show'); }
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', function (event) {
+      if (event.target === backdrop) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeModal();
+    });
+  })();
+</script>
+{% endif %}
+
+{% if pncp_erro_popup %}
+<div id="pncp-error-backdrop" class="pncp-error-backdrop show" role="dialog" aria-modal="true" aria-labelledby="pncp-error-title">
+  <div class="pncp-error-modal">
+    <div class="pncp-error-head">
+      <h3 id="pncp-error-title">{{ pncp_erro_popup.titulo }}</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="pncp-error-copy" class="btn" style="width:auto;min-width:130px;">Copiar erro</button>
+        <button type="button" id="pncp-error-close" class="btn" style="width:auto;min-width:100px;">Fechar</button>
+      </div>
+    </div>
+
+    <p class="muted" style="margin:0 0 10px;">Gerado em: {{ pncp_erro_popup.criado_em }}</p>
+
+    {% if pncp_erro_popup.contexto %}
+      <div class="card" style="padding:10px;margin-bottom:10px;">
+        <strong>Contexto da tentativa</strong>
+        <table style="margin-top:8px;">
+          <tbody>
+            {% for chave, valor in pncp_erro_popup.contexto.items %}
+              <tr><td style="width:240px;"><strong>{{ chave }}</strong></td><td>{{ valor }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    <div class="card" style="padding:10px;">
+      <strong>Detalhamento do erro</strong>
+      <div style="display:grid;gap:8px;margin-top:8px;">
+        {% for detalhe in pncp_erro_popup.detalhes %}
+          <pre class="pncp-error-pre">{{ detalhe }}</pre>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const backdrop = document.getElementById('pncp-error-backdrop');
+    const closeBtn = document.getElementById('pncp-error-close');
+    const copyBtn = document.getElementById('pncp-error-copy');
+    if (!backdrop) return;
+
+    const errorLines = [];
+    errorLines.push('Titulo: {{ pncp_erro_popup.titulo|escapejs }}');
+    errorLines.push('Gerado em: {{ pncp_erro_popup.criado_em|escapejs }}');
+    {% if pncp_erro_popup.contexto %}
+      errorLines.push('');
+      errorLines.push('Contexto da tentativa:');
+      {% for chave, valor in pncp_erro_popup.contexto.items %}
+        errorLines.push('- {{ chave|escapejs }}: {{ valor|escapejs }}');
+      {% endfor %}
+    {% endif %}
+    {% if pncp_erro_popup.detalhes %}
+      errorLines.push('');
+      errorLines.push('Detalhamento do erro:');
+      {% for detalhe in pncp_erro_popup.detalhes %}
+        errorLines.push('--- detalhe {{ forloop.counter }} ---');
+        errorLines.push('{{ detalhe|escapejs }}');
+      {% endfor %}
+    {% endif %}
+    const errorText = errorLines.join('\n');
+
+    async function copyErrorText() {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(errorText);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = errorText;
+          textarea.style.position = 'fixed';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand('copy');
+          textarea.remove();
+        }
+        if (window.sirelShowToast) {
+          window.sirelShowToast('Erro copiado para a area de transferencia.', 'success');
+        }
+      } catch (err) {
+        if (window.sirelShowToast) {
+          window.sirelShowToast('Não foi possível copiar o erro automaticamente.', 'error');
+        }
+      }
+    }
+
+    function closeModal() {
+      backdrop.classList.remove('show');
+    }
+    if (copyBtn) copyBtn.addEventListener('click', copyErrorText);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', function (event) {
+      if (event.target === backdrop) closeModal();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') closeModal();
+    });
+  })();
+</script>
+{% endif %}
+
+<div id="pncp-loading-backdrop" class="pncp-loading-backdrop" aria-hidden="true">
+  <div class="pncp-loading-card">
+    <div class="pncp-loading-row">
+      <div class="pncp-loading-spinner" aria-hidden="true"></div>
+      <div>
+        <p class="pncp-loading-title">Importacao em andamento</p>
+        <p id="pncp-loading-label" class="pncp-loading-subtitle">Processando requisicao no PNCP...</p>
+      </div>
+    </div>
+    <div class="pncp-loading-bar" aria-hidden="true"></div>
+  </div>
+</div>
+<script>
+  (function () {
+    function normalizeText(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    }
+
+    function bindProcessFilter(input) {
+      const selectId = input.getAttribute('data-process-filter-for');
+      if (!selectId) return;
+      const select = document.getElementById(selectId);
+      if (!select) return;
+      const counter = document.querySelector('[data-process-filter-count-for="' + selectId + '"]');
+      const clearBtn = document.querySelector('[data-process-filter-clear-for="' + selectId + '"]');
+      const options = Array.from(select.options || []);
+
+      function refreshCounter(visible, total) {
+        if (!counter) return;
+        if (!input.value.trim()) {
+          counter.textContent = 'Exibindo todos os processos';
+          return;
+        }
+        counter.textContent = visible + ' de ' + total + ' processo(s) encontrado(s)';
+      }
+
+      function applyFilter() {
+        const query = normalizeText(input.value);
+        let total = 0;
+        let visible = 0;
+        options.forEach(function (opt, index) {
+          if (index === 0) {
+            opt.hidden = false;
+            return;
+          }
+          total += 1;
+          const text = normalizeText(opt.textContent || opt.innerText || '');
+          const match = !query || text.indexOf(query) >= 0;
+          opt.hidden = !match;
+          if (match) visible += 1;
+        });
+        refreshCounter(visible, total);
+      }
+
+      input.addEventListener('input', applyFilter);
+      if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+          input.value = '';
+          applyFilter();
+          input.focus();
+        });
+      }
+      applyFilter();
+    }
+
+    document.querySelectorAll('[data-process-filter-for]').forEach(bindProcessFilter);
+
+    const backdrop = document.getElementById('pncp-loading-backdrop');
+    const loadingLabel = document.getElementById('pncp-loading-label');
+    const simpleForms = document.querySelectorAll('form.js-pncp-import-simple');
+    const batchForm = document.querySelector('form.js-pncp-import-batch');
+    if (!backdrop) return;
+
+    function showLoading(message) {
+      if (loadingLabel && message) loadingLabel.textContent = message;
+      backdrop.classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function disableSubmit(form) {
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+    }
+
+    simpleForms.forEach(function (form) {
+      form.addEventListener('submit', function () {
+        if (typeof form.checkValidity === 'function' && !form.checkValidity()) return;
+        const message = form.getAttribute('data-loading-label') || 'Processando importacao PNCP...';
+        disableSubmit(form);
+        showLoading(message);
+      });
+    });
+
+    if (!batchForm) return;
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.indexOf('application/json') === -1) {
+        throw new Error('Resposta inesperada do servidor durante importacao em lote.');
+      }
+      return await response.json();
+    }
+
+    batchForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      if (typeof batchForm.checkValidity === 'function' && !batchForm.checkValidity()) {
+        batchForm.reportValidity();
+        return;
+      }
+
+      const opId = 'pncp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      const statusUrlBase = batchForm.getAttribute('data-status-url');
+      const loadingBase = batchForm.getAttribute('data-loading-label') || 'Importando publicacoes em lote do PNCP...';
+      const initialLabel = loadingBase + ' Preparando consulta automatica...';
+
+      let opInput = batchForm.querySelector('input[name="op_id"]');
+      if (!opInput) {
+        opInput = document.createElement('input');
+        opInput.type = 'hidden';
+        opInput.name = 'op_id';
+        batchForm.appendChild(opInput);
+      }
+      opInput.value = opId;
+
+      showLoading(initialLabel);
+      disableSubmit(batchForm);
+
+      let pollTimer = null;
+      if (statusUrlBase) {
+        pollTimer = window.setInterval(async function () {
+          try {
+            const statusUrl = statusUrlBase + '?op_id=' + encodeURIComponent(opId);
+            const data = await fetchJson(statusUrl, {
+              method: 'GET',
+              credentials: 'same-origin',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!data || !data.ok || !data.progress) return;
+            const progress = data.progress;
+            const paginaAtual = parseInt(progress.page_current || progress.paginas_lidas || 0, 10) || 0;
+            const paginasLidas = parseInt(progress.paginas_lidas || 0, 10) || 0;
+            const limite = parseInt(progress.max_paginas || 0, 10) || 0;
+            const modalidadeAtual = parseInt(progress.modalidade_atual || 0, 10) || 0;
+            const modalidadesTotal = parseInt(progress.modalidades_total || 0, 10) || 0;
+            const modalidadeNome = progress.modalidade_nome || '';
+            const criados = parseInt(progress.criados || 0, 10) || 0;
+            const atualizados = parseInt(progress.atualizados || 0, 10) || 0;
+            const totalImportados = criados + atualizados;
+            const statusMsg = progress.message || 'Processando importacao...';
+            const paginasInfo = limite > 0
+              ? ('Pagina ' + paginaAtual + ' de ' + limite)
+              : ('Pagina ' + paginaAtual);
+            const modalidadeInfo = modalidadesTotal > 0
+              ? ('Modalidade ' + modalidadeAtual + '/' + modalidadesTotal + (modalidadeNome ? ' (' + modalidadeNome + ')' : ''))
+              : 'Modalidades: carregando';
+            const contador = modalidadeInfo + ' | ' + paginasInfo + ' | Lidas: ' + paginasLidas + ' | Importados: ' + totalImportados;
+            showLoading(statusMsg + ' ' + contador);
+          } catch (err) {
+            // Não interrompe a importação por falha de polling.
+          }
+        }, 850);
+      }
+
+      try {
+        const data = await fetchJson(batchForm.action, {
+          method: 'POST',
+          body: new FormData(batchForm),
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        if (pollTimer) window.clearInterval(pollTimer);
+        if (!data || !data.redirect) {
+          throw new Error('Não foi possível concluir a importação em lote.');
+        }
+        window.location.href = data.redirect;
+      } catch (err) {
+        if (pollTimer) window.clearInterval(pollTimer);
+        backdrop.classList.remove('show');
+        document.body.style.overflow = '';
+        const button = batchForm.querySelector('button[type="submit"]');
+        if (button) button.disabled = false;
+        if (window.sirelShowToast) {
+          window.sirelShowToast('Falha ao iniciar/importar em lote: ' + (err && err.message ? err.message : 'erro desconhecido'), 'error');
+        } else {
+          alert('Falha ao iniciar/importar em lote.');
+        }
+      }
+    });
+  })();
+</script>
+{% endblock %}
+

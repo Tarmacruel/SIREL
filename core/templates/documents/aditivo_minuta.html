@@ -1,0 +1,21 @@
+<!doctype html><html lang="pt-br"><head>
+<meta charset="utf-8">
+<title>Minuta de Termo Aditivo</title>
+<style>
+  body{font-family: DejaVu Sans, Arial, sans-serif; font-size:12px; line-height:1.45}
+  h1{font-size:16px; text-align:center; margin:0 0 10px 0}
+  .sec{margin:8px 0}
+</style>
+</head><body>
+<h1>MINUTA DE TERMO ADITIVO</h1>
+<div class="sec"><strong>Contrato:</strong> {{ aditivo.contrato.numero }} — Processo {{ aditivo.contrato.processo.numero_edital }}-{{ aditivo.contrato.processo.ano_referencia }}</div>
+<div class="sec"><strong>Contratado:</strong> {{ aditivo.contrato.fornecedor.razao_social }} — CNPJ {{ aditivo.contrato.fornecedor.cnpj }}</div>
+<div class="sec"><strong>Tipo:</strong> {{ aditivo.get_tipo_display }}</div>
+{% if aditivo.valor_acrescimo or aditivo.valor_supressao %}
+<div class="sec"><strong>Ajuste de valor:</strong> {{ efeito_brl }} ({{ efeito_ext }})</div>
+{% endif %}
+{% if aditivo.novo_vigencia_fim %}
+<div class="sec"><strong>Nova vigência final:</strong> {{ aditivo.novo_vigencia_fim|date:"d/m/Y" }}</div>
+{% endif %}
+<div class="sec"><strong>Justificativa:</strong> {{ aditivo.justificativa }}</div>
+</body></html>

@@ -1,0 +1,196 @@
+# -*- coding: utf-8 -*-
+from django.contrib import admin
+from django.urls import path
+from django.shortcuts import render, get_object_or_404
+from django.db.models import F, Count
+from django.apps import apps
+from .models import Processo
+
+Processo = apps.get_model('core', 'Processo')
+FornecimentoItem = apps.get_model('core', 'FornecimentoItem')
+Lote = apps.get_model('core', 'Lote')
+Contrato = apps.get_model('core', 'Contrato')
+try:
+    ItemOferta = apps.get_model('ofertas', 'ItemOferta')
+except Exception:
+    ItemOferta = None
+
+# ----------------- helpers -----------------
+
+def _status_text_lote(lote):
+    for attr in ('status', 'status_lote', 'situacao'):
+        if hasattr(lote, attr):
+            val = getattr(lote, attr)
+            if val is None:
+                continue
+            return str(val)
+    return ''
+
+def _is_lote_malsucedido(lote):
+    s = (_status_text_lote(lote) or '').upper()
+    return any(k in s for k in ('FRACASS', 'DESERT', 'CANCEL'))
+
+def _winner_for_item(item):
+    if ItemOferta is None:
+        return None
+    q = ItemOferta.objects.filter(item=item)
+    vencedor = q.filter(status='VENCEDOR').order_by('classificacao').first()
+    if not vencedor:
+        vencedor = q.filter(classificacao=1).order_by('id').first()
+    if not vencedor:
+        vencedor = q.order_by(F('proposta_final').asc(nulls_last=True)).first()
+    return vencedor
+
+def _build_item_rows(processo):
+    itens = (FornecimentoItem.objects
+             .filter(processo=processo)
+             .select_related('lote', 'processo')
+             .order_by('lote__numero', 'numero_item'))
+    rows = []
+    for it in itens:
+        win = _winner_for_item(it)
+        qtd = getattr(it, 'quantidade', 0) or 0
+        unit = getattr(win, 'proposta_final', None) or getattr(win, 'valor_unitario', None) if win else None
+        total = unit * qtd if unit and qtd else None
+        rows.append({
+            'lote': getattr(it.lote, 'numero', '-'),
+            'numero_item': getattr(it, 'numero_item', '-'),
+            'descricao': (getattr(it, 'descricao', '') or '')[:200],
+            'unidade': getattr(it, 'unidade', ''),
+            'quantidade': qtd,
+            'fornecedor': getattr(getattr(win, 'fornecedor', None), 'razao_social', '-') if win else '-',
+            'cnpj': getattr(getattr(win, 'fornecedor', None), 'cnpj', '') if win else '',
+            'classificacao': getattr(win, 'classificacao', '') if win else '',
+            'status': getattr(win, 'status', '') if win else '',
+            'valor_unitario': unit,
+            'valor_total': total,
+        })
+    return rows
+
+def _build_lote_rows(processo):
+    lotes = Lote.objects.filter(processo=processo).order_by('numero')
+    # map de numero->(itens,total_winners)
+    item_qs = FornecimentoItem.objects.filter(processo=processo).select_related('lote')
+    item_by_lote = {}
+    for it in item_qs:
+        num = getattr(it.lote, 'numero', None)
+        if num not in item_by_lote: item_by_lote[num] = []
+        item_by_lote[num].append(it)
+    rows = []
+    for lote in lotes:
+        num = getattr(lote, 'numero', None)
+        itens = item_by_lote.get(num, [])
+        winners = 0
+        for it in itens:
+            if _winner_for_item(it):
+                winners += 1
+        rows.append({
+            'lote': num,
+            'titulo': getattr(lote, 'titulo', '') or getattr(lote, 'descricao', ''),
+            'status_lote': _status_text_lote(lote),
+            'qtd_itens': len(itens),
+            'qtd_itens_com_vencedor': winners,
+            'malsucedido': _is_lote_malsucedido(lote),
+        })
+    return rows
+
+def _build_contrato_rows(processo):
+    contratos = (Contrato.objects.filter(processo=processo)
+                 .select_related('fornecedor', 'processo')
+                 .order_by('id'))
+    rows = []
+    for c in contratos:
+        rows.append({
+            'numero': getattr(c, 'numero', getattr(c, 'numero_contrato', '')),
+            'fornecedor': getattr(getattr(c, 'fornecedor', None), 'razao_social', '-'),
+            'vigencia_inicio': getattr(c, 'vigencia_inicio', None) or getattr(c, 'inicio_vigencia', None),
+            'vigencia_fim': getattr(c, 'vigencia_fim', None) or getattr(c, 'fim_vigencia', None),
+            'valor_global': getattr(c, 'valor_global', None) or getattr(c, 'valor', None) or getattr(c, 'valor_homologado', None),
+            'observacao': getattr(c, 'observacao', '') or getattr(c, 'descricao', ''),
+        })
+    return rows
+
+def _resolve_id(object_id=None, pk=None, **kwargs):
+    return pk or object_id or kwargs.get('id') or kwargs.get('processo_id')
+
+# ----------------- views -----------------
+
+def processo_dashboard_itens(request, object_id=None, pk=None, **kwargs):
+    pid = _resolve_id(object_id=object_id, pk=pk, **kwargs)
+    proc = get_object_or_404(Processo, pk=pid)
+    rows = _build_item_rows(proc)
+    processo = get_object_or_404(Processo, pk=object_id)
+    ctx = dict(
+        title=f"Dashboard de Itens — Processo {getattr(proc, 'numero_edital', '')}-{getattr(proc, 'ano_referencia', '')} (ID {proc.pk})",
+        processo=proc,
+        rows=rows,
+    )
+    return render(request, "admin/core/processo/dashboard_itens.html", {"processo": processo, **ctx})
+def processo_dashboard_contratos(request, object_id=None, pk=None, **kwargs):
+    pid = _resolve_id(object_id=object_id, pk=pk, **kwargs)
+    proc = get_object_or_404(Processo, pk=pid)
+    rows = _build_contrato_rows(proc)
+    processo = get_object_or_404(Processo, pk=object_id)
+    ctx = dict(
+        title=f"Dashboard de Contratos — Processo {getattr(proc, 'numero_edital', '')}-{getattr(proc, 'ano_referencia', '')} (ID {proc.pk})",
+        processo=proc,
+        rows=rows,
+    )
+    return render(request, "admin/core/processo/dashboard_contratos.html", {"processo": processo, **ctx})
+
+def processo_dashboard_lotes_malsucedidos(request, object_id=None, pk=None, **kwargs):
+    pid = _resolve_id(object_id=object_id, pk=pk, **kwargs)
+    proc = get_object_or_404(Processo, pk=pid)
+    lotes = _build_lote_rows(proc)
+    processo = get_object_or_404(Processo, pk=object_id)
+    mals = [r for r in lotes if r['malsucedido']]
+    ctx = dict(
+        title=f"Lotes mal sucedidos — Processo {getattr(proc, 'numero_edital', '')}-{getattr(proc, 'ano_referencia', '')} (ID {proc.pk})",
+        processo=proc,
+        rows=mals,
+    )
+    return render(request, "admin/core/processo/dashboard_malsucedidos.html", {"processo": processo, **ctx})
+
+def processo_dashboard_geral(request, object_id=None, pk=None, **kwargs):
+    pid = _resolve_id(object_id=object_id, pk=pk, **kwargs)
+    proc = get_object_or_404(Processo, pk=pid)
+    lotes = _build_lote_rows(proc)
+    mals = [r for r in lotes if r['malsucedido']]
+    bons = [r for r in lotes if not r['malsucedido'] and r['qtd_itens_com_vencedor'] > 0]
+    processo = get_object_or_404(Processo, pk=object_id)
+    ctx = dict(
+        title=f"Dashboard Geral — Processo {getattr(proc, 'numero_edital', '')}-{getattr(proc, 'ano_referencia', '')} (ID {proc.pk})",
+        processo=proc,
+        resumo=dict(
+            total_lotes=len(lotes),
+            com_vencedor=len(bons),
+            malsucedidos=len(mals),
+        ),
+        lotes_com_vencedor=bons,
+        lotes_malsucedidos=mals,
+    )
+    return render(request, "admin/core/processo/dashboard_geral.html", {"processo": processo, **ctx})
+
+# Hook nas URLs do ProcessoAdmin
+def _patch_processo_admin_urls():
+    ProcessoModelAdmin = admin.site._registry.get(Processo).__class__ if admin.site._registry.get(Processo) else None
+    if ProcessoModelAdmin is None:
+        class ProcessoAdmin(admin.ModelAdmin):
+            pass
+        ProcessoModelAdmin = admin.site._registry.get(Processo).__class__
+
+    orig_get_urls = ProcessoModelAdmin.get_urls
+
+    def get_urls(self):
+        urls = orig_get_urls(self)
+        custom = [
+            path('<path:object_id>/dashboard-itens/', self.admin_site.admin_view(processo_dashboard_itens), name='core_processo_dashboard_itens'),
+            path('<path:object_id>/dashboard-contratos/', self.admin_site.admin_view(processo_dashboard_contratos), name='core_processo_dashboard_contratos'),
+            path('<path:object_id>/dashboard-lotes-mal-sucedidos/', self.admin_site.admin_view(processo_dashboard_lotes_malsucedidos), name='core_processo_dashboard_lotes_malsucedidos'),
+            path('<path:object_id>/dashboard-geral/', self.admin_site.admin_view(processo_dashboard_geral), name='core_processo_dashboard_geral'),
+        ]
+        return custom + urls
+
+    ProcessoModelAdmin.get_urls = get_urls
+
+_patch_processo_admin_urls()

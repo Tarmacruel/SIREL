@@ -1,0 +1,81 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .sd-wrap { display: grid; gap: 16px; }
+  .sd-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .sd-title { margin: 0; font-size: clamp(24px, 3vw, 34px); line-height: 1.1; }
+  .sd-subtitle { color: var(--muted); margin: 6px 0 0; }
+  .sd-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .sd-sheet {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .sd-banner {
+    padding: 22px;
+    background: linear-gradient(120deg, rgba(15, 45, 82, 0.12), rgba(28, 77, 134, 0.08));
+    border-bottom: 1px solid var(--border);
+  }
+  .sd-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 14px;
+  }
+  .sd-card {
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .sd-card h4 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .sd-card p { margin: 0; white-space: pre-wrap; }
+  .sd-card.full { grid-column: 1 / -1; }
+  .table-wrap { overflow-x: auto; }
+  .assinatura-box { margin-top: 18px; max-width: 420px; }
+  .assinatura-line { border-top: 1px solid var(--text); margin-bottom: 8px; }
+
+  @media print {
+    header, .sd-actions { display: none !important; }
+    main { padding: 0; max-width: none; }
+    .sd-sheet { border: none; box-shadow: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sd-wrap">
+  <div class="sd-header">
+    <div>
+      <h2 class="sd-title">Pré-visualização da Solicitação de Despesa</h2>
+      <p class="sd-subtitle">Processo {{ processo.numero_processo_principal }}</p>
+    </div>
+    <div class="sd-actions">
+      <a class="btn" href="{% url 'workflow:compras_detail' processo.id %}">Voltar ao compras</a>
+      <button type="button" onclick="window.print()">Imprimir</button>
+      <a class="btn" href="{% url 'workflow:compras_exportar' processo.id 'sd' 'docx' %}">Gerar DOCX</a>
+      <a class="btn" href="{% url 'workflow:compras_exportar' processo.id 'sd' 'pdf' %}">Gerar PDF</a>
+      <a class="btn" href="{% url 'workflow:compras_exportar' processo.id 'sd' 'xlsx' %}">Gerar XLSX</a>
+    </div>
+  </div>
+
+  {% include 'workflow/_sd_preview_sheet.html' %}
+</div>
+{% endblock %}
+

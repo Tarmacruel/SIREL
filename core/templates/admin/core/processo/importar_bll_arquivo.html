@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>{{ title }}</h1>
+<form method="post" enctype="multipart/form-data" style="margin-top:1rem;">
+  {% csrf_token %}
+  <p><input type="file" name="arquivo" required></p>
+  <p><button class="button" type="submit">Importar</button>
+     <a class="button" href="{% url 'admin:core_processo_change' processo.id %}">Voltar</a></p>
+</form>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .cad-wrap {
+    display: grid;
+    gap: 16px;
+  }
+
+  .cad-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .cad-top h2 {
+    margin: 0;
+  }
+
+  .cad-layout {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .cad-nav {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+  }
+
+  .cad-nav a {
+    display: block;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text);
+    border: 1px solid transparent;
+  }
+
+  .cad-nav a.active {
+    background: var(--surface-soft);
+    border-color: var(--border);
+    font-weight: 600;
+  }
+
+  .cad-main {
+    display: grid;
+    gap: 16px;
+  }
+
+  .cad-form {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 14px;
+  }
+
+  .cad-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cad-field {
+    display: grid;
+    gap: 6px;
+  }
+
+  .cad-field label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .cad-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .cad-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .cad-list {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 12px;
+  }
+
+  .cad-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .btn-danger {
+    background: #8c2232;
+  }
+
+  .btn-danger:hover {
+    background: #a03043;
+  }
+
+  .btn-small {
+    width: auto;
+    min-width: 84px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 980px) {
+    .cad-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .cad-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cad-wrap">
+  <div class="cad-top">
+    <div>
+      <h2>{{ titulo }}</h2>
+      <p class="muted">{{ descricao }}</p>
+    </div>
+    <a class="btn" href="{% url 'workflow:cadastros_dashboard' %}">Voltar ao módulo de cadastros</a>
+  </div>
+
+  <div class="cad-layout">
+    <aside class="cad-nav">
+      {% for item in tipos %}
+        <a href="{% url 'workflow:cadastros_tipo' item.slug %}" class="{% if item.slug == tipo %}active{% endif %}">
+          {{ item.titulo }}
+        </a>
+      {% endfor %}
+    </aside>
+
+    <div class="cad-main">
+      <section class="cad-form">
+        <h3 style="margin-top:0;">{% if edit_obj %}Editar{% else %}Novo{% endif %} registro</h3>
+        <form method="post" {% if form_is_multipart %}enctype="multipart/form-data"{% endif %}>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save">
+          {% if edit_obj %}<input type="hidden" name="id" value="{{ edit_obj.id }}">{% endif %}
+          {% if form.non_field_errors %}
+            <div style="color:#c12222;">{{ form.non_field_errors|striptags }}</div>
+          {% endif %}
+          <div class="cad-grid">
+            {% for field in form %}
+              <div class="cad-field {% if field.field.widget.input_type == 'textarea' %}full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="muted" style="font-size:12px;">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}<div style="color:#c12222;font-size:12px;">{{ field.errors|striptags }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="cad-actions">
+            <button type="submit">{% if edit_obj %}Salvar alterações{% else %}Cadastrar{% endif %}</button>
+            {% if edit_obj %}
+              <a class="btn" href="{% url 'workflow:cadastros_tipo' tipo %}">Cancelar edição</a>
+            {% endif %}
+          </div>
+        </form>
+      </section>
+
+      <section class="cad-list">
+        <h3 style="margin-top:0;">Registros</h3>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                {% for c in columns %}<th>{{ c }}</th>{% endfor %}
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows_data %}
+                <tr>
+                  {% for value in row.values %}
+                    <td>{{ value }}</td>
+                  {% endfor %}
+                  <td>
+                    <div class="cad-row-actions">
+                      <a class="btn btn-small" href="{% url 'workflow:cadastros_tipo' tipo %}?edit={{ row.id }}">Editar</a>
+                      <form method="post" onsubmit="return confirm('Deseja excluir este cadastro?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="id" value="{{ row.id }}">
+                        <button type="submit" class="btn-danger btn-small">Excluir</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="{{ columns|length|add:1 }}">Nenhum registro encontrado.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

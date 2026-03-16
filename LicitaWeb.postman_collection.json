@@ -1,0 +1,123 @@
+{
+  "info": {
+    "name": "LicitaWeb - Testes Básicos",
+    "_postman_id": "b7d6cd68-9f47-4a4b-8e5c-000000000001",
+    "description": "Coleção para testar as rotas públicas, DOCX e API PNCP do LicitaWeb.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Portal Público - Lista",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            ""
+          ]
+        }
+      }
+    },
+    {
+      "name": "Portal Público - Detalhe (id=1)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/licitacao/1/",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "licitacao",
+            "1",
+            ""
+          ]
+        }
+      }
+    },
+    {
+      "name": "DOCX - Termo de Autuação (id=1)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/docs/termo-autuacao/1.docx",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "docs",
+            "termo-autuacao",
+            "1.docx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "DOCX - Termo de Autorização (id=1)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/docs/termo-autorizacao/1.docx",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "docs",
+            "termo-autorizacao",
+            "1.docx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "DOCX - Aviso de Licitação (id=1)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/docs/aviso-licitacao/1.docx",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "docs",
+            "aviso-licitacao",
+            "1.docx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "API PNCP - Processo (id=1)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost:8000/api/pncp/processos/1.json",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "pncp",
+            "processos",
+            "1.json"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+﻿{% extends "admin/base_site.html" %}
+
+{% block content_title %}{% endblock %}
+{% block extrastyle %}
+<style>
+  .dash-wrap{max-width:1200px}
+  table.dash{width:100%;border-collapse:collapse}
+  table.dash th,table.dash td{border:1px solid #ddd;padding:6px 8px}
+  table.dash th{background:#f5f5f5;position:sticky;top:0}
+  td.num{text-align:right;white-space:nowrap}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dash-wrap">
+  <h1>{{ title|default:"Dashboard de Itens" }}</h1>
+  <p><a class="button" href="{% url 'admin:core_processo_change' processo.pk %}">Voltar ao processo</a></p>
+  {% if rows %}
+  <table class="dash">
+    <thead>
+      <tr>
+        <th>Lote</th><th>Item</th><th>Descrição</th><th>Unid.</th><th class="num">Qtd</th>
+        <th>Fornecedor</th><th>CNPJ</th><th>Classif.</th><th>Status</th>
+        <th class="num">Vlr unitário</th><th class="num">Vlr total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.lote }}</td>
+        <td>{{ r.numero_item }}</td>
+        <td>{{ r.descricao }}</td>
+        <td>{{ r.unidade }}</td>
+        <td class="num">{{ r.quantidade }}</td>
+        <td>{{ r.fornecedor }}</td>
+        <td>{{ r.cnpj }}</td>
+        <td>{{ r.classificacao }}</td>
+        <td>{{ r.status }}</td>
+        <td class="num">{{ r.valor_unitario }}</td>
+        <td class="num">{{ r.valor_total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>Nenhum item encontrado.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

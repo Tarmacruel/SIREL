@@ -1,0 +1,32 @@
+/* Coluna à direita, mais enxuta, rolando com a página */
+.proc-tools-wrap{ float:right; width:220px; margin-left:16px; }
+
+#proc-tools.proc-tools{
+  display:flex; flex-direction:column; gap:6px; width:100%; z-index:1; margin:0; padding:0;
+}
+#proc-tools li{ list-style:none; margin:0; padding:0; }
+#proc-tools li.group{
+  font-size:11px; color:#9ca3af; padding:2px 0; margin:6px 0 2px;
+  border-bottom:1px dashed #374151; text-transform:uppercase;
+}
+#proc-tools a.tool{
+  display:block; width:100%; text-align:left; padding:6px 8px; border-radius:8px;
+  text-decoration:none; background:#1f2937; color:#fff; border:1px solid #374151;
+  font-size:12px; line-height:1.2; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.15);
+}
+#proc-tools a.tool:hover{ background:#111827; }
+#proc-tools a.tool.doc{ background:#0b5ed7; border-color:#0a58ca; }
+#proc-tools a.tool.doc:hover{ background:#0a53be; }
+#proc-tools a.tool.dash{ background:#198754; border-color:#157347; }
+#proc-tools a.tool.dash:hover{ background:#146c43; }
+#proc-tools a.tool.public{ background:#0aa2c0; border-color:#0a91ab; }
+#proc-tools a.tool.public:hover{ background:#088da6; }
+
+/* Removido margin-right do #content para não estreitar o formulário */
+#content{}
+
+/* Responsivo: em telas menores, a barra vira bloco normal */
+@media (max-width: 1280px){
+  .proc-tools-wrap{ float:none; width:auto; margin-left:0; }
+  #proc-tools.proc-tools{ flex-direction:row; flex-wrap:wrap; gap:6px; }
+}

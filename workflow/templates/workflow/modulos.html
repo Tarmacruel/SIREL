@@ -1,0 +1,27 @@
+{% extends 'workflow/base.html' %}
+{% block content %}
+<h2>Modulos do SIREL</h2>
+<div class="module-grid section">
+  {% for m in modulos %}
+    {% include 'workflow/_module_tile.html' with m=m %}
+  {% endfor %}
+  <a
+    class="module-tile"
+    href="{% url 'workflow:itens_rastreamento' %}"
+    style="
+      --module-color: #2f7d4d;
+      --module-color-soft: #2f7d4d2a;
+      --module-color-mid: #2f7d4d70;
+      --tile-index: {{ modulos|length }};
+    "
+  >
+    <div class="module-tile-head">
+      <span class="module-icon">{% include 'workflow/_module_icon.html' with slug='ITENS' %}</span>
+      <span class="module-pill">ITENS</span>
+    </div>
+    <h4>Rastreamento de Itens</h4>
+    <p>Pesquisa global e historico de itens por processo, situacao e fornecedor.</p>
+    <span class="module-action">Abrir modulo <span class="module-action-arrow">-></span></span>
+  </a>
+</div>
+{% endblock %}

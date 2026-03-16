@@ -1,0 +1,95 @@
+{% extends "admin/change_form.html" %}
+{% block extrahead %}{{ block.super }}
+<script>
+// BRL mask v2 para inlines de ofertas
+(function(){
+  function onlyDigits(s){ return (s||'').replace(/\D/g,''); }
+  function digitsToBRLFromCentsStr(centsStr){
+    if(!centsStr) return '';
+    var v = (parseInt(centsStr,10)/100).toFixed(2);
+    v = v.replace('.',',');
+    v = v.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    return v;
+  }
+  function normalizeDotDecimal(s){
+    if(!s) return '';
+    var t = (s+'').replace(/[^\d.]/g,'');
+    var parts = t.split('.');
+    if (parts.length > 2){
+      t = parts.shift() + '.' + parts.join('');
+    }
+    return t;
+  }
+  function brlToDot(s){
+    if(!s) return '';
+    s = (s+'').trim();
+    if (s.indexOf(',') >= 0){
+      return s.replace(/\./g,'').replace(',', '.');
+    }
+    return normalizeDotDecimal(s);
+  }
+  function valueToBRLDisplay(s){
+    if(!s) return '';
+    s = (s+'').trim();
+    if (s.indexOf(',') >= 0){
+      var raw = onlyDigits(s);
+      return digitsToBRLFromCentsStr(raw);
+    } else {
+      var n = Number(normalizeDotDecimal(s));
+      if(!isFinite(n)) return '';
+      var cents = Math.round(n*100).toString();
+      return digitsToBRLFromCentsStr(cents);
+    }
+  }
+  function initBRL(input){
+    if(!input) return;
+    try{ input.type = 'text'; }catch(e){}
+    input.setAttribute('inputmode','decimal');
+    input.classList.add('brl');
+    if(!input.placeholder) input.placeholder = '0,00';
+    if(input.value){ input.value = valueToBRLDisplay(input.value); }
+    input.addEventListener('input', function(){
+      var raw = onlyDigits(input.value);
+      input.value = digitsToBRLFromCentsStr(raw);
+    });
+    input.addEventListener('change', function(){
+      input.value = valueToBRLDisplay(input.value);
+    });
+    input.addEventListener('blur', function(){
+      input.value = valueToBRLDisplay(input.value);
+    });
+  }
+  function initAll(){
+    document.querySelectorAll('input[name$="valor_unitario"],input[name$="proposta_inicial"],input[name$="proposta_final"]').forEach(initBRL);
+  }
+  function bindSubmit(){
+    var form = document.querySelector('#content-main form') || document.querySelector('form');
+    if(!form) return;
+    form.addEventListener('submit', function(){
+      document.querySelectorAll('input.brl').forEach(function(el){
+        el.value = brlToDot(el.value);
+      });
+    });
+  }
+  function watchDynamic(){
+    var obs = new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        if(m.addedNodes){
+          m.addedNodes.forEach(function(n){
+            if(n.querySelectorAll){
+              n.querySelectorAll('input[name$="valor_unitario"],input[name$="proposta_inicial"],input[name$="proposta_final"]').forEach(initBRL);
+            }
+          });
+        }
+      });
+    });
+    obs.observe(document.body, {childList:true, subtree:true});
+  }
+  window.addEventListener('load', function(){
+    initAll();
+    bindSubmit();
+    watchDynamic();
+  });
+})();
+</script>
+{% endblock %}

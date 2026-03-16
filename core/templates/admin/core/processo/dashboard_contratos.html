@@ -1,0 +1,42 @@
+﻿{% extends "admin/base_site.html" %}
+
+{% block content_title %}{% endblock %}
+{% block extrastyle %}
+<style>
+  .dash-wrap{max-width:1000px}
+  table.dash{width:100%;border-collapse:collapse}
+  table.dash th,table.dash td{border:1px solid #ddd;padding:6px 8px}
+  table.dash th{background:#f5f5f5;position:sticky;top:0}
+  td.num{text-align:right;white-space:nowrap}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dash-wrap">
+  <h1>{{ title|default:"Dashboard de Contratos" }}</h1>
+  <p><a class="button" href="{% url 'admin:core_processo_change' processo.pk %}">Voltar ao processo</a></p>
+  {% if rows %}
+  <table class="dash">
+    <thead>
+      <tr>
+        <th>Nº Contrato</th><th>Fornecedor</th><th>Vigência (início)</th><th>Vigência (fim)</th><th class="num">Valor global</th><th>Obs.</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.numero }}</td>
+        <td>{{ r.fornecedor }}</td>
+        <td>{{ r.vigencia_inicio }}</td>
+        <td>{{ r.vigencia_fim }}</td>
+        <td class="num">{{ r.valor_global }}</td>
+        <td>{{ r.observacao }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>Nenhum contrato encontrado.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

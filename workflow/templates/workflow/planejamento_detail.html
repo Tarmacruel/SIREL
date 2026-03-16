@@ -1,0 +1,2378 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .planning-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .planning-top h2 {
+    margin: 0;
+    font-size: clamp(22px, 3vw, 30px);
+    line-height: 1.2;
+  }
+
+  .planning-subtitle {
+    margin: 2px 0 0;
+    color: var(--muted);
+  }
+
+  .kpi-board .card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .kpi-title {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .planning-block {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .section-head {
+    padding: 16px 18px;
+    background: linear-gradient(120deg, rgba(15, 45, 82, 0.1), rgba(28, 77, 134, 0.08));
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .section-head h3 {
+    margin: 0;
+    font-size: 20px;
+  }
+
+  .section-body {
+    padding: 18px;
+    display: grid;
+    gap: 16px;
+  }
+
+  .btn-muted {
+    width: auto;
+    min-width: 118px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .btn-muted:hover {
+    background: var(--surface-soft);
+  }
+
+  .btn-secondary {
+    background: #1e4f85;
+  }
+
+  .btn-secondary:hover {
+    background: #285f9d;
+  }
+
+  .form-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid .full {
+    grid-column: 1 / -1;
+  }
+
+  .form-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .field-top-align {
+    align-self: start;
+  }
+
+  .form-field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+  }
+
+  .form-field ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 6px;
+    max-height: 190px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    padding: 10px;
+  }
+
+  .form-field input[type="checkbox"] {
+    width: auto;
+    margin-right: 6px;
+  }
+
+  .field-error {
+    color: #c12222;
+    font-size: 12px;
+    margin-top: -2px;
+  }
+
+  .hint {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .warn-card {
+    border-radius: 10px;
+    border: 1px solid #f0be73;
+    background: #fff4e4;
+    color: #6a4310;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  html[data-theme="dark"] .warn-card {
+    border-color: #8f6a3f;
+    background: #3c2a17;
+    color: #f4ddb9;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .subgrid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subcard {
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    border-radius: 12px;
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .subcard h4 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  .item-card {
+    display: grid;
+    gap: 10px;
+  }
+
+  .item-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .item-card-head h4 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  .item-tip-line {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .modal-card.modal-card-itens {
+    width: min(1260px, 96vw);
+    height: min(92vh, 980px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-body.modal-body-itens {
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+    overflow: auto;
+  }
+
+  .catalogo-popup-filters {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 220px;
+  }
+
+  .catalogo-popup-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1.2fr 1fr;
+    min-height: 360px;
+  }
+
+  .catalogo-popup-results,
+  .catalogo-popup-cart {
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    border-radius: 12px;
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+
+  .catalogo-popup-results .table-wrap,
+  .catalogo-popup-cart .table-wrap {
+    max-height: 46vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .catalogo-popup-results table,
+  .catalogo-popup-cart table {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .catalogo-popup-empty {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 8px;
+  }
+
+  .catalogo-popup-cart table td input {
+    min-width: 86px;
+    padding: 7px 8px;
+    font-size: 13px;
+  }
+
+  .lote-popup-filters {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr;
+  }
+
+  .lote-popup-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: 1.2fr 1fr;
+    min-height: 320px;
+  }
+
+  .lote-popup-results,
+  .lote-popup-cart {
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+    border-radius: 12px;
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+
+  .lote-popup-results .table-wrap,
+  .lote-popup-cart .table-wrap {
+    max-height: 40vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .lote-popup-results table,
+  .lote-popup-cart table {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .lote-popup-empty {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 8px;
+  }
+
+  .modal-card.modal-card-catalogo {
+    width: min(920px, 96vw);
+  }
+
+  .catalogo-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 220px;
+    align-items: start;
+  }
+
+  .catalogo-grid .catalogo-descricao {
+    grid-column: 1 / 2;
+  }
+
+  .catalogo-grid .catalogo-unidade {
+    grid-column: 2 / 3;
+  }
+
+  .catalogo-grid .catalogo-descricao textarea {
+    min-height: 240px;
+  }
+
+  .catalogo-grid .catalogo-unidade input {
+    max-width: 200px;
+  }
+
+  .checks-list {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 10px;
+    max-height: 180px;
+    overflow: auto;
+    display: grid;
+    gap: 8px;
+  }
+
+  .checks-list input {
+    width: auto;
+    margin-right: 6px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .section-collapsed .section-body {
+    display: none;
+  }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(7, 16, 32, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
+
+  .modal.active {
+    display: flex;
+  }
+
+  .modal-card {
+    width: min(620px, 100%);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .modal-card.modal-card-xl {
+    width: min(1240px, 96vw);
+    height: min(92vh, 980px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-body {
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .modal-body.modal-body-iframe {
+    padding: 0;
+    gap: 0;
+    flex: 1;
+  }
+
+  .preview-iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: var(--surface-soft);
+  }
+
+  .inline-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .item-preview {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 8px 10px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    background: var(--surface-soft);
+  }
+
+  .ref-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .considerar-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .considerar-form input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+  }
+
+  .cotacao-desconsiderada td {
+    color: #8e97a8;
+    background: rgba(140, 152, 170, 0.12);
+  }
+
+  html[data-theme="dark"] .cotacao-desconsiderada td {
+    color: #7f8ca6;
+    background: rgba(120, 130, 146, 0.12);
+  }
+
+  .btn-danger {
+    background: #8c2232;
+  }
+
+  .btn-danger:hover {
+    background: #a03043;
+  }
+
+  .btn-small {
+    width: auto;
+    min-width: 84px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .table-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  #bloco-etp .table-actions {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+  }
+
+  .table-actions form {
+    display: block;
+    margin: 0;
+  }
+
+  .table-action-form {
+    display: block;
+    margin: 0;
+    width: auto;
+  }
+
+  .table-actions > button.btn-small,
+  .table-actions > form > button.btn-small {
+    width: 92px;
+    min-width: 92px;
+    justify-content: center;
+  }
+
+  @media (max-width: 980px) {
+    .subgrid,
+    .form-grid,
+    .ref-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .catalogo-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .catalogo-grid .catalogo-descricao,
+    .catalogo-grid .catalogo-unidade {
+      grid-column: 1 / -1;
+    }
+
+    .catalogo-grid .catalogo-unidade input,
+    .catalogo-popup-filters {
+      grid-template-columns: 1fr;
+    }
+
+    .catalogo-popup-grid {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+
+    .lote-popup-grid {
+      grid-template-columns: 1fr;
+      min-height: 0;
+    }
+
+    .catalogo-popup-results .table-wrap,
+    .catalogo-popup-cart .table-wrap {
+      max-height: 36vh;
+    }
+
+    .catalogo-grid .catalogo-unidade input {
+      max-width: none;
+    }
+
+    .planning-top {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="planning-top">
+  <div>
+    <h2>Planejamento do processo {{ processo.numero_processo_principal }}</h2>
+    <p class="planning-subtitle">Etapa atual: {{ workflow.etapa_atual }} | Situação: {{ workflow.get_situacao_display }}</p>
+  </div>
+  <button type="button" class="btn-muted" data-collapse-all>Recolher seções</button>
+</div>
+
+<div class="grid kpi-board">
+  <div class="card">
+    <div class="kpi-title">Objeto</div>
+    <div>{{ processo.objeto }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-title">Secretaria principal</div>
+    <div>{{ processo.secretaria|default:'Não definida' }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-title">Itens DFD</div>
+    <div class="kpi-value">{{ dfd.itens.count }}</div>
+  </div>
+  <div class="card">
+    <div class="kpi-title">Cotações ETP</div>
+    <div class="kpi-value">{% if etp %}{{ etp.cotacoes.count }}{% else %}0{% endif %}</div>
+  </div>
+</div>
+
+{% if pncp_snapshot %}
+<section class="card" style="margin-top:12px;">
+  <h3 style="margin:0 0 6px;">Dados importados do PNCP</h3>
+  <p class="planning-subtitle" style="margin:0;">
+    Controle: {{ pncp_snapshot.numero_controle_pncp }} | Modalidade: {{ pncp_constantes.modalidade_pncp }} | Situação: {{ pncp_constantes.situacao_compra_pncp }}
+  </p>
+</section>
+{% endif %}
+
+<section class="section card planning-block" id="bloco-dfd">
+  <div class="section-head">
+    <h3>1. DFD</h3>
+    <button type="button" class="btn-muted" data-toggle-section="#bloco-dfd">Ocultar</button>
+  </div>
+  <div class="section-body">
+    <form id="form-salvar-dfd" method="post" data-ajax="true" action="{% url 'workflow:planejamento_salvar_dfd' processo.id %}">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form_dfd %}
+          {% if field.is_hidden %}
+            {{ field }}
+          {% else %}
+            <div class="form-field {% if field.name == 'descricao_detalhada' or field.name == 'justificativa_contratacao' or field.name == 'fundamento_legal' or field.name == 'secretarias' %}full{% endif %} {% if field.name == 'responsavel_demanda' or field.name == 'cargo_funcao' %}field-top-align{% endif %}">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.name == 'responsavel_demanda' %}
+                <datalist id="responsavel-demanda-sugestoes"></datalist>
+                <div class="hint">Digite para buscar pessoa cadastrada. Se não encontrar, informe o nome e salve para cadastrar automaticamente.</div>
+              {% endif %}
+              {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+              {% if field.help_text %}<div class="hint">{{ field.help_text }}</div>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit">Salvar DFD</button>
+        <button
+          type="button"
+          class="btn"
+          id="btn-preview-dfd"
+          data-open-modal="#modal-dfd-preview"
+          data-preview-url="{{ dfd_preview_popup_url }}"
+        >
+          Pré-visualizar DFD
+        </button>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'dfd' 'docx' %}">DFD DOCX</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'dfd' 'pdf' %}">DFD PDF</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'dfd' 'xlsx' %}">DFD XLSX</a>
+      </div>
+    </form>
+
+    <div class="subcard item-card">
+      <div class="item-card-head">
+        <h4>Adicionar itens à DFD</h4>
+        <div class="inline-actions">
+          <button type="button" data-open-modal="#modal-itens-catalogo">Selecionar itens do catálogo</button>
+          <button type="button" class="btn-secondary" data-open-modal="#modal-catalogo">Criar item no catálogo</button>
+        </div>
+      </div>
+      <div class="item-tip-line">
+        Dica rápida: pesquise e filtre no pop-up, adicione ao carrinho e confirme; depois você pode ajustar unidade e quantidade dos itens salvos.
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nº item</th><th>Código</th><th>Descrição</th><th>Unidade</th><th>Qtd.</th><th>Ações</th></tr>
+        </thead>
+        <tbody>
+          {% for item in dfd.itens.all %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ item.codigo }}</td>
+              <td>{{ item.descricao }}</td>
+              <td>{{ item.unidade }}</td>
+              <td>{{ item.quantidade }}</td>
+              <td>
+                <div class="table-actions">
+                  <button
+                    type="button"
+                    class="btn-small"
+                    data-open-modal="#modal-editar-item-dfd"
+                    data-edit-item="1"
+                    data-edit-url="{% url 'workflow:planejamento_editar_item' processo.id item.id %}"
+                    data-item-descricao="{{ item.descricao|escape }}"
+                    data-item-unidade="{{ item.unidade|default:''|escape }}"
+                    data-item-quantidade="{{ item.quantidade }}"
+                  >
+                    Editar
+                  </button>
+                  <form method="post" data-ajax="true" data-confirm="Deseja excluir este item da DFD? Cotações e vínculos relacionados serão removidos." action="{% url 'workflow:planejamento_excluir_item' processo.id item.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-danger btn-small">Excluir</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">Nenhum item cadastrado.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="section card planning-block" id="bloco-etp">
+  <div class="section-head">
+    <h3>2. ETP e cotações preliminares</h3>
+    <button type="button" class="btn-muted" data-toggle-section="#bloco-etp">Ocultar</button>
+  </div>
+  <div class="section-body">
+    <form id="form-salvar-etp" method="post" data-ajax="true" action="{% url 'workflow:planejamento_salvar_etp' processo.id %}">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form_etp %}
+          <div class="form-field {% if field.name == 'observacoes' %}full{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit">Salvar ETP</button>
+        {% if etp %}
+          <button
+            type="button"
+            class="btn"
+            data-open-modal="#modal-mapa-preview"
+            data-preview-url="{{ mapa_preview_popup_url }}"
+          >
+            Pré-visualizar mapa
+          </button>
+          <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'mapa' 'docx' %}">Mapa DOCX</a>
+          <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'mapa' 'pdf' %}">Mapa PDF</a>
+          <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'mapa' 'xlsx' %}">Mapa comparativo XLSX</a>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="subgrid">
+      <div class="subcard">
+        <h4>Adicionar fonte de cotação</h4>
+        <form method="post" data-ajax="true" action="{% url 'workflow:planejamento_adicionar_fonte' processo.id %}">
+          {% csrf_token %}
+          <div class="form-grid">
+            {% for field in form_fonte %}
+              <div class="form-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <button type="submit">Adicionar fonte</button>
+        </form>
+        {% if etp and etp.fontes.all %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Fonte</th><th>Fornecedor vinculado</th><th>Tipo</th><th>Identificação</th></tr></thead>
+              <tbody>
+                {% for f in etp.fontes.all %}
+                  <tr><td>{{ f.nome_fonte }}</td><td>{% if f.fornecedor %}{{ f.fornecedor.razao_social }}{% else %}-{% endif %}</td><td>{{ f.get_tipo_fonte_display }}</td><td>{{ f.identificacao_documento }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="subcard">
+        <h4>Lançar cotação</h4>
+        <form method="post" data-ajax="true" action="{% url 'workflow:planejamento_adicionar_cotacao' processo.id %}">
+          {% csrf_token %}
+          <div class="form-grid">
+            {% for field in form_cotacao %}
+              <div class="form-field {% if field.name == 'observacao' %}full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <div class="item-preview" id="cotacao-item-preview">Selecione um item para visualizar a descrição completa.</div>
+          <button type="submit">Registrar cotação</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Média considerada</th></tr></thead>
+        <tbody>
+          {% for c in cotacoes_media %}
+            <tr><td>{{ c.item__codigo }} - {{ c.item__descricao|truncatechars:80 }}</td><td>{{ c.media|floatformat:2 }}</td></tr>
+          {% empty %}
+            <tr><td colspan="2">Sem cotações ainda.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if etp %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Fonte</th><th>Valor</th><th>Situação</th><th>Considerar</th><th>Ações</th></tr></thead>
+          <tbody>
+            {% for cot in etp.cotacoes.all %}
+              <tr {% if not cot.considerar_no_calculo %}class="cotacao-desconsiderada"{% endif %}>
+                <td>{{ cot.item.codigo }} - {{ cot.item.descricao|truncatechars:60 }}</td>
+                <td>{{ cot.fonte.nome_fonte }}</td>
+                <td>{{ cot.valor_unitario|floatformat:2 }}</td>
+                <td>
+                  {% if cot.inexequivel %}
+                    <span class="warn">Abaixo de 50% da média</span>
+                  {% elif cot.sobrepreco %}
+                    <span class="warn">Acima de 50% da média</span>
+                  {% else %}
+                    <span class="ok">Faixa normal</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <form method="post" data-ajax="true" class="considerar-form" action="{% url 'workflow:planejamento_alterar_consideracao_cotacao' processo.id cot.id %}">
+                    {% csrf_token %}
+                    <input type="checkbox" name="considerar_no_calculo" {% if cot.considerar_no_calculo %}checked{% endif %} data-autosubmit="true">
+                    <span>{{ cot.considerar_no_calculo|yesno:'Sim,Não' }}</span>
+                  </form>
+                </td>
+                <td>
+                  <div class="table-actions">
+                    <button
+                      type="button"
+                      class="btn-small"
+                      data-open-modal="#modal-editar-cotacao"
+                      data-edit-cotacao="1"
+                      data-edit-cotacao-url="{% url 'workflow:planejamento_editar_cotacao' processo.id cot.id %}"
+                      data-cotacao-valor="{{ cot.valor_unitario }}"
+                      data-cotacao-observacao="{{ cot.observacao|default:''|escape }}"
+                    >
+                      Editar
+                    </button>
+                    <form method="post" data-ajax="true" data-confirm="Deseja excluir esta cotação?" action="{% url 'workflow:planejamento_excluir_cotacao' processo.id cot.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn-danger btn-small">Excluir</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="6">Nenhuma cotação lançada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section card planning-block" id="bloco-tr">
+  <div class="section-head">
+    <h3>3. Termo de Referência</h3>
+    <button type="button" class="btn-muted" data-toggle-section="#bloco-tr">Ocultar</button>
+  </div>
+  <div class="section-body">
+    <form id="form-salvar-tr" method="post" data-ajax="true" enctype="multipart/form-data" action="{% url 'workflow:planejamento_salvar_tr' processo.id %}">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% for field in form_tr %}
+          <div
+            class="form-field {% if field.name == 'comunicacao_demanda_pdf' %}full{% endif %} {% if field.name == 'arquivo_irp_pdf' and not etp_havera_irp %}hidden{% endif %}"
+            {% if field.name == 'arquivo_irp_pdf' %}id="tr-field-arquivo-irp"{% endif %}
+          >
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.name == 'arquivo_irp_pdf' %}
+              <div class="hint">Este campo aparece apenas quando "Haverá IRP" está marcado como "Sim" no ETP.</div>
+            {% endif %}
+            {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit">Salvar TR</button>
+        {% if tr %}
+          <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'tr' 'docx' %}">TR DOCX</a>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="subcard" id="tr-card-lotes">
+      <h4>Criar lote</h4>
+      {% if tr_criterio == 'MENOR_PRECO_POR_ITEM' %}
+        <div class="warn-card">
+          Para critério "Menor preço por item", a criação de lotes fica desabilitada.
+        </div>
+      {% elif tr_criterio == 'MENOR_PRECO_GLOBAL' or tr_criterio == 'MAIOR_PERCENTUAL_DESCONTO' or tr_criterio == 'MENOR_TAXA_ADMINISTRATIVA' %}
+        <div class="ok">
+          Para este critério global, o sistema agrupa automaticamente todos os itens em lote único.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Lote</th><th>Itens</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>1 - Lote único (global)</td>
+                <td>
+                  {% for item in dfd.itens.all %}
+                    {{ item.codigo }}{% if not forloop.last %}, {% endif %}
+                  {% empty %}
+                    -
+                  {% endfor %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      {% elif tr_criterio == 'MENOR_PRECO_POR_LOTE' %}
+        <div class="inline-actions">
+          <button
+            type="button"
+            id="btn-open-lote-create"
+            data-open-modal="#modal-lote-builder"
+          >
+            Criar lote (carrinho)
+          </button>
+        </div>
+        <div class="hint">
+          Itens ja alocados em outros lotes nao aparecem no carrinho de criacao.
+          Na edicao, o lote mostra seus itens atuais para incluir/remover e salvar.
+        </div>
+
+        {% if tr_lotes_status.duplicados or tr_lotes_status.nao_alocados %}
+          <div class="warn-card">
+            {% if tr_lotes_status.nao_alocados %}
+              Itens sem lote: {{ tr_lotes_status.nao_alocados|length }}.
+            {% endif %}
+            {% if tr_lotes_status.duplicados %}
+              Itens duplicados em lotes: {{ tr_lotes_status.duplicados|length }}.
+            {% endif %}
+            Todos os itens da DFD devem estar alocados em apenas um lote.
+          </div>
+        {% endif %}
+
+        {% if tr %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Lote</th><th>Itens</th><th>Ações</th></tr></thead>
+              <tbody>
+                {% for lote in tr.lotes.all %}
+                  <tr>
+                    <td>{{ lote.numero }} - {{ lote.titulo }}</td>
+                    <td>
+                      {% for item in lote.itens.all %}
+                        {{ item.codigo }}{% if not forloop.last %}, {% endif %}
+                      {% empty %}
+                        -
+                      {% endfor %}
+                    </td>
+                    <td>
+                      <div class="table-actions">
+                        <button
+                          type="button"
+                          class="btn-small"
+                          data-open-modal="#modal-lote-builder"
+                          data-edit-lote="1"
+                          data-lote-id="{{ lote.id }}"
+                          data-lote-titulo="{{ lote.titulo|escape }}"
+                          data-lote-item-ids="{% for item in lote.itens.all %}{{ item.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                          data-edit-lote-url="{% url 'workflow:planejamento_editar_lote' processo.id lote.id %}"
+                        >
+                          Editar
+                        </button>
+                        <form method="post" data-ajax="true" data-confirm="Deseja excluir este lote?" action="{% url 'workflow:planejamento_excluir_lote' processo.id lote.id %}">
+                          {% csrf_token %}
+                          <button type="submit" class="btn-danger btn-small">Excluir</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3">Sem lotes.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="warn-card">
+          Selecione o critério de julgamento no TR para definir a regra de lotes.
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="subcard" id="tr-card-dotacao">
+      <h4>Adicionar dotação</h4>
+      <div class="inline-actions">
+        <button type="button" class="btn-secondary" data-open-modal="#modal-dotacao-referencia">Criar referência de dotação</button>
+      </div>
+      {% if dotacao_refs_vazias.secretaria and dotacao_refs_vazias.unidade_orcamentaria and dotacao_refs_vazias.projeto_atividade and dotacao_refs_vazias.elemento_despesa and dotacao_refs_vazias.fonte_recurso %}
+        <div class="warn-card">
+          Cadastros-base de dotação estão vazios. Cadastre secretaria, unidade, projeto, elemento e fonte no Admin para liberar esse formulário.
+        </div>
+      {% endif %}
+      <form method="post" data-ajax="true" action="{% url 'workflow:planejamento_adicionar_dotacao' processo.id %}">
+        {% csrf_token %}
+        <div class="form-grid">
+          {% for field in form_dotacao %}
+            <div class="form-field">
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+              {% if field.name == 'secretaria' and dotacao_refs_vazias.secretaria %}
+                <div class="hint">Sem secretarias cadastradas.</div>
+              {% endif %}
+              {% if field.name == 'unidade_orcamentaria' and dotacao_refs_vazias.unidade_orcamentaria %}
+                <div class="hint">Sem unidades orçamentárias cadastradas.</div>
+              {% endif %}
+              {% if field.name == 'projeto_atividade' and dotacao_refs_vazias.projeto_atividade %}
+                <div class="hint">Sem projetos/atividades cadastrados.</div>
+              {% endif %}
+              {% if field.name == 'elemento_despesa' and dotacao_refs_vazias.elemento_despesa %}
+                <div class="hint">Sem elementos de despesa cadastrados.</div>
+              {% endif %}
+              {% if field.name == 'fonte_recurso' and dotacao_refs_vazias.fonte_recurso %}
+                <div class="hint">Sem fontes de recurso cadastradas.</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        <button type="submit">Adicionar dotação</button>
+      </form>
+
+      {% if tr %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Secretaria</th><th>Unidade</th><th>Projeto</th><th>Elemento</th><th>Fonte</th><th>Ações</th></tr></thead>
+            <tbody>
+              {% for d in tr.dotacoes.all %}
+                <tr>
+                  <td>{{ d.secretaria|default:'N/A' }}</td>
+                  <td>{{ d.unidade_orcamentaria|default:'N/A' }}</td>
+                  <td>{{ d.projeto_atividade|default:'N/A' }}</td>
+                  <td>{{ d.elemento_despesa|default:'N/A' }}</td>
+                  <td>{{ d.fonte_recurso|default:'N/A' }}</td>
+                  <td>
+                    <form method="post" class="table-action-form" data-ajax="true" data-confirm="Deseja excluir esta dotação?" action="{% url 'workflow:planejamento_excluir_dotacao' processo.id d.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn-danger btn-small">Excluir</button>
+                    </form>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="6">Sem dotações.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="subcard" id="tr-card-distribuicao">
+      <h4>Distribuição de itens por secretaria</h4>
+      {% if tr and tr.nao_aplica_divisao_secretaria %}
+        <div class="warn-card">
+          Distribuição por secretaria está desabilitada no TR.
+        </div>
+      {% else %}
+        <form method="post" data-ajax="true" action="{% url 'workflow:planejamento_adicionar_distribuicao' processo.id %}">
+          {% csrf_token %}
+          <div class="form-grid">
+            {% for field in form_distribuicao %}
+              <div class="form-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="field-error">{{ field.errors|striptags }}</div>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          <button type="submit">Adicionar distribuição</button>
+        </form>
+
+        <h4>Mapa de distribuição (sem valor)</h4>
+        {% if tr %}
+          <div class="form-actions">
+            <button
+              type="button"
+              class="btn"
+              data-open-modal="#modal-distribuicao-preview"
+              data-preview-url="{{ distribuicao_preview_popup_url }}"
+            >
+              Pré-visualizar distribuição
+            </button>
+            <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'docx' %}">Distribuição DOCX</a>
+            <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'pdf' %}">Distribuição PDF</a>
+            <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'xlsx' %}">Distribuição XLSX</a>
+          </div>
+        {% endif %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Qtd. DFD</th><th>Qtd. distribuída</th><th>Saldo</th></tr></thead>
+            <tbody>
+              {% for r in distribuicao_resumo_itens %}
+                <tr>
+                  <td>{{ r.item.codigo }} - {{ r.item.descricao|truncatechars:80 }}</td>
+                  <td>{{ r.quantidade_dfd }}</td>
+                  <td>{{ r.quantidade_distribuida }}</td>
+                  <td>{{ r.quantidade_pendente }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4">Sem itens para distribuição.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Secretaria</th><th>Item</th><th>Quantidade</th></tr></thead>
+            <tbody>
+              {% for d in distribuicao_linhas %}
+                <tr><td>{{ d.secretaria.sigla }}</td><td>{{ d.item.codigo }} - {{ d.item.descricao|truncatechars:70 }}</td><td>{{ d.quantidade }}</td></tr>
+              {% empty %}
+                <tr><td colspan="3">Sem distribuição lançada.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="section card planning-block" id="bloco-encaminhamento">
+  <div class="section-head">
+    <h3>4. Encaminhamento</h3>
+  </div>
+  <div class="section-body">
+    <p class="muted">Após concluir DFD, ETP e TR, encaminhe o processo ao setor seguinte.</p>
+    <div class="inline-actions">
+      <button type="button" id="btn-salvar-geral">Salvar geral</button>
+    </div>
+    <div class="inline-actions">
+      <a class="btn" href="{% url 'workflow:planejamento_encaminhar' processo.id 'COMPRAS' %}">Gerar comunicação e encaminhar para Compras</a>
+      <a class="btn" href="{% url 'workflow:planejamento_encaminhar' processo.id 'LICITACAO' %}">Gerar comunicação e encaminhar para Licitação</a>
+    </div>
+    <div class="subcard" style="margin-top:12px;">
+      <h4>Anexar documento assinado</h4>
+      <form method="post" enctype="multipart/form-data" data-ajax="true" action="{% url 'workflow:processo_upload_documento_assinado' processo.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
+        <div class="form-grid">
+          <div class="form-field">
+            <label>{{ form_doc_assinado.doc_key.label }}</label>
+            {{ form_doc_assinado.doc_key }}
+          </div>
+          <div class="form-field">
+            <label>Arquivo assinado</label>
+            <input type="file" name="arquivo" required>
+          </div>
+          <div class="form-field" style="align-self:end;">
+            <button type="submit">Anexar</button>
+          </div>
+        </div>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Documento</th><th>Arquivo</th><th>Data</th></tr></thead>
+          <tbody>
+            {% for doc in documentos_assinados %}
+              <tr>
+                <td>{{ doc.label }}</td>
+                <td><a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a></td>
+                <td>{{ doc.criado_em|date:'d/m/Y H:i' }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3">Nenhum documento assinado anexado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="modal" id="modal-editar-item-dfd" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <strong>Editar item da DFD</strong>
+      <button type="button" class="btn-muted" data-close-modal="#modal-editar-item-dfd">Fechar</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-editar-item-dfd" method="post" data-ajax="true" action="">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div class="form-field full">
+            <label for="edit_item_descricao">Descrição</label>
+            <textarea id="edit_item_descricao" name="descricao" rows="8" required></textarea>
+          </div>
+          <div class="form-field">
+            <label for="edit_item_unidade">Unidade</label>
+            <input id="edit_item_unidade" type="text" name="unidade" maxlength="30">
+          </div>
+          <div class="form-field">
+            <label for="edit_item_quantidade">Quantidade</label>
+            <input id="edit_item_quantidade" type="number" step="0.001" min="0" name="quantidade" required>
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button type="submit">Salvar alterações</button>
+          <button type="button" class="btn-muted" data-close-modal="#modal-editar-item-dfd">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-editar-cotacao" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <strong>Editar cotação</strong>
+      <button type="button" class="btn-muted" data-close-modal="#modal-editar-cotacao">Fechar</button>
+    </div>
+    <div class="modal-body">
+      <form id="form-editar-cotacao" method="post" data-ajax="true" action="">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="edit_cotacao_valor">Valor unitário</label>
+            <input id="edit_cotacao_valor" type="number" step="0.01" min="0" name="valor_unitario" required>
+          </div>
+          <div class="form-field full">
+            <label for="edit_cotacao_observacao">Observação</label>
+            <textarea id="edit_cotacao_observacao" name="observacao" rows="4"></textarea>
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button type="submit">Salvar cotação</button>
+          <button type="button" class="btn-muted" data-close-modal="#modal-editar-cotacao">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-mapa-preview" aria-hidden="true">
+  <div class="modal-card modal-card-xl">
+    <div class="modal-head">
+      <strong>Pré-visualização do Mapa Comparativo</strong>
+      <div class="inline-actions">
+        <button type="button" class="btn-secondary" id="btn-print-mapa-preview">Imprimir</button>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'mapa' 'docx' %}">Gerar DOCX</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'mapa' 'pdf' %}">Gerar PDF</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'mapa' 'xlsx' %}">Gerar XLSX</a>
+        <button type="button" class="btn-muted" data-close-modal="#modal-mapa-preview">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body modal-body-iframe">
+      <iframe id="mapa-preview-frame" class="preview-iframe" title="Pré-visualização do mapa comparativo" loading="lazy"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-dfd-preview" aria-hidden="true">
+  <div class="modal-card modal-card-xl">
+    <div class="modal-head">
+      <strong>Pré-visualização da DFD</strong>
+      <div class="inline-actions">
+        <button type="button" class="btn-secondary" id="btn-print-dfd-preview">Imprimir</button>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'dfd' 'docx' %}">Gerar DOCX</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'dfd' 'pdf' %}">Gerar PDF</a>
+        <button type="button" class="btn-muted" data-close-modal="#modal-dfd-preview">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body modal-body-iframe">
+      <iframe id="dfd-preview-frame" class="preview-iframe" title="Pré-visualização DFD" loading="lazy"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-distribuicao-preview" aria-hidden="true">
+  <div class="modal-card modal-card-xl">
+    <div class="modal-head">
+      <strong>Pré-visualização do Mapa de Distribuição</strong>
+      <div class="inline-actions">
+        <button type="button" class="btn-secondary" id="btn-print-distribuicao-preview">Imprimir</button>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'docx' %}">Gerar DOCX</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'pdf' %}">Gerar PDF</a>
+        <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'xlsx' %}">Gerar XLSX</a>
+        <button type="button" class="btn-muted" data-close-modal="#modal-distribuicao-preview">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body modal-body-iframe">
+      <iframe id="distribuicao-preview-frame" class="preview-iframe" title="Pré-visualização do mapa de distribuição" loading="lazy"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-lote-builder" aria-hidden="true">
+  <div class="modal-card modal-card-itens">
+    <div class="modal-head">
+      <strong id="lote-builder-title">Criar lote</strong>
+      <div class="inline-actions">
+        <button type="button" class="btn-muted" id="btn-lote-limpar">Limpar seleção</button>
+        <button type="button" class="btn-muted" data-close-modal="#modal-lote-builder">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body modal-body-itens">
+      <form id="form-lote-builder" method="post" data-ajax="true" action="{% url 'workflow:planejamento_adicionar_lote' processo.id %}">
+        {% csrf_token %}
+        <input type="hidden" id="lote-itens-payload" name="itens_payload">
+        <div class="form-grid">
+          <div class="form-field full">
+            <label for="lote-builder-titulo">Título do lote</label>
+            <input id="lote-builder-titulo" name="titulo" type="text" maxlength="255" required>
+          </div>
+        </div>
+        <div class="lote-popup-filters">
+          <div class="form-field">
+            <label for="lote-popup-search">Buscar item disponível</label>
+            <input id="lote-popup-search" type="text" autocomplete="off" placeholder="Digite código ou descrição do item">
+          </div>
+        </div>
+        <div class="lote-popup-grid">
+          <section class="lote-popup-results">
+            <strong>Itens disponíveis</strong>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:74px;">Código</th>
+                    <th>Descrição</th>
+                    <th style="width:90px;">Unidade</th>
+                    <th style="width:110px;">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="lote-popup-results-body">
+                  <tr><td colspan="4" class="lote-popup-empty">Sem itens disponíveis para este lote.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="lote-popup-cart">
+            <strong>Itens do lote</strong>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:72px;">Código</th>
+                    <th>Descrição</th>
+                    <th style="width:96px;">Unidade</th>
+                    <th style="width:88px;">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="lote-popup-cart-body">
+                  <tr><td colspan="4" class="lote-popup-empty">Nenhum item selecionado.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <div class="inline-actions">
+          <button type="submit" id="btn-lote-submit">Salvar lote</button>
+          <button type="button" class="btn-muted" data-close-modal="#modal-lote-builder">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-itens-catalogo" aria-hidden="true">
+  <div class="modal-card modal-card-itens">
+    <div class="modal-head">
+      <strong>Adicionar itens à DFD</strong>
+      <div class="inline-actions">
+        <button type="button" class="btn-muted" id="btn-catalogo-recarregar">Atualizar</button>
+        <button type="button" class="btn-muted" data-close-modal="#modal-itens-catalogo">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body modal-body-itens">
+      <div class="catalogo-popup-filters">
+        <div class="form-field">
+          <label for="catalogo-popup-search">Buscar item no catálogo</label>
+          <input id="catalogo-popup-search" type="text" autocomplete="off" placeholder="Digite código ou descrição do item">
+        </div>
+        <div class="form-field">
+          <label for="catalogo-popup-unidade">Filtro por unidade</label>
+          <select id="catalogo-popup-unidade">
+            <option value="">Todas as unidades</option>
+            {% for unidade in catalogo_unidades %}
+              <option value="{{ unidade }}">{{ unidade }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="catalogo-popup-grid">
+        <section class="catalogo-popup-results">
+          <strong>Catálogo disponível</strong>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:74px;">Código</th>
+                  <th>Descrição</th>
+                  <th style="width:90px;">Unidade</th>
+                  <th style="width:110px;">Ação</th>
+                </tr>
+              </thead>
+              <tbody id="catalogo-popup-results-body">
+                <tr><td colspan="4" class="catalogo-popup-empty">Digite para pesquisar itens do catálogo.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="catalogo-popup-cart">
+          <form id="form-catalogo-cart" method="post" data-ajax="true" action="{% url 'workflow:planejamento_adicionar_itens_catalogo' processo.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="itens_payload" id="itens-payload">
+            <strong>Carrinho de itens selecionados</strong>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:72px;">Código</th>
+                    <th>Descrição</th>
+                    <th style="width:96px;">Unidade</th>
+                    <th style="width:112px;">Quantidade</th>
+                    <th style="width:88px;">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="catalogo-popup-cart-body">
+                  <tr><td colspan="5" class="catalogo-popup-empty">Nenhum item selecionado.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="inline-actions">
+              <button type="submit">Adicionar itens selecionados</button>
+              <button type="button" class="btn-muted" id="btn-catalogo-limpar">Limpar seleção</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-catalogo" aria-hidden="true">
+  <div class="modal-card modal-card-catalogo">
+    <div class="modal-head">
+      <strong>Criar item no catálogo</strong>
+      <button type="button" class="btn-muted" data-close-modal="#modal-catalogo">Fechar</button>
+    </div>
+    <div class="modal-body">
+      <form method="post" data-ajax="true" action="{% url 'workflow:planejamento_criar_catalogo' processo.id %}">
+        {% csrf_token %}
+        {% if form_catalogo.non_field_errors %}
+          <div class="field-error">{{ form_catalogo.non_field_errors|striptags }}</div>
+        {% endif %}
+        <div class="catalogo-grid">
+          <div class="form-field catalogo-descricao">
+            <label for="{{ form_catalogo.descricao.id_for_label }}">{{ form_catalogo.descricao.label }}</label>
+            {{ form_catalogo.descricao }}
+            {% if form_catalogo.descricao.errors %}<div class="field-error">{{ form_catalogo.descricao.errors|striptags }}</div>{% endif %}
+          </div>
+          <div class="form-field catalogo-unidade">
+            <label for="{{ form_catalogo.unidade.id_for_label }}">{{ form_catalogo.unidade.label }}</label>
+            {{ form_catalogo.unidade }}
+            {% if form_catalogo.unidade.errors %}<div class="field-error">{{ form_catalogo.unidade.errors|striptags }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="inline-actions">
+          <button type="submit">Criar item de catálogo</button>
+          <button type="button" class="btn-muted" data-close-modal="#modal-catalogo">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-dotacao-referencia" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <strong>Criar referência de dotação</strong>
+      <button type="button" class="btn-muted" data-close-modal="#modal-dotacao-referencia">Fechar</button>
+    </div>
+    <div class="modal-body">
+      <form method="post" data-ajax="true" action="{% url 'workflow:planejamento_criar_referencia_dotacao' processo.id %}">
+        {% csrf_token %}
+        <div class="form-field">
+          <label for="id_tipo_referencia">Tipo de referência</label>
+          <select id="id_tipo_referencia" name="tipo_referencia" required>
+            {% for valor, titulo in dotacao_ref_tipos %}
+              <option value="{{ valor }}">{{ titulo }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="ref-grid" id="dotacao-campos-codigo">
+          <div class="form-field">
+            <label for="id_codigo_ref">Código</label>
+            <input id="id_codigo_ref" type="text" name="codigo" placeholder="Ex.: 2001 / 3.3.90.30 / 1500">
+          </div>
+          <div class="form-field">
+            <label for="id_descricao_ref">Descrição</label>
+            <input id="id_descricao_ref" type="text" name="descricao" placeholder="Descrição da referência">
+          </div>
+        </div>
+
+        <div class="ref-grid hidden" id="dotacao-campos-sigla">
+          <div class="form-field">
+            <label for="id_sigla_ref">Sigla</label>
+            <input id="id_sigla_ref" type="text" name="sigla" maxlength="20" placeholder="Ex.: ADM">
+          </div>
+          <div class="form-field">
+            <label for="id_nome_ref">Nome</label>
+            <input id="id_nome_ref" type="text" name="nome" placeholder="Nome completo">
+          </div>
+        </div>
+
+        <div class="inline-actions">
+          <button type="submit">Salvar referência</button>
+          <button type="button" class="btn-muted" data-close-modal="#modal-dotacao-referencia">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{{ lote_builder_items|json_script:"lote-builder-items-data" }}
+{{ lote_builder_lotes|json_script:"lote-builder-lotes-data" }}
+{{ lote_builder_available_ids|json_script:"lote-builder-available-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function initPlanejamentoPage() {
+    const collapseAllBtn = document.querySelector('[data-collapse-all]');
+    const collapseStorageKey = 'sirel-planning-collapsed:' + window.location.pathname;
+    let collapsed = true;
+    try {
+      const savedState = localStorage.getItem(collapseStorageKey);
+      collapsed = savedState === null ? true : savedState === '1';
+      if (savedState === null) {
+        localStorage.setItem(collapseStorageKey, collapsed ? '1' : '0');
+      }
+    } catch (e) {}
+
+    function updateSectionButton(section) {
+      const button = section.querySelector('[data-toggle-section]');
+      if (!button) return;
+      button.textContent = section.classList.contains('section-collapsed') ? 'Expandir' : 'Ocultar';
+    }
+
+    function persistCollapsedFromSections() {
+      const sections = Array.from(document.querySelectorAll('.planning-block')).filter(function (section) {
+        return section.id !== 'bloco-encaminhamento';
+      });
+      const allCollapsed = sections.length > 0 && sections.every(function (section) {
+        return section.classList.contains('section-collapsed');
+      });
+      collapsed = allCollapsed;
+      try {
+        localStorage.setItem(collapseStorageKey, allCollapsed ? '1' : '0');
+      } catch (e) {}
+      if (collapseAllBtn) {
+        collapseAllBtn.textContent = allCollapsed ? 'Expandir seções' : 'Recolher seções';
+      }
+    }
+
+    document.querySelectorAll('[data-toggle-section]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const target = document.querySelector(btn.getAttribute('data-toggle-section'));
+        if (!target) return;
+        target.classList.toggle('section-collapsed');
+        updateSectionButton(target);
+        persistCollapsedFromSections();
+      });
+    });
+
+    function applyCollapsedState() {
+      document.querySelectorAll('.planning-block').forEach(function (section) {
+        if (section.id === 'bloco-encaminhamento') return;
+        section.classList.toggle('section-collapsed', collapsed);
+        updateSectionButton(section);
+      });
+      if (collapseAllBtn) {
+        collapseAllBtn.textContent = collapsed ? 'Expandir seções' : 'Recolher seções';
+      }
+    }
+
+    function restoreCollapsedSectionsById(collapsedIds) {
+      if (!Array.isArray(collapsedIds)) return;
+      const ids = new Set(collapsedIds);
+      document.querySelectorAll('.planning-block').forEach(function (section) {
+        if (section.id === 'bloco-encaminhamento') return;
+        section.classList.toggle('section-collapsed', ids.has(section.id));
+        updateSectionButton(section);
+      });
+      persistCollapsedFromSections();
+    }
+
+    window.restorePlanejamentoCollapsedSections = restoreCollapsedSectionsById;
+
+    applyCollapsedState();
+    if (Array.isArray(window.__sirelCollapsedSections) && window.__sirelCollapsedSections.length > 0) {
+      restoreCollapsedSectionsById(window.__sirelCollapsedSections);
+      window.__sirelCollapsedSections = [];
+    }
+
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener('click', function () {
+        collapsed = !collapsed;
+        try {
+          localStorage.setItem(collapseStorageKey, collapsed ? '1' : '0');
+        } catch (e) {}
+        applyCollapsedState();
+      });
+    }
+
+    function updateBodyModalState() {
+      const openedModal = document.querySelector('.modal.active');
+      document.body.style.overflow = openedModal ? 'hidden' : '';
+    }
+
+    function setModal(modal, open) {
+      if (!modal) return;
+      modal.classList.toggle('active', open);
+      modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (!open) {
+        const frame = modal.querySelector('iframe');
+        if (frame) {
+          frame.removeAttribute('src');
+        }
+      }
+      updateBodyModalState();
+    }
+
+    document.querySelectorAll('[data-open-modal]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const modal = document.querySelector(btn.getAttribute('data-open-modal'));
+        if (modal) {
+          const frame = modal.querySelector('iframe');
+          const previewUrl = btn.getAttribute('data-preview-url');
+          if (frame && previewUrl) {
+            const sep = previewUrl.indexOf('?') >= 0 ? '&' : '?';
+            frame.src = previewUrl + sep + 't=' + Date.now();
+          }
+        }
+        setModal(modal, true);
+      });
+    });
+
+    const btnPrintDfdPreview = document.getElementById('btn-print-dfd-preview');
+    const dfdPreviewFrame = document.getElementById('dfd-preview-frame');
+    if (btnPrintDfdPreview && dfdPreviewFrame) {
+      btnPrintDfdPreview.addEventListener('click', function () {
+        const frameWindow = dfdPreviewFrame.contentWindow;
+        if (!frameWindow) {
+          if (window.sirelShowToast) window.sirelShowToast('Abra a pré-visualização para imprimir.', 'warning');
+          return;
+        }
+        try {
+          frameWindow.focus();
+          frameWindow.print();
+        } catch (e) {
+          if (window.sirelShowToast) window.sirelShowToast('Não foi possível acionar a impressão agora.', 'error');
+        }
+      });
+    }
+
+    const btnPrintMapaPreview = document.getElementById('btn-print-mapa-preview');
+    const mapaPreviewFrame = document.getElementById('mapa-preview-frame');
+    if (btnPrintMapaPreview && mapaPreviewFrame) {
+      btnPrintMapaPreview.addEventListener('click', function () {
+        const frameWindow = mapaPreviewFrame.contentWindow;
+        if (!frameWindow) {
+          if (window.sirelShowToast) window.sirelShowToast('Abra a pré-visualização para imprimir.', 'warning');
+          return;
+        }
+        try {
+          frameWindow.focus();
+          frameWindow.print();
+        } catch (e) {
+          if (window.sirelShowToast) window.sirelShowToast('Não foi possível acionar a impressão agora.', 'error');
+        }
+      });
+    }
+
+    const btnPrintDistribuicaoPreview = document.getElementById('btn-print-distribuicao-preview');
+    const distribuicaoPreviewFrame = document.getElementById('distribuicao-preview-frame');
+    if (btnPrintDistribuicaoPreview && distribuicaoPreviewFrame) {
+      btnPrintDistribuicaoPreview.addEventListener('click', function () {
+        const frameWindow = distribuicaoPreviewFrame.contentWindow;
+        if (!frameWindow) {
+          if (window.sirelShowToast) window.sirelShowToast('Abra a pré-visualização para imprimir.', 'warning');
+          return;
+        }
+        try {
+          frameWindow.focus();
+          frameWindow.print();
+        } catch (e) {
+          if (window.sirelShowToast) window.sirelShowToast('Não foi possível acionar a impressão agora.', 'error');
+        }
+      });
+    }
+
+    const formEditarItem = document.getElementById('form-editar-item-dfd');
+    const editDescricaoInput = document.getElementById('edit_item_descricao');
+    const editUnidadeInput = document.getElementById('edit_item_unidade');
+    const editQuantidadeInput = document.getElementById('edit_item_quantidade');
+    document.querySelectorAll('[data-edit-item="1"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!formEditarItem) return;
+        formEditarItem.action = btn.getAttribute('data-edit-url') || '';
+        if (editDescricaoInput) editDescricaoInput.value = btn.getAttribute('data-item-descricao') || '';
+        if (editUnidadeInput) editUnidadeInput.value = btn.getAttribute('data-item-unidade') || '';
+        if (editQuantidadeInput) editQuantidadeInput.value = btn.getAttribute('data-item-quantidade') || '0';
+      });
+    });
+
+    const formEditarCotacao = document.getElementById('form-editar-cotacao');
+    const editCotacaoValorInput = document.getElementById('edit_cotacao_valor');
+    const editCotacaoObservacaoInput = document.getElementById('edit_cotacao_observacao');
+    document.querySelectorAll('[data-edit-cotacao="1"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!formEditarCotacao) return;
+        formEditarCotacao.action = btn.getAttribute('data-edit-cotacao-url') || '';
+        if (editCotacaoValorInput) editCotacaoValorInput.value = btn.getAttribute('data-cotacao-valor') || '0';
+        if (editCotacaoObservacaoInput) editCotacaoObservacaoInput.value = btn.getAttribute('data-cotacao-observacao') || '';
+      });
+    });
+
+    document.querySelectorAll('[data-close-modal]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setModal(document.querySelector(btn.getAttribute('data-close-modal')), false);
+      });
+    });
+
+    document.querySelectorAll('.modal').forEach(function (modal) {
+      modal.addEventListener('click', function (event) {
+        if (event.target === modal) {
+          setModal(modal, false);
+        }
+      });
+    });
+
+    if (!window.__planejamentoEscBound) {
+      document.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape') return;
+        const opened = document.querySelector('.modal.active');
+        if (opened) setModal(opened, false);
+      });
+      window.__planejamentoEscBound = true;
+    }
+
+    const catalogoAutocompleteUrl = "{{ catalogo_autocomplete_url|escapejs }}";
+    const catalogoPopupSearch = document.getElementById('catalogo-popup-search');
+    const catalogoPopupUnidade = document.getElementById('catalogo-popup-unidade');
+    const catalogoPopupBody = document.getElementById('catalogo-popup-results-body');
+    const catalogoCartBody = document.getElementById('catalogo-popup-cart-body');
+    const catalogoCartForm = document.getElementById('form-catalogo-cart');
+    const itensPayloadInput = document.getElementById('itens-payload');
+    const btnCatalogoRecarregar = document.getElementById('btn-catalogo-recarregar');
+    const btnCatalogoLimpar = document.getElementById('btn-catalogo-limpar');
+    const catalogoCart = new Map();
+    let catalogoSearchTimer = null;
+    let catalogoLoading = false;
+
+    function esc(texto) {
+      return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function quantidadeValida(valor) {
+      const normalizado = String(valor || '').trim().replace(',', '.');
+      const numero = Number(normalizado);
+      if (!Number.isFinite(numero) || numero <= 0) return '1.000';
+      return numero.toFixed(3);
+    }
+
+    function renderCatalogoResultados(items) {
+      if (!catalogoPopupBody) return;
+      if (!items || !items.length) {
+        catalogoPopupBody.innerHTML = '<tr><td colspan="4" class="catalogo-popup-empty">Nenhum item encontrado para o filtro informado.</td></tr>';
+        return;
+      }
+      catalogoPopupBody.innerHTML = items.map(function (item) {
+        const jaNoCarrinho = catalogoCart.has(String(item.id));
+        return '<tr>' +
+          '<td>' + esc(item.codigo) + '</td>' +
+          '<td>' + esc(item.descricao) + '</td>' +
+          '<td>' + esc(item.unidade || '-') + '</td>' +
+          '<td><button type="button" class="btn-small" data-catalogo-add="' + esc(item.id) + '"' + (jaNoCarrinho ? ' disabled' : '') + '>' +
+          (jaNoCarrinho ? 'Adicionado' : 'Adicionar') +
+          '</button></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function renderCatalogoCarrinho() {
+      if (!catalogoCartBody) return;
+      const itens = Array.from(catalogoCart.values());
+      if (!itens.length) {
+        catalogoCartBody.innerHTML = '<tr><td colspan="5" class="catalogo-popup-empty">Nenhum item selecionado.</td></tr>';
+      } else {
+        catalogoCartBody.innerHTML = itens.map(function (item) {
+          return '<tr data-cart-item="' + esc(item.id) + '">' +
+            '<td>' + esc(item.codigo) + '</td>' +
+            '<td>' + esc(item.descricao) + '</td>' +
+            '<td><input type="text" maxlength="30" data-cart-field="unidade" data-cart-id="' + esc(item.id) + '" value="' + esc(item.unidade || '') + '"></td>' +
+            '<td><input type="number" min="0.001" step="0.001" data-cart-field="quantidade" data-cart-id="' + esc(item.id) + '" value="' + esc(item.quantidade || '1.000') + '"></td>' +
+            '<td><button type="button" class="btn-danger btn-small" data-cart-remove="' + esc(item.id) + '">Remover</button></td>' +
+            '</tr>';
+        }).join('');
+      }
+      if (catalogoPopupBody) {
+        catalogoPopupBody.querySelectorAll('[data-catalogo-add]').forEach(function (btn) {
+          const id = String(btn.getAttribute('data-catalogo-add') || '');
+          if (catalogoCart.has(id)) {
+            btn.disabled = true;
+            btn.textContent = 'Adicionado';
+          } else {
+            btn.disabled = false;
+            btn.textContent = 'Adicionar';
+          }
+        });
+      }
+    }
+
+    async function carregarCatalogo() {
+      if (!catalogoAutocompleteUrl || !catalogoPopupBody || catalogoLoading) return;
+      catalogoLoading = true;
+      const query = (catalogoPopupSearch && catalogoPopupSearch.value ? catalogoPopupSearch.value : '').trim();
+      const unidade = (catalogoPopupUnidade && catalogoPopupUnidade.value ? catalogoPopupUnidade.value : '').trim();
+      const params = new URLSearchParams();
+      params.set('limit', '120');
+      if (query) params.set('q', query);
+      if (unidade) params.set('unidade', unidade);
+      catalogoPopupBody.innerHTML = '<tr><td colspan="4" class="catalogo-popup-empty">Carregando itens...</td></tr>';
+      try {
+        const response = await fetch(catalogoAutocompleteUrl + '?' + params.toString(), {
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const data = await response.json();
+        renderCatalogoResultados((data && data.results) || []);
+      } catch (e) {
+        catalogoPopupBody.innerHTML = '<tr><td colspan="4" class="catalogo-popup-empty">Falha ao carregar itens do catálogo.</td></tr>';
+      } finally {
+        catalogoLoading = false;
+      }
+    }
+
+    function adicionarItemAoCarrinho(id, codigo, descricao, unidade) {
+      const chave = String(id || '');
+      if (!chave || catalogoCart.has(chave)) return;
+      catalogoCart.set(chave, {
+        id: chave,
+        codigo: codigo || '',
+        descricao: descricao || '',
+        unidade: unidade || '',
+        quantidade: '1.000'
+      });
+      renderCatalogoCarrinho();
+    }
+
+    function limparCarrinho() {
+      catalogoCart.clear();
+      renderCatalogoCarrinho();
+    }
+
+    if (catalogoPopupBody) {
+      catalogoPopupBody.addEventListener('click', function (event) {
+        const botao = event.target.closest('[data-catalogo-add]');
+        if (!botao) return;
+        const itemId = String(botao.getAttribute('data-catalogo-add') || '');
+        if (!itemId) return;
+        const linha = botao.closest('tr');
+        if (!linha) return;
+        adicionarItemAoCarrinho(
+          itemId,
+          (linha.children[0] && linha.children[0].textContent) || '',
+          (linha.children[1] && linha.children[1].textContent) || '',
+          (linha.children[2] && linha.children[2].textContent) || ''
+        );
+      });
+    }
+
+    if (catalogoCartBody) {
+      catalogoCartBody.addEventListener('click', function (event) {
+        const remover = event.target.closest('[data-cart-remove]');
+        if (!remover) return;
+        const cartId = String(remover.getAttribute('data-cart-remove') || '');
+        catalogoCart.delete(cartId);
+        renderCatalogoCarrinho();
+      });
+
+      catalogoCartBody.addEventListener('input', function (event) {
+        const input = event.target.closest('[data-cart-field]');
+        if (!input) return;
+        const id = String(input.getAttribute('data-cart-id') || '');
+        const field = input.getAttribute('data-cart-field');
+        const item = catalogoCart.get(id);
+        if (!item) return;
+        if (field === 'unidade') {
+          item.unidade = String(input.value || '').slice(0, 30);
+        } else if (field === 'quantidade') {
+          item.quantidade = String(input.value || '');
+        }
+      });
+    }
+
+    if (catalogoPopupSearch) {
+      catalogoPopupSearch.addEventListener('input', function () {
+        if (catalogoSearchTimer) window.clearTimeout(catalogoSearchTimer);
+        catalogoSearchTimer = window.setTimeout(function () {
+          carregarCatalogo().catch(function () {});
+        }, 180);
+      });
+    }
+
+    if (catalogoPopupUnidade) {
+      catalogoPopupUnidade.addEventListener('change', function () {
+        carregarCatalogo().catch(function () {});
+      });
+    }
+
+    if (btnCatalogoRecarregar) {
+      btnCatalogoRecarregar.addEventListener('click', function () {
+        carregarCatalogo().catch(function () {});
+      });
+    }
+
+    if (btnCatalogoLimpar) {
+      btnCatalogoLimpar.addEventListener('click', function () {
+        limparCarrinho();
+      });
+    }
+
+    document.querySelectorAll('[data-open-modal="#modal-itens-catalogo"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        carregarCatalogo().catch(function () {});
+      });
+    });
+
+    if (catalogoCartForm && itensPayloadInput) {
+      catalogoCartForm.addEventListener('submit', function (event) {
+        if (!catalogoCart.size) {
+          event.preventDefault();
+          if (window.sirelShowToast) window.sirelShowToast('Selecione ao menos um item para adicionar na DFD.', 'warning');
+          return;
+        }
+        const payload = Array.from(catalogoCart.values()).map(function (item) {
+          return {
+            catalogo_id: Number(item.id),
+            unidade: String(item.unidade || '').trim(),
+            quantidade: quantidadeValida(item.quantidade),
+          };
+        });
+        itensPayloadInput.value = JSON.stringify(payload);
+      });
+    }
+
+    function parseJsonScript(id, fallbackValue) {
+      const node = document.getElementById(id);
+      if (!node) return fallbackValue;
+      try {
+        return JSON.parse(node.textContent || '');
+      } catch (e) {
+        return fallbackValue;
+      }
+    }
+
+    const loteBuilderModal = document.getElementById('modal-lote-builder');
+    const loteBuilderForm = document.getElementById('form-lote-builder');
+    const loteBuilderTitle = document.getElementById('lote-builder-title');
+    const loteBuilderTituloInput = document.getElementById('lote-builder-titulo');
+    const loteBuilderPayloadInput = document.getElementById('lote-itens-payload');
+    const loteBuilderSearchInput = document.getElementById('lote-popup-search');
+    const loteBuilderResultsBody = document.getElementById('lote-popup-results-body');
+    const loteBuilderCartBody = document.getElementById('lote-popup-cart-body');
+    const loteBuilderSubmit = document.getElementById('btn-lote-submit');
+    const loteBuilderClearBtn = document.getElementById('btn-lote-limpar');
+    const loteCreateBtn = document.getElementById('btn-open-lote-create');
+    const loteItemsData = parseJsonScript('lote-builder-items-data', []);
+    const loteLotesData = parseJsonScript('lote-builder-lotes-data', []);
+    const loteAvailableBase = parseJsonScript('lote-builder-available-data', []);
+    const loteItemsMap = new Map((loteItemsData || []).map(function (item) { return [Number(item.id), item]; }));
+    const loteAvailableBaseSet = new Set((loteAvailableBase || []).map(function (id) { return Number(id); }));
+    let loteCurrentId = null;
+    const loteSelectedMap = new Map();
+    const loteCreateAction = loteBuilderForm ? loteBuilderForm.action : '';
+
+    function loteBuildAllocatedSet(excludeLoteId) {
+      const allocated = new Set();
+      (loteLotesData || []).forEach(function (lote) {
+        const loteId = Number(lote.id);
+        if (excludeLoteId && loteId === excludeLoteId) return;
+        (lote.item_ids || []).forEach(function (itemId) {
+          allocated.add(Number(itemId));
+        });
+      });
+      return allocated;
+    }
+
+    function loteRenderAvailable() {
+      if (!loteBuilderResultsBody) return;
+      const term = String((loteBuilderSearchInput && loteBuilderSearchInput.value) || '').trim().toLowerCase();
+      const allocated = loteBuildAllocatedSet(loteCurrentId);
+      const rows = [];
+
+      loteItemsData.forEach(function (item) {
+        const itemId = Number(item.id);
+        if (!loteSelectedMap.has(itemId)) {
+          if (allocated.has(itemId)) return;
+          if (!loteCurrentId && loteAvailableBaseSet.size && !loteAvailableBaseSet.has(itemId)) return;
+          const descricao = String(item.descricao || '');
+          const codigo = String(item.codigo || '');
+          if (term && (descricao.toLowerCase().indexOf(term) < 0) && (codigo.toLowerCase().indexOf(term) < 0)) {
+            return;
+          }
+          rows.push(
+            '<tr>' +
+              '<td>' + esc(item.codigo) + '</td>' +
+              '<td>' + esc(item.descricao) + '</td>' +
+              '<td>' + esc(item.unidade || '-') + '</td>' +
+              '<td><button type="button" class="btn-small" data-lote-add="' + esc(itemId) + '">Adicionar</button></td>' +
+            '</tr>'
+          );
+        }
+      });
+
+      if (!rows.length) {
+        loteBuilderResultsBody.innerHTML = '<tr><td colspan="4" class="lote-popup-empty">Sem itens disponíveis para este lote.</td></tr>';
+      } else {
+        loteBuilderResultsBody.innerHTML = rows.join('');
+      }
+    }
+
+    function loteRenderCart() {
+      if (!loteBuilderCartBody) return;
+      const rows = Array.from(loteSelectedMap.values()).map(function (item) {
+        return (
+          '<tr>' +
+            '<td>' + esc(item.codigo) + '</td>' +
+            '<td>' + esc(item.descricao) + '</td>' +
+            '<td>' + esc(item.unidade || '-') + '</td>' +
+            '<td><button type="button" class="btn-danger btn-small" data-lote-remove="' + esc(item.id) + '">Remover</button></td>' +
+          '</tr>'
+        );
+      });
+      if (!rows.length) {
+        loteBuilderCartBody.innerHTML = '<tr><td colspan="4" class="lote-popup-empty">Nenhum item selecionado.</td></tr>';
+      } else {
+        loteBuilderCartBody.innerHTML = rows.join('');
+      }
+      loteRenderAvailable();
+    }
+
+    function loteSetSelectedIds(ids) {
+      loteSelectedMap.clear();
+      ids.forEach(function (id) {
+        const parsedId = Number(id);
+        const item = loteItemsMap.get(parsedId);
+        if (item) {
+          loteSelectedMap.set(parsedId, item);
+        }
+      });
+      loteRenderCart();
+    }
+
+    function loteOpenCreate() {
+      loteCurrentId = null;
+      if (loteBuilderTitle) loteBuilderTitle.textContent = 'Criar lote';
+      if (loteBuilderSubmit) loteBuilderSubmit.textContent = 'Criar lote';
+      if (loteBuilderForm) loteBuilderForm.action = loteCreateAction;
+      if (loteBuilderTituloInput) loteBuilderTituloInput.value = '';
+      if (loteBuilderSearchInput) loteBuilderSearchInput.value = '';
+      loteSetSelectedIds([]);
+    }
+
+    function loteOpenEdit(btn) {
+      loteCurrentId = Number(btn.getAttribute('data-lote-id') || 0) || null;
+      const titulo = btn.getAttribute('data-lote-titulo') || '';
+      const action = btn.getAttribute('data-edit-lote-url') || loteCreateAction;
+      const itemIds = String(btn.getAttribute('data-lote-item-ids') || '')
+        .split(',')
+        .map(function (value) { return Number((value || '').trim()); })
+        .filter(function (value) { return Number.isFinite(value) && value > 0; });
+      if (loteBuilderTitle) loteBuilderTitle.textContent = 'Editar lote';
+      if (loteBuilderSubmit) loteBuilderSubmit.textContent = 'Salvar lote';
+      if (loteBuilderForm) loteBuilderForm.action = action;
+      if (loteBuilderTituloInput) loteBuilderTituloInput.value = titulo;
+      if (loteBuilderSearchInput) loteBuilderSearchInput.value = '';
+      loteSetSelectedIds(itemIds);
+    }
+
+    if (loteCreateBtn) {
+      loteCreateBtn.addEventListener('click', loteOpenCreate);
+    }
+
+    document.querySelectorAll('[data-edit-lote="1"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        loteOpenEdit(btn);
+      });
+    });
+
+    if (loteBuilderSearchInput) {
+      loteBuilderSearchInput.addEventListener('input', function () {
+        loteRenderAvailable();
+      });
+    }
+
+    if (loteBuilderClearBtn) {
+      loteBuilderClearBtn.addEventListener('click', function () {
+        loteSetSelectedIds([]);
+      });
+    }
+
+    if (loteBuilderResultsBody) {
+      loteBuilderResultsBody.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-lote-add]');
+        if (!button) return;
+        const itemId = Number(button.getAttribute('data-lote-add') || 0);
+        if (!itemId) return;
+        const item = loteItemsMap.get(itemId);
+        if (!item) return;
+        loteSelectedMap.set(itemId, item);
+        loteRenderCart();
+      });
+    }
+
+    if (loteBuilderCartBody) {
+      loteBuilderCartBody.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-lote-remove]');
+        if (!button) return;
+        const itemId = Number(button.getAttribute('data-lote-remove') || 0);
+        if (!itemId) return;
+        loteSelectedMap.delete(itemId);
+        loteRenderCart();
+      });
+    }
+
+    if (loteBuilderForm && loteBuilderPayloadInput) {
+      loteBuilderForm.addEventListener('submit', function (event) {
+        const titulo = String((loteBuilderTituloInput && loteBuilderTituloInput.value) || '').trim();
+        if (!titulo) {
+          event.preventDefault();
+          if (window.sirelShowToast) window.sirelShowToast('Informe o título do lote.', 'warning');
+          return;
+        }
+        if (!loteSelectedMap.size) {
+          event.preventDefault();
+          if (window.sirelShowToast) window.sirelShowToast('Selecione ao menos um item para salvar o lote.', 'warning');
+          return;
+        }
+        loteBuilderPayloadInput.value = JSON.stringify(Array.from(loteSelectedMap.keys()));
+      });
+    }
+
+    if (loteBuilderModal) {
+      loteOpenCreate();
+    }
+
+    const haveraIrpField = document.getElementById('id_havera_irp');
+    const trIrpField = document.getElementById('tr-field-arquivo-irp');
+    function updateTrIrpVisibility() {
+      if (!haveraIrpField || !trIrpField) return;
+      const valor = String(haveraIrpField.value || '').toLowerCase();
+      const habilitado = valor === '1' || valor === 'true' || valor === 'sim' || valor === 'on';
+      trIrpField.classList.toggle('hidden', !habilitado);
+    }
+    if (haveraIrpField && trIrpField) {
+      haveraIrpField.addEventListener('change', updateTrIrpVisibility);
+      updateTrIrpVisibility();
+    }
+
+    const naoAplicaDistribField = document.getElementById('id_nao_aplica_divisao_secretaria');
+    const trDistribCard = document.getElementById('tr-card-distribuicao');
+    function updateDistribuicaoCardVisibility() {
+      if (!naoAplicaDistribField || !trDistribCard) return;
+      const valor = String(naoAplicaDistribField.value || '').toLowerCase();
+      const desabilitado = valor === '1' || valor === 'true' || valor === 'sim' || valor === 'on';
+      trDistribCard.classList.toggle('hidden', desabilitado);
+    }
+    if (naoAplicaDistribField && trDistribCard) {
+      naoAplicaDistribField.addEventListener('change', updateDistribuicaoCardVisibility);
+      updateDistribuicaoCardVisibility();
+    }
+
+    const cotacaoItemField = document.getElementById('id_item');
+    const cotacaoItemPreview = document.getElementById('cotacao-item-preview');
+
+    function updateCotacaoItemPreview() {
+      if (!cotacaoItemField || !cotacaoItemPreview) return;
+      const opt = cotacaoItemField.options[cotacaoItemField.selectedIndex];
+      if (!opt || !opt.value) {
+        cotacaoItemPreview.textContent = 'Selecione um item para visualizar a descrição completa.';
+        return;
+      }
+      cotacaoItemPreview.textContent = 'Item selecionado: ' + opt.text;
+    }
+
+    if (cotacaoItemField) {
+      cotacaoItemField.addEventListener('change', updateCotacaoItemPreview);
+      updateCotacaoItemPreview();
+    }
+
+    const tipoReferenciaField = document.getElementById('id_tipo_referencia');
+    const camposCodigo = document.getElementById('dotacao-campos-codigo');
+    const camposSigla = document.getElementById('dotacao-campos-sigla');
+    const codigoInput = document.getElementById('id_codigo_ref');
+    const descricaoInput = document.getElementById('id_descricao_ref');
+    const siglaInput = document.getElementById('id_sigla_ref');
+    const nomeInput = document.getElementById('id_nome_ref');
+
+    function updateDotacaoReferenceForm() {
+      if (!tipoReferenciaField) return;
+      const tipo = tipoReferenciaField.value;
+      const usaSigla = (tipo === 'SECRETARIA' || tipo === 'UNIDADE_ORCAMENTARIA');
+      if (camposCodigo) camposCodigo.classList.toggle('hidden', usaSigla);
+      if (camposSigla) camposSigla.classList.toggle('hidden', !usaSigla);
+      if (codigoInput) codigoInput.required = !usaSigla;
+      if (descricaoInput) descricaoInput.required = !usaSigla;
+      if (siglaInput) siglaInput.required = usaSigla;
+      if (nomeInput) nomeInput.required = usaSigla;
+    }
+
+    if (tipoReferenciaField) {
+      tipoReferenciaField.addEventListener('change', updateDotacaoReferenceForm);
+      updateDotacaoReferenceForm();
+    }
+
+    const pessoasAutocompleteUrl = "{{ pessoas_autocomplete_url|escapejs }}";
+    const responsavelInput = document.getElementById('id_responsavel_demanda');
+    const responsavelIdInput = document.getElementById('id_responsavel_pessoa_id');
+    const cargoInput = document.getElementById('id_cargo_funcao');
+    const responsavelDatalist = document.getElementById('responsavel-demanda-sugestoes');
+    const pessoasMap = new Map();
+    let pessoasRequestTimer = null;
+
+    function fillPessoaSuggestions(items) {
+      if (!responsavelDatalist) return;
+      responsavelDatalist.innerHTML = '';
+      pessoasMap.clear();
+      items.forEach(function (pessoa) {
+        const option = document.createElement('option');
+        option.value = pessoa.nome;
+        option.label = pessoa.rotulo || pessoa.nome;
+        responsavelDatalist.appendChild(option);
+        pessoasMap.set((pessoa.nome || '').toLowerCase(), pessoa);
+      });
+    }
+
+    async function loadPessoaSuggestions(query) {
+      if (!pessoasAutocompleteUrl || !responsavelInput || !responsavelDatalist) return;
+      const response = await fetch(pessoasAutocompleteUrl + '?q=' + encodeURIComponent(query), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await response.json();
+      fillPessoaSuggestions((data && data.results) || []);
+    }
+
+    function syncPessoaSelection() {
+      if (!responsavelInput || !responsavelIdInput) return;
+      const key = (responsavelInput.value || '').trim().toLowerCase();
+      const pessoa = pessoasMap.get(key);
+      if (pessoa) {
+        responsavelIdInput.value = pessoa.id;
+        if (cargoInput && pessoa.cargo) {
+          cargoInput.value = pessoa.cargo;
+        }
+      } else {
+        responsavelIdInput.value = '';
+      }
+    }
+
+    if (responsavelInput && responsavelDatalist && responsavelIdInput) {
+      responsavelInput.addEventListener('input', function () {
+        responsavelIdInput.value = '';
+        if (pessoasRequestTimer) {
+          window.clearTimeout(pessoasRequestTimer);
+        }
+        const query = (responsavelInput.value || '').trim();
+        if (query.length < 2) {
+          fillPessoaSuggestions([]);
+          return;
+        }
+        pessoasRequestTimer = window.setTimeout(function () {
+          loadPessoaSuggestions(query).catch(function () {});
+        }, 180);
+      });
+      responsavelInput.addEventListener('change', syncPessoaSelection);
+      const initialQuery = (responsavelInput.value || '').trim();
+      if (initialQuery.length >= 2) {
+        loadPessoaSuggestions(initialQuery).then(syncPessoaSelection).catch(function () {});
+      }
+    }
+
+    document.querySelectorAll('[data-autosubmit="true"]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        const form = input.closest('form');
+        if (form) form.requestSubmit();
+      });
+    });
+
+    const btnSalvarGeral = document.getElementById('btn-salvar-geral');
+    const formSalvarDfd = document.getElementById('form-salvar-dfd');
+    const formSalvarEtp = document.getElementById('form-salvar-etp');
+    const formSalvarTr = document.getElementById('form-salvar-tr');
+    async function postAjaxForm(form) {
+      const response = await fetch(form.action, {
+        method: (form.method || 'POST').toUpperCase(),
+        body: new FormData(form),
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      return response.json().catch(function () {
+        return { ok: false, message: 'Resposta inválida do servidor.' };
+      });
+    }
+    if (btnSalvarGeral && formSalvarDfd && formSalvarEtp && formSalvarTr) {
+      btnSalvarGeral.addEventListener('click', async function () {
+        const etapas = [
+          { nome: 'DFD', form: formSalvarDfd },
+          { nome: 'ETP', form: formSalvarEtp },
+          { nome: 'TR', form: formSalvarTr },
+        ];
+        btnSalvarGeral.disabled = true;
+        let falha = null;
+        try {
+          for (const etapa of etapas) {
+            if (typeof etapa.form.reportValidity === 'function' && !etapa.form.reportValidity()) {
+              falha = { etapa: etapa.nome, message: 'Revise os campos obrigatórios antes de salvar.' };
+              break;
+            }
+            const submitButtons = etapa.form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            submitButtons.forEach(function (btn) { btn.disabled = true; });
+            const data = await postAjaxForm(etapa.form);
+            submitButtons.forEach(function (btn) { btn.disabled = false; });
+            if (!data.ok) {
+              falha = { etapa: etapa.nome, message: data.message || 'Falha ao salvar.' };
+              break;
+            }
+          }
+        } catch (e) {
+          falha = { etapa: 'comunicação', message: 'Falha de comunicação ao executar o salvamento geral.' };
+        } finally {
+          btnSalvarGeral.disabled = false;
+        }
+
+        if (falha) {
+          if (window.sirelShowToast) window.sirelShowToast('Salvar geral interrompido em ' + falha.etapa + '. ' + falha.message, 'error');
+          return;
+        }
+        if (window.sirelShowToast) window.sirelShowToast('Salvamento geral concluído com sucesso.', 'success');
+        if (window.sirelRefreshMainContent) {
+          await window.sirelRefreshMainContent();
+        } else {
+          window.location.reload();
+        }
+      });
+    }
+    }
+
+    window.initPlanejamentoPage = initPlanejamentoPage;
+    initPlanejamentoPage();
+  })();
+</script>
+{% endblock %}
+
+
+

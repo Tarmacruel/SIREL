@@ -1,0 +1,568 @@
+﻿{% extends 'workflow/base.html' %}
+{% load formatacoes %}
+
+{% block extra_head %}
+<style>
+  .compras-steps {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 0 16px;
+  }
+  .compras-step {
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: var(--surface-soft);
+    font-size: 13px;
+  }
+  .compras-step.active {
+    background: var(--primary);
+    color: #fff;
+    border-color: transparent;
+  }
+  .compras-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+  .inline-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: end;
+  }
+  .inline-form > * {
+    flex: 1 1 180px;
+  }
+  .badge {
+    display: inline-block;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .badge.ok {
+    background: #123d2d;
+    border-color: #1f7a58;
+    color: #d8f7e8;
+  }
+  .badge.warn {
+    background: #4a3010;
+    border-color: #b57b38;
+    color: #ffe8c5;
+  }
+  .badge.muted {
+    background: var(--surface-soft);
+    color: var(--muted);
+  }
+  .btn-disabled {
+    background: #7a8aa3 !important;
+    cursor: not-allowed !important;
+    opacity: .8;
+  }
+  .status-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .status-row {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .table-wrap { overflow-x: auto; }
+
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(6, 15, 28, 0.74);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .modal.active { display: flex; }
+  .modal-card {
+    width: min(1140px, 100%);
+    max-height: 94vh;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .modal-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .modal-body {
+    padding: 0;
+    overflow: hidden;
+  }
+  .preview-iframe {
+    width: 100%;
+    height: min(76vh, 940px);
+    border: none;
+    background: #fff;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Módulo Compras</h2>
+<p class="muted">Processo {{ processo.numero_processo_principal }} | Etapa: {{ workflow.etapa_atual }}</p>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px;">
+  <a class="btn" href="{% url 'workflow:processo_resumo' processo.id %}">Voltar ao resumo</a>
+  {% if pode_encaminhar_licitacao %}
+    <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino=LICITACAO">Gerar C.I. e encaminhar para Licitação</a>
+  {% else %}
+    <button type="button" class="btn btn-disabled" title="Libera após gerar a SD (DOCX/PDF/XLSX) ou anexar SD assinada." disabled>
+      Gerar C.I. e encaminhar para Licitação
+    </button>
+  {% endif %}
+  <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino=PLANEJAMENTO&acao=devolver">Devolver para Planejamento</a>
+</div>
+
+<div class="compras-steps">
+  <div class="compras-step active">1. Cotacoes + Fontes</div>
+  <div class="compras-step {% if etapa_status.sd %}active{% endif %}">2. Solicitação de Despesa</div>
+  <div class="compras-step {% if pode_encaminhar_licitacao %}active{% endif %}">3. Encaminhar à Licitação</div>
+</div>
+
+{% if pncp_snapshot %}
+<section class="card">
+  <h3>Dados importados do PNCP</h3>
+  <p class="muted" style="margin-bottom:8px;">
+    Controle: {{ pncp_snapshot.numero_controle_pncp }} | Modalidade: {{ pncp_constantes.modalidade_pncp }} | Situação: {{ pncp_constantes.situacao_compra_pncp }}
+  </p>
+  <p class="muted" style="margin:0;">
+    Órgão: {{ pncp_snapshot.orgao_razao_social|default:'-' }} | Valor estimado PNCP: {{ pncp_snapshot.valor_total_estimado|floatformat:2 }}
+  </p>
+</section>
+{% endif %}
+
+<section class="card">
+  <h3>Resumo da etapa</h3>
+  <div class="status-list">
+    <div class="status-row">
+      <div>Cotacoes + Lotes + ME/EPP</div>
+      {% if etapa_status.cotacoes %}
+        <span class="badge ok">Concluido</span>
+      {% else %}
+        <span class="badge warn">Pendente</span>
+      {% endif %}
+    </div>
+    <div class="status-row">
+      <div>Fontes documentais</div>
+      {% if etapa_status.fontes %}
+        <span class="badge ok">Concluido</span>
+      {% else %}
+        <span class="badge warn">Pendente</span>
+      {% endif %}
+    </div>
+    <div class="status-row">
+      <div>Solicitação de Despesa</div>
+      {% if etapa_status.sd %}
+        <span class="badge ok">Concluida</span>
+      {% else %}
+        <span class="badge warn">Pendente</span>
+      {% endif %}
+    </div>
+  </div>
+  <p class="muted" style="margin-top:8px;">
+    SD gerada: {{ sd_status.gerada|yesno:'Sim,Não' }} | SD assinada anexada: {{ sd_status.assinada|yesno:'Sim,Não' }}.
+  </p>
+</section>
+
+<section class="card">
+  <h3>Cotacoes e fontes de pesquisa</h3>
+  <form method="post" data-ajax="true" action="{% url 'workflow:compras_salvar_pesquisa' processo.id %}">
+    {% csrf_token %}
+    <div class="compras-grid">
+      {% for field in form_pesquisa %}
+        <div>
+          <label>{{ field.label }}</label>
+          {{ field }}
+        </div>
+      {% endfor %}
+    </div>
+    <button type="submit">Salvar metodologia da pesquisa</button>
+  </form>
+
+  <div class="compras-grid" style="margin-top:14px;">
+    <div class="card" style="padding:12px;">
+      <h4>Registrar nova fonte</h4>
+      <form method="post" data-ajax="true" action="{% url 'workflow:compras_adicionar_fonte' processo.id %}">
+        {% csrf_token %}
+        {% for field in form_fonte %}
+          <div>
+            <label>{{ field.label }}</label>
+            {{ field }}
+          </div>
+        {% endfor %}
+        <button type="submit">Adicionar fonte</button>
+      </form>
+
+      <table style="margin-top:10px;">
+        <thead><tr><th>Fonte</th><th>Tipo</th><th>Data</th><th>Ações</th></tr></thead>
+        <tbody>
+        {% for fonte in etp.fontes.all %}
+          <tr>
+            <td>{{ fonte.nome_fonte }}</td>
+            <td>{{ fonte.get_tipo_fonte_display }}</td>
+            <td>{{ fonte.data_consulta|date:'d/m/Y'|default:'-' }}</td>
+            <td>
+              <form method="post" data-ajax="true" action="{% url 'workflow:compras_excluir_fonte' processo.id fonte.id %}">
+                {% csrf_token %}
+                <button type="submit" style="background:#a5223a;">Excluir</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Sem fontes registradas.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+
+      <h4 style="margin-top:14px;">Comprovantes de pesquisa</h4>
+      <form method="post" enctype="multipart/form-data" data-ajax="true" action="{% url 'workflow:compras_anexar_comprovante' processo.id %}" class="inline-form">
+        {% csrf_token %}
+        {{ form_comprovante.arquivo }}
+        <button type="submit">Anexar comprovante</button>
+      </form>
+      <table style="margin-top:8px;">
+        <thead><tr><th>Arquivo</th><th>Data</th><th>Ações</th></tr></thead>
+        <tbody>
+          {% for doc in comprovantes %}
+            <tr>
+              <td><a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a></td>
+              <td>{{ doc.criado_em|date:'d/m/Y H:i' }}</td>
+              <td>
+                <form method="post" data-ajax="true" action="{% url 'workflow:compras_excluir_comprovante' processo.id doc.id %}">
+                  {% csrf_token %}
+                  <button type="submit" style="background:#a5223a;">Excluir</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3">Sem comprovantes anexados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="padding:12px;">
+      <h4>Lançar cotação por item</h4>
+      <form method="post" data-ajax="true" action="{% url 'workflow:compras_adicionar_cotacao' processo.id %}">
+        {% csrf_token %}
+        {% for field in form_cotacao %}
+          <div>
+            <label>{{ field.label }}</label>
+            {{ field }}
+          </div>
+        {% endfor %}
+        <button type="submit">Registrar cotação</button>
+      </form>
+
+      <h4 style="margin-top:14px;">Medias por item</h4>
+      <table>
+        <thead><tr><th>Item</th><th>Media considerada</th></tr></thead>
+        <tbody>
+          {% for row in cotacoes_media %}
+            <tr>
+              <td>{{ row.item__codigo }} - {{ row.item__descricao|truncatechars:80 }}</td>
+              <td>{{ row.media|moeda_brl }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="2">Sem medias calculadas.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="ok" style="margin-top:10px;">
+        <strong>Total estimado do processo:</strong> {{ total_estimado|moeda_brl }}
+      </div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:14px;">Cotacoes lancadas</h4>
+  <table>
+    <thead><tr><th>Item</th><th>Fonte</th><th>Valor</th><th>Situação</th><th>Considerar</th><th>Ações</th></tr></thead>
+    <tbody>
+      {% for cot in cotacoes %}
+        <tr>
+          <td>{{ cot.item.codigo }} - {{ cot.item.descricao|truncatechars:70 }}</td>
+          <td>{{ cot.fonte.nome_fonte }}</td>
+          <td>{{ cot.valor_unitario|moeda_brl }}</td>
+          <td>
+            {% if cot.inexequivel %}
+              <span class="badge warn">Abaixo de 50% da media</span>
+            {% elif cot.sobrepreco %}
+              <span class="badge warn">Acima de 50% da media</span>
+            {% else %}
+              <span class="badge ok">Faixa normal</span>
+            {% endif %}
+          </td>
+          <td>
+            <form method="post" data-ajax="true" action="{% url 'workflow:compras_alterar_consideracao_cotacao' processo.id cot.id %}">
+              {% csrf_token %}
+              <label style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" name="considerar_no_calculo" {% if cot.considerar_no_calculo %}checked{% endif %}>
+                {% if cot.considerar_no_calculo %}Sim{% else %}Não{% endif %}
+              </label>
+              <button type="submit" class="btn-secondary">Atualizar</button>
+            </form>
+          </td>
+          <td>
+            <form method="post" data-ajax="true" action="{% url 'workflow:compras_excluir_cotacao' processo.id cot.id %}">
+              {% csrf_token %}
+              <button type="submit" style="background:#a5223a;">Excluir</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">Sem cotacoes registradas.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+    <a class="btn" href="{{ mapa_preview_url }}" target="_blank" rel="noopener">Pre-visualizar mapa</a>
+    <a class="btn" href="{{ mapa_docx_url }}">Mapa DOCX</a>
+    <a class="btn" href="{{ mapa_pdf_url }}">Mapa PDF</a>
+    <a class="btn" href="{{ mapa_xlsx_url }}">Mapa XLSX</a>
+  </div>
+</section>
+
+<section class="card section">
+  <h3>Solicitação de Despesa (SD)</h3>
+  <p class="muted">Bloco fechado com pré-visualização e geração em DOCX/PDF/XLSX.</p>
+  <div class="compras-grid">
+    <div>
+      <div class="muted">Processo</div>
+      <div>{{ processo.numero_processo_principal }}</div>
+      <div class="muted" style="margin-top:8px;">Objeto</div>
+      <div>{{ processo.objeto }}</div>
+      <div class="muted" style="margin-top:8px;">Total estimado</div>
+      <div><strong>{{ sd_ctx.total_geral|moeda_brl }}</strong> ({{ sd_ctx.total_geral|por_extenso }})</div>
+      <div class="muted" style="margin-top:8px;">Secretaria para assinatura</div>
+      <div>
+        {% if secretaria_assinatura %}
+          {{ secretaria_assinatura.sigla }} - {{ secretaria_assinatura.nome }}
+          {% if multiplas_secretarias %}<span class="badge muted">multiplas secretarias demandantes</span>{% endif %}
+        {% else %}
+          Não identificada
+        {% endif %}
+      </div>
+      <div class="muted" style="margin-top:8px;">Signatario sugerido</div>
+      <div>{% if signatario_sd %}{{ signatario_sd.nome }}{% else %}Não identificado{% endif %}</div>
+    </div>
+    <div>
+      <div class="muted">Justificativa da contratacao</div>
+      <div class="card" style="margin-top:6px;padding:10px;background:var(--surface-soft);">
+        {{ sd_ctx.justificativa|default:'-' }}
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button type="button" data-open-modal="#modal-sd-preview" data-preview-url="{{ sd_preview_popup_url }}">Pre-visualizar SD</button>
+        <a class="btn" href="{{ sd_docx_url }}">Gerar DOCX</a>
+        <a class="btn" href="{{ sd_pdf_url }}">Gerar PDF</a>
+        <a class="btn" href="{{ sd_xlsx_url }}">Gerar XLSX</a>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <a class="btn" href="{{ sd_preview_page_url }}" target="_blank" rel="noopener">Abrir pré-visualização em nova aba</a>
+      </div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:14px;">Itens da SD</h4>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Lote</th><th>No item</th><th>Codigo</th><th>Descricao</th><th>Unidade</th><th>Qtd.</th><th>Valor unit.</th><th>Total item</th></tr></thead>
+      <tbody>
+        {% for lote in sd_ctx.lotes %}
+          {% for row in lote.itens %}
+            <tr>
+              <td>{{ lote.numero }}</td>
+              <td>{{ row.item.codigo }}</td>
+              <td>{{ row.item.codigo }}</td>
+              <td>{{ row.item.descricao }}</td>
+              <td>{{ row.item.unidade }}</td>
+              <td>{{ row.quantidade|floatformat:3 }}</td>
+              <td>{{ row.valor_unitario|moeda_brl }}</td>
+              <td>{{ row.total_item|moeda_brl }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8">Sem itens vinculados.</td></tr>
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h4 style="margin-top:14px;">Totais por lote</h4>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Lote</th><th>Titulo</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for lote in sd_ctx.lotes %}
+          <tr>
+            <td>{{ lote.numero }}</td>
+            <td>{{ lote.titulo }}</td>
+            <td>{{ lote.total_lote|moeda_brl }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Sem lotes definidos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h4 style="margin-top:14px;">Dotacoes orcamentarias</h4>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Secretaria</th><th>Unidade</th><th>Projeto</th><th>Elemento</th><th>Fonte</th></tr></thead>
+      <tbody>
+        {% for d in dotacoes %}
+          <tr>
+            <td>{% if d.secretaria %}{{ d.secretaria.sigla }} - {{ d.secretaria.nome }}{% else %}-{% endif %}</td>
+            <td>{% if d.unidade_orcamentaria %}{{ d.unidade_orcamentaria.sigla }} - {{ d.unidade_orcamentaria.nome }}{% else %}-{% endif %}</td>
+            <td>{% if d.projeto_atividade %}{{ d.projeto_atividade.codigo }} - {{ d.projeto_atividade.descricao }}{% else %}-{% endif %}</td>
+            <td>{% if d.elemento_despesa %}{{ d.elemento_despesa.codigo }} - {{ d.elemento_despesa.descricao }}{% else %}-{% endif %}</td>
+            <td>{% if d.fonte_recurso %}{{ d.fonte_recurso.codigo }} - {{ d.fonte_recurso.descricao }}{% else %}-{% endif %}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Sem dotacoes definidas no TR.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h4 style="margin-top:14px;">Assinatura</h4>
+  <div class="card" style="padding:12px;background:var(--surface-soft);">
+    <div style="border-top:1px solid var(--border);margin:18px 0 8px;max-width:420px;"></div>
+    <div>{% if signatario_sd %}{{ signatario_sd.nome }}{% else %}Responsavel pela assinatura{% endif %}</div>
+    <div class="muted">{% if signatario_sd and signatario_sd.cargo %}{{ signatario_sd.cargo }}{% endif %}</div>
+    <div class="muted">{% if secretaria_assinatura %}{{ secretaria_assinatura.sigla }} - {{ secretaria_assinatura.nome }}{% endif %}</div>
+  </div>
+  <div class="muted" style="margin-top:8px;">Após assinar externamente, anexe o documento assinado na seção de documentos abaixo (tipo: Solicitação de Despesa).</div>
+</section>
+
+<div class="modal" id="modal-sd-preview" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <strong>Pré-visualização da Solicitação de Despesa</strong>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" id="btn-print-sd-preview">Imprimir</button>
+        <a class="btn" href="{{ sd_docx_url }}">Gerar DOCX</a>
+        <a class="btn" href="{{ sd_pdf_url }}">Gerar PDF</a>
+        <a class="btn" href="{{ sd_xlsx_url }}">Gerar XLSX</a>
+        <button type="button" class="btn-secondary" data-close-modal="#modal-sd-preview">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <iframe id="sd-preview-frame" class="preview-iframe" title="Pré-visualização SD" loading="lazy"></iframe>
+    </div>
+  </div>
+</div>
+
+<section class="card section">
+  <h3>Documentos assinados do módulo Compras</h3>
+  <form method="post" enctype="multipart/form-data" data-ajax="true" action="{% url 'workflow:processo_upload_documento_assinado' processo.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
+    <div class="inline-form">
+      {{ form_doc_assinado.doc_key }}
+      <input type="file" name="arquivo" required>
+      <button type="submit">Anexar assinado</button>
+    </div>
+  </form>
+  <table style="margin-top:10px;">
+    <thead><tr><th>Documento</th><th>Arquivo</th><th>Data</th></tr></thead>
+    <tbody>
+      {% for doc in documentos_assinados %}
+        <tr>
+          <td>{{ doc.label }}</td>
+          <td><a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a></td>
+          <td>{{ doc.criado_em|date:'d/m/Y H:i' }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">Sem documentos assinados anexados para Compras.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    function setModal(modal, open) {
+      if (!modal) return;
+      modal.classList.toggle('active', open);
+      modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (open) {
+        const frame = modal.querySelector('iframe');
+        const opener = modal.__opener;
+        if (frame && opener) {
+          const url = opener.getAttribute('data-preview-url');
+          if (url && frame.getAttribute('src') !== url) frame.setAttribute('src', url);
+        }
+      }
+      document.body.style.overflow = open ? 'hidden' : '';
+    }
+
+    document.addEventListener('click', function (event) {
+      const openBtn = event.target.closest('[data-open-modal]');
+      if (openBtn) {
+        const modal = document.querySelector(openBtn.getAttribute('data-open-modal'));
+        if (modal) {
+          modal.__opener = openBtn;
+          setModal(modal, true);
+        }
+        return;
+      }
+      const closeBtn = event.target.closest('[data-close-modal]');
+      if (closeBtn) {
+        setModal(document.querySelector(closeBtn.getAttribute('data-close-modal')), false);
+        return;
+      }
+      if (event.target.classList && event.target.classList.contains('modal')) {
+        setModal(event.target, false);
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape') return;
+      const opened = document.querySelector('.modal.active');
+      if (opened) setModal(opened, false);
+    });
+
+    document.addEventListener('click', function (event) {
+      const btn = event.target.closest('#btn-print-sd-preview');
+      if (!btn) return;
+      const frame = document.getElementById('sd-preview-frame');
+      if (frame && frame.contentWindow) {
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      }
+    });
+  })();
+</script>
+{% endblock %}
+

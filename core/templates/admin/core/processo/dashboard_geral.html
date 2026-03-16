@@ -1,0 +1,49 @@
+﻿{% extends "admin/base_site.html" %}
+
+{% block content_title %}{% endblock %}
+{% block extrastyle %}
+<style>
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:12px 0}
+  .card{border:1px solid #ddd;border-radius:6px;padding:10px;background:#fff}
+  .h{font-size:12px;color:#666;margin-bottom:4px}
+  .v{font-size:20px;font-weight:600}
+  table.dash{width:100%;border-collapse:collapse;margin-top:16px}
+  table.dash th,table.dash td{border:1px solid #ddd;padding:6px 8px}
+  table.dash th{background:#f5f5f5}
+</style>
+{% endblock %}
+{% block content %}
+<h1>{{ title|default:"Dashboard Geral" }}</h1>
+<p><a class="button" href="{% url 'admin:core_processo_change' processo.pk %}">Voltar ao processo</a></p>
+
+<div class="cards">
+  <div class="card"><div class="h">Total de lotes</div><div class="v">{{ resumo.total_lotes|default:0 }}</div></div>
+  <div class="card"><div class="h">Com vencedor</div><div class="v">{{ resumo.com_vencedor|default:0 }}</div></div>
+  <div class="card"><div class="h">Mal sucedidos</div><div class="v">{{ resumo.malsucedidos|default:0 }}</div></div>
+</div>
+
+<h2>Lotes com vencedor</h2>
+<table class="dash">
+  <thead><tr><th>Lote</th><th>Título</th><th>Status</th><th>Qtd. itens</th><th>Itens c/ vencedor</th></tr></thead>
+  <tbody>
+    {% for r in lotes_com_vencedor %}
+    <tr><td>{{ r.lote }}</td><td>{{ r.titulo }}</td><td>{{ r.status_lote }}</td><td>{{ r.qtd_itens }}</td><td>{{ r.qtd_itens_com_vencedor }}</td></tr>
+    {% empty %}
+    <tr><td colspan="5">Nenhum lote com vencedor.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Lotes mal sucedidos</h2>
+<table class="dash">
+  <thead><tr><th>Lote</th><th>Título</th><th>Status</th><th>Qtd. itens</th><th>Itens c/ vencedor</th></tr></thead>
+  <tbody>
+    {% for r in lotes_malsucedidos %}
+    <tr><td>{{ r.lote }}</td><td>{{ r.titulo }}</td><td>{{ r.status_lote }}</td><td>{{ r.qtd_itens }}</td><td>{{ r.qtd_itens_com_vencedor }}</td></tr>
+    {% empty %}
+    <tr><td colspan="5">Nenhum lote mal sucedido.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

@@ -1,0 +1,41 @@
+{% extends "admin/change_form.html" %}
+{% load i18n static admin_urls smarturl %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/processo_objecttools.css' %}">
+{% endblock %}
+
+{% block object-tools %}
+  {% if object_id %}
+  <div class="proc-tools-wrap">
+    <ul id="proc-tools" class="proc-tools">
+      <li class="group">Auditoria</li>
+      <li><a class="tool" href="{% url opts|admin_urlname:'history' original.pk|admin_urlquote %}">Histórico de alterações</a></li>
+
+      <li class="group">Transparência</li>
+      <li><a class="tool public" href="{% smart_public_url object_id %}" target="_blank" rel="noopener">Página pública</a></li>
+
+      <li class="group">Documentos</li>
+      <li><a class="tool doc" href="{% smarturl 'termo_autuacao_docx' object_id %}">Termo de Autuação</a></li>
+      <li><a class="tool doc" href="{% smarturl 'termo_autorizacao_docx' object_id %}">Termo de Autorização</a></li>
+      <li><a class="tool doc" href="{% smarturl 'aviso_licitacao_docx' object_id %}">Aviso de Licitação</a></li>
+      <li><a class="tool doc" href="{% smarturl 'ci_procuradoria_docx' object_id %}">CI PGM</a></li>
+      <li><a class="tool doc" href="{% smarturl 'ci_controladoria_docx' object_id %}">CI CGM</a></li>
+      <li><a class="tool doc" href="{% smarturl 'ci_contabilidade_docx' object_id %}">CI Contabilidade</a></li>
+      <li><a class="tool doc" href="{% smarturl 'declaracao_nao_fracionamento_docx' object_id %}">Decl. Não Fracionamento</a></li>
+
+      <li class="group">Integrações BLL</li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/importar-arquivo/">Importar</a></li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/importar-arquivo-bll/">Importar BLL</a></li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/exportar-bll-xlsx/">Exportar BLL</a></li>
+
+      <li class="group">Dashboards</li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/dashboard-itens/">Dashboard Itens</a></li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/dashboard-contratos/">Dashboard Contratos</a></li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/dashboard-lotes-mal-sucedidos/">Lotes mal sucedidos</a></li>
+      <li><a class="tool dash" href="/admin/core/processo/{{ object_id }}/dashboard-geral/">Dashboard Geral</a></li>
+    </ul>
+  </div>
+  {% endif %}
+{% endblock %}

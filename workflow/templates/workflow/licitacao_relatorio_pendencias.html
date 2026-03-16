@@ -1,0 +1,166 @@
+{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-block;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    background: var(--surface-soft);
+  }
+
+  .badge.ok {
+    background: var(--success-bg);
+    border-color: var(--success-border);
+  }
+
+  .badge.warn {
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+
+  .badge.future {
+    background: color-mix(in srgb, var(--surface-soft) 74%, #a7b7d1 26%);
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .phase-block {
+    margin-top: 14px;
+  }
+
+  .phase-title {
+    margin: 0 0 8px;
+  }
+
+  @media print {
+    header, .head .btn, .toast-stack { display: none !important; }
+    main { max-width: none; padding: 0; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head">
+  <div>
+    <h2>Relatório de pendências documentais - Licitação</h2>
+    <p class="muted">
+      Processo
+      <span class="process-num">
+        <span class="process-num-main">{{ processo.numero_processo_principal }}</span>
+        {% if processo.numero_processo_secundario %}
+          <span class="process-num-ref">{{ processo.numero_processo_secundario }}</span>
+        {% endif %}
+      </span>
+      | Gerado em {{ gerado_em|date:'d/m/Y H:i' }}
+    </p>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <a class="btn" href="{% url 'workflow:licitacao_detail' processo.id %}">Voltar à Licitação</a>
+    <button type="button" onclick="window.print()">Imprimir</button>
+  </div>
+</div>
+
+<section class="card section">
+  <h3>Resumo executivo</h3>
+  <div class="summary-grid">
+    <div class="card">
+      <div class="muted">Concluídos (fase atual)</div>
+      <div class="kpi">{{ total_concluidos }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Pendentes (fase atual)</div>
+      <div class="kpi">{{ total_pendentes }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Planejados (fases futuras)</div>
+      <div class="kpi">{{ total_planejados }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Completude da fase atual</div>
+      <div class="kpi">{{ checklist_ctx.percentual }}%</div>
+    </div>
+  </div>
+</section>
+
+{% for fase, rows in agrupado.items %}
+  <section class="card phase-block">
+    <h3 class="phase-title">{{ fase }}</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:45%;">Documento</th>
+          <th style="width:15%;">Código</th>
+          <th style="width:20%;">Status</th>
+          <th style="width:20%;">Última atualização</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td>{{ row.documento }}</td>
+            <td>{{ row.codigo }}</td>
+            <td>
+              {% if row.tipo == 'FUTURO' %}
+                <span class="badge future">{{ row.status }}</span>
+              {% elif row.presente %}
+                <span class="badge ok">{{ row.status }}</span>
+              {% else %}
+                <span class="badge warn">{{ row.status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.data %}
+                {{ row.data|date:'d/m/Y H:i' }}
+              {% else %}
+                <span class="muted">-</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endfor %}
+
+<section class="card section">
+  <h3>Trilha documental (módulo Licitação)</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Ordem</th>
+        <th>Tipo de documento</th>
+        <th>Arquivo</th>
+        <th>Data</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for doc in docs_licitacao %}
+        <tr>
+          <td>{{ doc.ordem_cronologica }}</td>
+          <td>{{ doc.tipo_documento }}</td>
+          <td><a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a></td>
+          <td>{{ doc.criado_em|date:'d/m/Y H:i' }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Nenhum documento registrado no módulo Licitação.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}
+

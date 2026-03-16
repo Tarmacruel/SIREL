@@ -1,0 +1,559 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .edital-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 560px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .edital-panel {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    padding: 12px;
+    box-shadow: var(--shadow-sm);
+    display: grid;
+    gap: 12px;
+  }
+  .edital-panel h3 {
+    margin: 0;
+    font-size: 15px;
+  }
+  .field {
+    display: grid;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .checks {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 14px;
+  }
+  .checks label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .sec-builder {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    padding: 8px;
+    display: grid;
+    gap: 8px;
+  }
+  .sec-builder-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .sec-builder-head strong {
+    font-size: 13px;
+  }
+  .sec-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+  }
+  .sec-item > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1b3558;
+    border-bottom: 1px solid transparent;
+  }
+  .sec-item[open] > summary {
+    border-bottom-color: var(--border);
+    background: #f8fbff;
+  }
+  .sec-item textarea {
+    width: calc(100% - 20px);
+    margin: 8px 10px 10px;
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .actions {
+    display: grid;
+    gap: 8px;
+  }
+  .actions > * {
+    width: 100%;
+    text-align: center;
+  }
+  .preview-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    padding: 10px;
+    box-shadow: var(--shadow-sm);
+  }
+  .preview {
+    background: #fff;
+    border: 1px solid #d6e0ef;
+    border-radius: 10px;
+    overflow: hidden;
+    color: #1b2b40;
+  }
+  .preview-head {
+    padding: 12px;
+    border-bottom: 2px solid #1c4d86;
+    background: linear-gradient(90deg, #184783, #2a68ae);
+    color: #fff;
+  }
+  .preview-title {
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .preview-sub {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+  .preview-body {
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+  }
+  .meta {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #d6e0ef;
+  }
+  .meta td {
+    border: 1px solid #d6e0ef;
+    padding: 7px;
+    font-size: 13px;
+    vertical-align: top;
+  }
+  .meta td:first-child {
+    width: 145px;
+    background: #eef3fb;
+    font-weight: 700;
+  }
+  .doc-body h4 {
+    font-size: 15px;
+    margin: 14px 0 6px;
+    color: #153153;
+  }
+  .doc-body p {
+    font-size: 14px;
+    line-height: 1.45;
+    margin: 0 0 8px;
+    text-align: justify;
+  }
+  .sign {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 13px;
+  }
+  .sign-line {
+    border-top: 1px solid #76859a;
+    margin-bottom: 6px;
+  }
+  @media (max-width: 1180px) {
+    .edital-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media (max-width: 760px) {
+    .grid2,
+    .checks {
+      grid-template-columns: 1fr;
+    }
+  }
+  @media print {
+    header, .edital-panel, .toast-stack { display: none !important; }
+    main { max-width: none; padding: 0; }
+    .edital-layout { display: block; }
+    .preview-wrap { border: 0; padding: 0; background: #fff; box-shadow: none; }
+    .preview { border: 0; border-radius: 0; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>{{ titulo_pagina }}</h2>
+<p class="muted">Processo {{ processo.numero_processo_principal }} | Módulo Licitação</p>
+
+<div class="edital-layout">
+  <div class="edital-panel">
+    <h3>Dados da capa</h3>
+    <form method="post" id="edital-form">
+      {% csrf_token %}
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_modalidade_nome">Modalidade</label>
+          <select id="id_modalidade_nome" name="modalidade_nome">
+            {% for nome in modalidades_catalogo %}
+              <option value="{{ nome }}" {% if nome == modalidade_nome %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+            {% if modalidade_nome and modalidade_nome not in modalidades_catalogo %}
+              <option value="{{ modalidade_nome }}" selected>{{ modalidade_nome }}</option>
+            {% endif %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_numero_edital_modelo">Número do edital</label>
+          <input id="id_numero_edital_modelo" type="text" name="numero_edital_modelo" value="{{ numero_edital_modelo }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_processo_adm">Processo administrativo</label>
+          <input id="id_processo_adm" type="text" name="processo_adm" value="{{ processo_adm }}">
+        </div>
+        <div class="field">
+          <label for="id_codigo_contratante">Código do contratante</label>
+          <input id="id_codigo_contratante" type="text" name="codigo_contratante" value="{{ codigo_contratante }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_cnpj">CNPJ</label>
+          <input id="id_cnpj" type="text" name="cnpj" value="{{ cnpj }}">
+        </div>
+        <div class="field">
+          <label for="id_orgao_nome">Órgão/Entidade</label>
+          <input id="id_orgao_nome" type="text" name="orgao_nome" value="{{ orgao_nome }}">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="id_setor_responsavel">Setor responsável</label>
+        <input id="id_setor_responsavel" type="text" name="setor_responsavel" value="{{ setor_responsavel }}">
+      </div>
+
+      <div class="field">
+        <label for="id_objeto">Objeto</label>
+        <textarea id="id_objeto" name="objeto" rows="3">{{ objeto }}</textarea>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_logradouro">Endereço</label>
+          <input id="id_logradouro" type="text" name="logradouro" value="{{ logradouro }}">
+        </div>
+        <div class="field">
+          <label for="id_numero_endereco">Número</label>
+          <input id="id_numero_endereco" type="text" name="numero_endereco" value="{{ numero_endereco }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_complemento">Complemento</label>
+          <input id="id_complemento" type="text" name="complemento" value="{{ complemento }}">
+        </div>
+        <div class="field">
+          <label for="id_bairro">Bairro</label>
+          <input id="id_bairro" type="text" name="bairro" value="{{ bairro }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_cidade">Cidade</label>
+          <input id="id_cidade" type="text" name="cidade" value="{{ cidade }}">
+        </div>
+        <div class="field">
+          <label for="id_uf">UF</label>
+          <input id="id_uf" type="text" name="uf" value="{{ uf }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_cep">CEP</label>
+          <input id="id_cep" type="text" name="cep" value="{{ cep }}">
+        </div>
+        <div class="field">
+          <label for="id_localidade">Localidade</label>
+          <input id="id_localidade" type="text" name="localidade" value="{{ localidade }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_criterio_julgamento">Critério de julgamento</label>
+          <select id="id_criterio_julgamento" name="criterio_julgamento">
+            {% for nome in criterios_catalogo %}
+              <option value="{{ nome }}" {% if nome == criterio_julgamento %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+            {% if criterio_julgamento and criterio_julgamento not in criterios_catalogo %}
+              <option value="{{ criterio_julgamento }}" selected>{{ criterio_julgamento }}</option>
+            {% endif %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_modo_disputa">Modo de disputa</label>
+          <select id="id_modo_disputa" name="modo_disputa">
+            {% for nome in modos_catalogo %}
+              <option value="{{ nome }}" {% if nome == modo_disputa %}selected{% endif %}>{{ nome }}</option>
+            {% endfor %}
+            {% if modo_disputa and modo_disputa not in modos_catalogo %}
+              <option value="{{ modo_disputa }}" selected>{{ modo_disputa }}</option>
+            {% endif %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_valor_estimado_input">Valor estimado</label>
+          <input id="id_valor_estimado_input" type="text" name="valor_estimado_input" value="{{ valor_estimado_input }}">
+        </div>
+        <div class="field">
+          <label for="id_data_sessao">Data da sessão</label>
+          <input id="id_data_sessao" type="date" name="data_sessao" value="{{ data_sessao }}">
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_hora_sessao">Hora da sessão</label>
+          <input id="id_hora_sessao" type="time" name="hora_sessao" value="{{ hora_sessao }}">
+        </div>
+      </div>
+
+      <div class="checks">
+        <label><input id="id_srp" type="checkbox" name="srp" value="1" {% if srp %}checked{% endif %}> SRP</label>
+        <label><input id="id_contratacao_tic" type="checkbox" name="contratacao_tic" value="1" {% if contratacao_tic %}checked{% endif %}> Contratação TIC</label>
+        <label><input id="id_preferencia_me_epp" type="checkbox" name="preferencia_me_epp" value="1" {% if preferencia_me_epp %}checked{% endif %}> Preferência ME/EPP</label>
+        <label><input id="id_margem_preferencia" type="checkbox" name="margem_preferencia" value="1" {% if margem_preferencia %}checked{% endif %}> Margem de preferência</label>
+        <label><input id="id_orcamento_sigiloso" type="checkbox" name="orcamento_sigiloso" value="1" {% if orcamento_sigiloso %}checked{% endif %}> Orçamento sigiloso</label>
+        <label><input id="id_inversao_fases" type="checkbox" name="inversao_fases" value="1" {% if inversao_fases %}checked{% endif %}> Inversão de fases</label>
+        <label><input id="id_veda_consorcio" type="checkbox" name="veda_consorcio" value="1" {% if veda_consorcio %}checked{% endif %}> Vedar consórcio</label>
+        <label><input id="id_dedicacao_exclusiva" type="checkbox" name="dedicacao_exclusiva" value="1" {% if dedicacao_exclusiva %}checked{% endif %}> Dedicação exclusiva</label>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label for="id_signatario_nome">Signatário</label>
+          <input id="id_signatario_nome" type="text" name="signatario_nome" value="{{ signatario_nome }}">
+        </div>
+        <div class="field">
+          <label for="id_signatario_cargo">Cargo do signatário</label>
+          <input id="id_signatario_cargo" type="text" name="signatario_cargo" value="{{ signatario_cargo }}">
+        </div>
+      </div>
+
+      <div class="sec-builder">
+        <div class="sec-builder-head">
+          <strong>Montagem do edital (seções)</strong>
+          <button type="submit" class="btn-secondary" name="action" value="reload_template">Recarregar modelo da modalidade</button>
+        </div>
+
+        {% for sec in edital_secoes %}
+          <details class="sec-item" {% if forloop.first %}open{% endif %}>
+            <summary>{{ sec.titulo }}</summary>
+            <textarea
+              id="id_sec_{{ sec.key }}"
+              name="sec_{{ sec.key }}"
+              data-sec-key="{{ sec.key }}"
+              data-sec-title="{{ sec.titulo }}"
+              data-sec-preserve="{{ sec.preserve_blank_lines|yesno:'1,0' }}"
+              data-sec-show-title="{{ sec.show_title|yesno:'1,0' }}"
+              rows="7"
+            >{{ sec.texto }}</textarea>
+          </details>
+        {% endfor %}
+      </div>
+
+      <div class="actions">
+        <button type="submit" name="action" value="download_html">Salvar HTML</button>
+        <button type="submit" name="action" value="preview_pdf">Gerar PDF</button>
+        <button type="submit" class="btn-secondary" name="action" value="download_docx">Gerar DOCX</button>
+        <button type="button" class="btn-secondary" onclick="window.print()">Imprimir rascunho</button>
+        <a class="btn" href="{{ voltar_url }}">Voltar para Licitação</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="preview-wrap">
+    <article class="preview">
+      <header class="preview-head">
+        <div class="preview-title" id="pv-orgao">{{ orgao_nome }}</div>
+        <div class="preview-sub">CNPJ <span id="pv-cnpj">{{ cnpj }}</span></div>
+      </header>
+      <section class="preview-body">
+        <div style="text-align:center;">
+          <div style="font-size:11px;color:#5d6f8a;font-weight:700;text-transform:uppercase;">Minuta de Edital</div>
+          <div id="pv-modalidade" style="font-size:28px;font-weight:800;color:#123a67;line-height:1.1;">{{ modalidade_nome }}</div>
+          <div id="pv-numero" style="margin-top:2px;font-size:15px;font-weight:700;">Edital {{ numero_edital_modelo }}</div>
+        </div>
+
+        <table class="meta">
+          <tbody>
+            <tr><td>Processo</td><td id="pv-processo">{{ processo_adm }}</td></tr>
+            <tr><td>Setor</td><td id="pv-setor">{{ setor_responsavel }}</td></tr>
+            <tr><td>Endereço</td><td id="pv-endereco">{{ endereco_completo_exibicao }}</td></tr>
+            <tr><td>Sessão</td><td id="pv-sessao">{{ data_sessao_extenso }}, às {{ hora_sessao }}</td></tr>
+            <tr><td>Critério/Modo</td><td><span id="pv-criterio">{{ criterio_julgamento }}</span> | <span id="pv-modo">{{ modo_disputa }}</span></td></tr>
+            <tr><td>Valor</td><td id="pv-valor">{{ valor_estimado_exibicao }}</td></tr>
+          </tbody>
+        </table>
+
+        <div class="doc-body" id="pv-corpo">
+          {% for sec in edital_secoes %}
+            {% if sec.show_title %}
+              <h4>{{ sec.titulo }}</h4>
+            {% endif %}
+            {% for p in sec.paragrafos %}
+              {% if p %}
+                <p>{{ p }}</p>
+              {% else %}
+                <p>&nbsp;</p>
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+        </div>
+
+        <div class="sign">
+          <div class="sign-line"></div>
+          <div id="pv-signatario">{{ signatario_nome }}</div>
+          <div id="pv-cargo" class="muted">{{ signatario_cargo }}</div>
+        </div>
+      </section>
+    </article>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const form = document.getElementById('edital-form');
+
+    function esc(texto) {
+      return String(texto || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function val(id) {
+      const el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    }
+
+    function checked(id) {
+      const el = document.getElementById(id);
+      return !!(el && el.checked);
+    }
+
+    function dataExtenso(isoDate) {
+      if (!isoDate) return '-';
+      const parts = String(isoDate).split('-');
+      if (parts.length !== 3) return isoDate;
+      const meses = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+      const d = parseInt(parts[2], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parts[0];
+      if (!d || !meses[m]) return isoDate;
+      return d + ' de ' + meses[m] + ' de ' + y;
+    }
+
+    function enderecoCompleto() {
+      const parts = [val('id_logradouro'), val('id_numero_endereco'), val('id_complemento'), val('id_bairro')].filter(Boolean);
+      let out = parts.join(', ');
+      const cidadeUf = [val('id_cidade'), val('id_uf')].filter(Boolean).join(' - ');
+      if (cidadeUf) out = out ? (out + ' | ' + cidadeUf) : cidadeUf;
+      const cep = val('id_cep');
+      if (cep) out = out ? (out + ' | CEP ' + cep) : ('CEP ' + cep);
+      return out || '-';
+    }
+
+    function valorExibicao() {
+      return checked('id_orcamento_sigiloso') ? 'Sigiloso' : (val('id_valor_estimado_input') || '-');
+    }
+
+    function renderSectionsPreview() {
+      const body = document.getElementById('pv-corpo');
+      if (!body) return;
+
+      const areas = Array.from(document.querySelectorAll('textarea[data-sec-key]'));
+      const html = areas.map(function (area) {
+        const titulo = area.getAttribute('data-sec-title') || 'Seção';
+        const preserve = area.getAttribute('data-sec-preserve') === '1';
+        const showTitle = area.getAttribute('data-sec-show-title') !== '0';
+        let linhas = String(area.value || '')
+          .replace(/\r/g, '')
+          .split('\n');
+        if (!preserve) {
+          linhas = linhas.map(function (x) { return x.trim(); }).filter(Boolean);
+        }
+        const parags = (linhas.length ? linhas : ['-']).map(function (ln) {
+          return '<p>' + (ln ? esc(ln) : '&nbsp;') + '</p>';
+        }).join('');
+        return (showTitle ? ('<h4>' + esc(titulo) + '</h4>') : '') + parags;
+      }).join('');
+
+      body.innerHTML = html || '<p>-</p>';
+    }
+
+    function renderPreview() {
+      const pvOrgao = document.getElementById('pv-orgao');
+      const pvCnpj = document.getElementById('pv-cnpj');
+      const pvModalidade = document.getElementById('pv-modalidade');
+      const pvNumero = document.getElementById('pv-numero');
+      const pvProc = document.getElementById('pv-processo');
+      const pvSetor = document.getElementById('pv-setor');
+      const pvEndereco = document.getElementById('pv-endereco');
+      const pvSessao = document.getElementById('pv-sessao');
+      const pvCriterio = document.getElementById('pv-criterio');
+      const pvModo = document.getElementById('pv-modo');
+      const pvValor = document.getElementById('pv-valor');
+      const pvSign = document.getElementById('pv-signatario');
+      const pvCargo = document.getElementById('pv-cargo');
+
+      if (pvOrgao) pvOrgao.textContent = val('id_orgao_nome') || 'Órgão/Entidade';
+      if (pvCnpj) pvCnpj.textContent = val('id_cnpj') || '-';
+      if (pvModalidade) pvModalidade.textContent = val('id_modalidade_nome') || 'Licitação';
+      if (pvNumero) pvNumero.textContent = 'Edital ' + (val('id_numero_edital_modelo') || '-');
+      if (pvProc) pvProc.textContent = val('id_processo_adm') || '-';
+      if (pvSetor) pvSetor.textContent = val('id_setor_responsavel') || '-';
+      if (pvEndereco) pvEndereco.textContent = enderecoCompleto();
+      if (pvSessao) pvSessao.textContent = dataExtenso(val('id_data_sessao')) + ', às ' + (val('id_hora_sessao') || '-');
+      if (pvCriterio) pvCriterio.textContent = val('id_criterio_julgamento') || '-';
+      if (pvModo) pvModo.textContent = val('id_modo_disputa') || '-';
+      if (pvValor) pvValor.textContent = valorExibicao();
+      if (pvSign) pvSign.textContent = val('id_signatario_nome') || '-';
+      if (pvCargo) pvCargo.textContent = val('id_signatario_cargo') || '';
+
+      renderSectionsPreview();
+    }
+
+    if (form) {
+      form.addEventListener('input', renderPreview);
+      form.addEventListener('change', renderPreview);
+    }
+    renderPreview();
+  })();
+</script>
+{% endblock %}

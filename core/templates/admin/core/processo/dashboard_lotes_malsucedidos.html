@@ -1,0 +1,33 @@
+﻿{% extends "admin/base_site.html" %}
+
+{% block content_title %}{% endblock %}
+{% block content %}
+  <div class="module">
+    <h2>{{ title }}</h2>
+    <table class="adminlist">
+      <thead>
+        <tr>
+          <th>Lote</th>
+          <th>Título</th>
+          <th>Status</th>
+          <th>Qtd. Itens</th>
+          <th>Itens com vencedor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.lote }}</td>
+            <td>{{ r.titulo }}</td>
+            <td>{{ r.status_lote }}</td>
+            <td>{{ r.qtd_itens }}</td>
+            <td>{{ r.qtd_itens_com_vencedor }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Não há lotes mal sucedidos.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
+

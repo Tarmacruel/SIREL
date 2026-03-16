@@ -1,0 +1,37 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+<h1>Dashboard – LicitaWeb</h1>
+<div><canvas id="chart1" width="600" height="260"></canvas></div>
+<div><canvas id="chart2" width="600" height="260"></canvas></div>
+<div><canvas id="chart3" width="600" height="260"></canvas></div>
+<div><canvas id="chart4" width="600" height="260"></canvas></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const C1 = document.getElementById('chart1').getContext('2d');
+new Chart(C1, {
+  type: 'bar',
+  data: {labels: {{ status_labels|safe }}, datasets: [{label: 'Processos por Status', data: {{ status_counts|safe }} }]},
+  options: {responsive: true}
+});
+const C2 = document.getElementById('chart2').getContext('2d');
+new Chart(C2, {
+  type: 'bar',
+  data: {labels: {{ sec_labels|safe }}, datasets: [{label: 'Valor Homologado por Secretaria', data: {{ sec_values|safe }} }]},
+  options: {responsive: true}
+});
+const C3 = document.getElementById('chart3').getContext('2d');
+new Chart(C3, {
+  type: 'bar',
+  data: {labels: {{ forn_labels|safe }}, datasets: [{label: 'Top Fornecedores (Contratos)', data: {{ forn_values|safe }} }]},
+  options: {responsive: true}
+});
+const C4 = document.getElementById('chart4').getContext('2d');
+new Chart(C4, {
+  type: 'bar',
+  data: {labels: {{ item_labels|safe }}, datasets: [{label: 'Itens por Status', data: {{ item_values|safe }} }]},
+  options: {responsive: true}
+});
+</script>
+{% endblock %}

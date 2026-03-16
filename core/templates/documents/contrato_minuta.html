@@ -1,0 +1,31 @@
+<!doctype html><html lang="pt-br"><head>
+<meta charset="utf-8">
+<title>Minuta de Contrato</title>
+<style>
+  body{font-family: DejaVu Sans, Arial, sans-serif; font-size:12px; line-height:1.45}
+  h1{font-size:16px; text-align:center; margin:0 0 10px 0}
+  h2{font-size:14px; margin:16px 0 6px}
+  .sec{margin:8px 0}
+</style>
+</head><body>
+<h1>MINUTA DE CONTRATO</h1>
+<div class="sec"><strong>Processo:</strong> {{ processo_str }}</div>
+<div class="sec"><strong>Contratado:</strong> {{ contrato.fornecedor.razao_social }} — CNPJ {{ contrato.fornecedor.cnpj }}</div>
+<div class="sec"><strong>Objeto:</strong> {{ contrato.objeto }}</div>
+<div class="sec"><strong>Valor:</strong> {{ valor_atual_brl }} ({{ valor_atual_ext }})</div>
+{% if vigencia_str %}
+<div class="sec"><strong>Vigência:</strong> {{ vigencia_str }}</div>
+{% endif %}
+
+<h2>Cláusulas (modelo baseado nas diretrizes da AGU)</h2>
+<p>1. DO OBJETO — descrição precisa do objeto.</p>
+<p>2. DA FUNDAMENTAÇÃO LEGAL — Lei 14.133/2021 e normas aplicáveis.</p>
+<p>3. DO PREÇO E REAJUSTE — condições, periodicidade e índices, quando couber.</p>
+<p>4. DA VIGÊNCIA — prazos de execução e vigência.</p>
+<p>5. DA EXECUÇÃO — condições de entrega/prestação, locais e prazos.</p>
+<p>6. DA FISCALIZAÇÃO — designação de fiscal titular e substituto.</p>
+<p>7. DAS GARANTIAS — quando houver.</p>
+<p>8. DAS SANÇÕES — penalidades e hipóteses de aplicação.</p>
+<p>9. DA RESCISÃO — hipóteses e procedimentos.</p>
+<p>10. DISPOSIÇÕES FINAIS — foro, publicação e outras.</p>
+</body></html>

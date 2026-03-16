@@ -1,0 +1,64 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .mapa-wrap { display: grid; gap: 16px; }
+  .mapa-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .mapa-title { margin: 0; font-size: clamp(24px, 3vw, 34px); line-height: 1.1; }
+  .mapa-subtitle { color: var(--muted); margin: 6px 0 0; }
+  .mapa-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .mapa-sheet {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .mapa-banner {
+    padding: 22px;
+    background: linear-gradient(120deg, rgba(15, 45, 82, 0.12), rgba(28, 77, 134, 0.08));
+    border-bottom: 1px solid var(--border);
+  }
+  .mapa-body { padding: 18px; display: grid; gap: 14px; }
+  .mapa-block { border: 1px solid var(--border); background: var(--surface-soft); border-radius: 12px; padding: 12px; }
+  .mapa-block h4 { margin: 0 0 10px; font-size: 15px; }
+  .table-wrap { overflow-x: auto; }
+  .tag { border-radius: 8px; padding: 4px 8px; font-size: 12px; border: 1px solid transparent; display: inline-block; }
+  .tag.ok { background: #e9f9ef; border-color: #8ad7a2; color: #1d4d2f; }
+  .empty-box { border: 1px dashed var(--border); background: var(--surface-soft); border-radius: 12px; padding: 16px; color: var(--muted); }
+
+  @media print {
+    header, .mapa-actions { display: none !important; }
+    main { padding: 0; max-width: none; }
+    .mapa-sheet { border: none; box-shadow: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mapa-wrap">
+  <div class="mapa-header">
+    <div>
+      <h2 class="mapa-title">Pré-visualização do Mapa de Distribuição</h2>
+      <p class="mapa-subtitle">Processo {{ processo.numero_processo_principal }}</p>
+    </div>
+    <div class="mapa-actions">
+      <a class="btn" href="{% url 'workflow:planejamento_detail' processo.id %}">Voltar ao planejamento</a>
+      <button type="button" onclick="window.print()">Imprimir</button>
+      <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'docx' %}">Gerar DOCX</a>
+      <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'pdf' %}">Gerar PDF</a>
+      <a class="btn" href="{% url 'workflow:planejamento_exportar' processo.id 'distribuicao' 'xlsx' %}">Gerar XLSX</a>
+    </div>
+  </div>
+
+  {% include 'workflow/_distribuicao_preview_sheet.html' %}
+</div>
+{% endblock %}
+

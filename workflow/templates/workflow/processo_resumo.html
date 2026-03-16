@@ -1,0 +1,232 @@
+﻿{% extends 'workflow/base.html' %}
+{% block content %}
+<h2>Resumo do processo</h2>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 16px;">
+  {% if workflow.pncp_numero_controle or pncp_snapshot %}
+    <form method="post" data-ajax="true" action="{% url 'workflow:processo_reprocessar_pncp' processo.id %}" style="margin:0;">
+      {% csrf_token %}
+      <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
+      <button type="submit">Reprocessar itens PNCP</button>
+    </form>
+    <form method="post" action="{% url 'workflow:processo_enviar_pncp' processo.id %}" style="margin:0;">
+      {% csrf_token %}
+      <button type="submit">
+        {% if pncp_envio_habilitado %}
+          {% if pncp_envio_dry_run %}Simular envio PNCP{% else %}Enviar para PNCP{% endif %}
+        {% else %}
+          Testar envio PNCP (opcional desabilitado)
+        {% endif %}
+      </button>
+    </form>
+  {% endif %}
+  <a class="btn" href="{% url 'workflow:processo_exportar_bll_xlsx' processo.id %}">Exportar BLL XLSX</a>
+  {% if is_modulo_compras %}
+    <a class="btn" href="{% url 'workflow:compras_detail' processo.id %}">Abrir módulo de Compras</a>
+  {% endif %}
+  {% if is_modulo_licitacao %}
+    <a class="btn" href="{% url 'workflow:licitacao_detail' processo.id %}">Abrir módulo de Licitação</a>
+  {% endif %}
+  {% if modulo_proximo %}
+    <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino={{ modulo_proximo }}">Enviar processo para {{ modulo_proximo_label }}</a>
+  {% endif %}
+  {% if modulo_anterior %}
+    <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino={{ modulo_anterior }}&acao=devolver">Devolver processo para {{ modulo_anterior_label }}</a>
+  {% endif %}
+</div>
+<div class="grid">
+  <div class="card">
+    <div class="muted">Processo</div>
+    <div class="kpi" style="font-size:20px">
+      <span class="process-num">
+        <span class="process-num-main">{{ processo.numero_processo_principal }}</span>
+        {% if processo.numero_processo_secundario %}
+          <span class="process-num-ref">{{ processo.numero_processo_secundario }}</span>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+  <div class="card"><div class="muted">Módulo atual</div><div class="kpi" style="font-size:20px">{{ workflow.get_modulo_atual_display }}</div></div>
+  <div class="card"><div class="muted">Etapa</div><div class="kpi" style="font-size:20px">{{ workflow.etapa_atual }}</div></div>
+  <div class="card"><div class="muted">Situação</div><div class="kpi" style="font-size:20px">{{ workflow.get_situacao_display }}</div></div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h3>Objeto</h3>
+  <p>{{ processo.objeto }}</p>
+  <p class="muted">Critério: {{ processo.get_criterio_julgamento_display|default:'Não informado' }} | Modo: {{ processo.get_modo_disputa_display|default:'Não informado' }}</p>
+</div>
+{% if fila_detalhamento %}
+<div class="card" style="margin-top:12px">
+  <h3>Detalhamento PNCP</h3>
+  <p class="muted">
+    Status da fila: <strong>{{ fila_detalhamento.get_status_display }}</strong> |
+    Tentativas: <strong>{{ fila_detalhamento.tentativas }}</strong> |
+    Atualizado em: <strong>{{ fila_detalhamento.atualizado_em|date:'d/m/Y H:i' }}</strong>
+  </p>
+  {% if fila_detalhamento.ultimo_erro %}
+    <p class="muted" style="color:#c0392b;">Último erro: {{ fila_detalhamento.ultimo_erro|truncatechars:260 }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if pncp_snapshot %}
+<div class="card" style="margin-top:18px">
+  <h3>Dados PNCP</h3>
+  <table>
+    <thead><tr><th>Campo</th><th>PNCP</th><th>Sistema</th></tr></thead>
+    <tbody>
+      <tr><td>Numero controle</td><td>{{ pncp_snapshot.numero_controle_pncp }}</td><td>{{ workflow.pncp_numero_controle|default:'-' }}</td></tr>
+      <tr>
+        <td>Processo/Compra</td>
+        <td>{{ pncp_snapshot.processo_origem|default:pncp_snapshot.numero_compra|default:'-' }}</td>
+        <td>
+          <span class="process-num">
+            <span class="process-num-main">{{ processo.numero_processo_principal }}</span>
+            {% if processo.numero_processo_secundario %}
+              <span class="process-num-ref">{{ processo.numero_processo_secundario }}</span>
+            {% endif %}
+          </span>
+        </td>
+      </tr>
+      <tr><td>Modalidade</td><td>{{ pncp_constantes.modalidade_pncp }}</td><td>{{ pncp_constantes.modalidade_sistema }}</td></tr>
+      <tr><td>Modo de disputa</td><td>{{ pncp_constantes.modo_disputa_pncp }}</td><td>{{ pncp_constantes.modo_disputa_sistema }}</td></tr>
+      <tr><td>Critério de julgamento</td><td>{{ pncp_constantes.criterio_pncp }}</td><td>{{ pncp_constantes.criterio_sistema }}</td></tr>
+      <tr><td>Situação</td><td>{{ pncp_constantes.situacao_compra_pncp }}</td><td>{{ pncp_constantes.status_sistema }}</td></tr>
+      <tr><td>Tipo instrumento</td><td>{{ pncp_constantes.tipo_instrumento_pncp }}</td><td>{{ pncp_constantes.tipo_contratacao_sistema }}</td></tr>
+      <tr><td>Valor total estimado</td><td>{{ pncp_snapshot.valor_total_estimado|floatformat:2 }}</td><td>{{ processo.valor_estimado|floatformat:2 }}</td></tr>
+      <tr><td>Valor total homologado</td><td>{{ pncp_snapshot.valor_total_homologado|floatformat:2 }}</td><td>{{ processo.valor_homologado|floatformat:2 }}</td></tr>
+      <tr><td>Data publicação PNCP</td><td>{{ pncp_snapshot.data_publicacao_pncp|date:'d/m/Y'|default:'-' }}</td><td>{{ processo.data_publicacao|date:'d/m/Y'|default:'-' }}</td></tr>
+      <tr><td>Última atualização API</td><td>{{ pncp_snapshot.data_atualizacao|date:'d/m/Y'|default:'-' }}</td><td>{{ workflow.pncp_ultima_importacao|date:'d/m/Y H:i'|default:'-' }}</td></tr>
+      <tr><td>Órgão (CNPJ)</td><td>{{ pncp_snapshot.orgao_razao_social|default:'-' }} ({{ pncp_snapshot.orgao_cnpj|default:'-' }})</td><td>-</td></tr>
+      <tr><td>Unidade/município</td><td>{{ pncp_snapshot.unidade_nome|default:'-' }} - {{ pncp_snapshot.unidade_municipio_nome|default:'-' }}/{{ pncp_snapshot.unidade_uf_sigla|default:'-' }}</td><td>-</td></tr>
+      <tr><td>Amparo legal</td><td>{{ pncp_snapshot.amparo_legal_nome|default:'-' }}</td><td>-</td></tr>
+    </tbody>
+  </table>
+  {% if pncp_mapping %}
+    <p class="muted" style="margin-top:10px;">
+      Mapeamento PNCP: {{ pncp_mapping.payload_campos_mapeados }}/{{ pncp_mapping.payload_total_campos }} campo(s) do payload vinculados ao sistema.
+    </p>
+    {% if pncp_mapping.payload_campos_extras %}
+      <p class="muted">Campos extras do payload (sem coluna dedicada no sistema): {{ pncp_mapping.payload_campos_extras|join:', ' }}</p>
+    {% endif %}
+  {% endif %}
+  <p class="muted" style="margin-top:10px;">
+    Link sistema origem:
+    {% if pncp_snapshot.link_sistema_origem %}
+      <a href="{{ pncp_snapshot.link_sistema_origem }}" target="_blank" rel="noopener">{{ pncp_snapshot.link_sistema_origem }}</a>
+    {% else %}
+      -
+    {% endif %}
+  </p>
+  {% if pncp_snapshot.justificativa_presencial %}
+    <p class="muted">Justificativa presencial: {{ pncp_snapshot.justificativa_presencial }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="grid" style="margin-top:18px">
+  <div class="card"><div class="muted">Itens vinculados</div><div class="kpi" style="font-size:20px">{{ itens|length }}</div></div>
+  <div class="card"><div class="muted">Lotes vinculados</div><div class="kpi" style="font-size:20px">{{ lotes|length }}</div></div>
+  <div class="card"><div class="muted">Fornecedores vinculados</div><div class="kpi" style="font-size:20px">{{ fornecedores|length }}</div></div>
+</div>
+
+<div class="card" style="margin-top:18px">
+  <h3>Documentos assinados</h3>
+  <form method="post" enctype="multipart/form-data" data-ajax="true" action="{% url 'workflow:processo_upload_documento_assinado' processo.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="next_url" value="{{ request.get_full_path }}">
+    <div class="grid" style="grid-template-columns:2fr 3fr 1fr;align-items:end;">
+      <div>
+        <label for="id_doc_key">Documento</label>
+        {{ form_doc_assinado.doc_key }}
+      </div>
+      <div>
+        <label for="id_doc_assinado_arquivo">Arquivo assinado</label>
+        <input id="id_doc_assinado_arquivo" type="file" name="arquivo" required>
+      </div>
+      <div>
+        <button type="submit">Anexar</button>
+      </div>
+    </div>
+  </form>
+  <table style="margin-top:10px;">
+    <thead><tr><th>Documento</th><th>Arquivo</th><th>Data</th></tr></thead>
+    <tbody>
+      {% for doc in documentos_assinados %}
+        <tr>
+          <td>{{ doc.label }}</td>
+          <td><a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a></td>
+          <td>{{ doc.criado_em|date:'d/m/Y H:i' }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">Nenhum documento assinado anexado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="two" style="margin-top:18px">
+  <div>
+    <h3>Itens e lotes</h3>
+    <table>
+      <thead><tr><th>Item</th><th>Lote</th><th>Status</th><th>Fornecedor</th><th>Vlr. est.</th><th>Vlr. homolog.</th></tr></thead>
+      <tbody>
+      {% for item in itens %}
+        <tr>
+          <td>{{ item.numero_item }} - {{ item.descricao_snapshot|truncatechars:70 }}</td>
+          <td>{% if item.lote_numero %}{{ item.lote_numero }}{% else %}-{% endif %}</td>
+          <td>{{ item.get_status_consolidado_display }}</td>
+          <td>{% if item.fornecedor_homologado %}{{ item.fornecedor_homologado.razao_social }}{% else %}-{% endif %}</td>
+          <td>{{ item.valor_referencia_unitario|floatformat:2 }}</td>
+          <td>{{ item.valor_homologado_unitario|floatformat:2 }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">Sem itens sincronizados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+    <h3>Fornecedores</h3>
+    <table>
+      <thead><tr><th>Razao social</th><th>CNPJ</th><th>Cidade/UF</th></tr></thead>
+      <tbody>
+      {% for f in fornecedores %}
+        <tr><td>{{ f.razao_social }}</td><td>{{ f.cnpj }}</td><td>{{ f.cidade }}{% if f.estado %}/{{ f.estado }}{% endif %}</td></tr>
+      {% empty %}
+        <tr><td colspan="3">Sem fornecedores vinculados.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="two" style="margin-top:18px">
+  <div>
+    <h3>Movimentacoes</h3>
+    <table>
+      <thead><tr><th>Data</th><th>Destino</th><th>Descricao</th></tr></thead>
+      <tbody>
+      {% for mov in movimentos %}
+        <tr><td>{{ mov.criado_em|date:'d/m/Y H:i' }}</td><td>{{ mov.get_modulo_destino_display }}</td><td>{{ mov.descricao }}</td></tr>
+      {% empty %}
+        <tr><td colspan="3">Sem movimentacoes registradas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div>
+  <h3>Integrações</h3>
+    <table>
+      <thead><tr><th>Data</th><th>Tipo</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for log in integracoes %}
+        <tr><td>{{ log.criado_em|date:'d/m/Y H:i' }}</td><td>{{ log.get_tipo_display }}</td><td>{{ log.status }}</td></tr>
+      {% empty %}
+        <tr><td colspan="3">Sem integrações registradas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

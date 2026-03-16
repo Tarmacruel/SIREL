@@ -1,0 +1,54 @@
+﻿{% extends 'workflow/base.html' %}
+{% block content %}
+{% if aviso_migracao %}<div style="background:#fff3cd;border:1px solid #ffe69c;padding:12px;border-radius:8px;margin-bottom:16px;">{{ aviso_migracao }}</div>{% endif %}
+<h2>Painel geral</h2>
+<div class="grid">
+  <div class="card"><div class="muted">Processos cadastrados</div><div class="kpi">{{ total_processos }}</div></div>
+  <div class="card"><div class="muted">Workflows ativos</div><div class="kpi">{{ total_workflows }}</div></div>
+  <div class="card"><div class="muted">Módulos estruturados</div><div class="kpi">{{ modulos|length }}</div></div>
+  <div class="card"><div class="muted">Integração prevista</div><div class="kpi">PNCP + BLL</div></div>
+</div>
+
+<h3 style="margin-top:28px">Módulos</h3>
+<div class="module-grid">
+  {% for m in modulos %}
+    {% include 'workflow/_module_tile.html' with m=m %}
+  {% endfor %}
+</div>
+
+<h3 style="margin-top:28px">Distribuição por módulo</h3>
+<table>
+  <thead><tr><th>Módulo</th><th>Total</th></tr></thead>
+  <tbody>
+    {% for item in por_modulo %}
+      <tr><td>{{ item.modulo_atual }}</td><td>{{ item.total }}</td></tr>
+    {% empty %}
+      <tr><td colspan="2">Ainda não há workflows vinculados aos processos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3 style="margin-top:28px">Processos recentes</h3>
+<table>
+  <thead><tr><th>Processo</th><th>Objeto</th><th>Ação</th></tr></thead>
+  <tbody>
+    {% for p in recentes %}
+      <tr>
+        <td>
+          <span class="process-num">
+            <span class="process-num-main">{{ p.numero_processo_principal }}</span>
+            {% if p.numero_processo_secundario %}
+              <span class="process-num-ref">{{ p.numero_processo_secundario }}</span>
+            {% endif %}
+          </span>
+        </td>
+        <td>{{ p.objeto|truncatechars:110 }}</td>
+        <td><a href="/sirel/processos/{{ p.id }}/">Resumo</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">Sem processos cadastrados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

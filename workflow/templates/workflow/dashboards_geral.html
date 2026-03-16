@@ -1,0 +1,336 @@
+﻿{% extends 'workflow/base.html' %}
+{% load formatacoes %}
+{% block content %}
+<h2>Dashboards gerais dos processos</h2>
+<p class="muted">Acompanhamento integral com filtros globais, visao individual, ranking por secretaria, itens, valores, homologacao e processos parados.</p>
+
+<div class="card" style="margin-bottom:16px;">
+  <form method="get" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
+    <div>
+      <label>Busca geral</label>
+      <input type="text" name="q" value="{{ filtros.q }}" placeholder="numero, protocolo, objeto...">
+    </div>
+    <div>
+      <label>Processo especifico</label>
+      <select name="processo_id">
+        <option value="">Todos</option>
+        {% for p in processos_opts %}
+          <option value="{{ p.id }}" {% if filtros.processo_id == p.id|stringformat:'s' %}selected{% endif %}>
+            {{ p.numero_processo_principal }}{% if p.numero_processo_secundario %} (ref: {{ p.numero_processo_secundario }}){% endif %} - {{ p.objeto|truncatechars:60 }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Status</label>
+      <select name="status_id">
+        <option value="">Todos</option>
+        {% for st in status_opts %}
+          <option value="{{ st.id }}" {% if filtros.status_id == st.id|stringformat:'s' %}selected{% endif %}>{{ st.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Modalidade</label>
+      <select name="modalidade_id">
+        <option value="">Todas</option>
+        {% for md in modalidade_opts %}
+          <option value="{{ md.id }}" {% if filtros.modalidade_id == md.id|stringformat:'s' %}selected{% endif %}>{{ md.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Secretaria</label>
+      <select name="secretaria_id">
+        <option value="">Todas</option>
+        {% for s in secretaria_opts %}
+          <option value="{{ s.id }}" {% if filtros.secretaria_id == s.id|stringformat:'s' %}selected{% endif %}>{{ s.sigla }} - {{ s.nome }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Módulo atual</label>
+      <select name="modulo">
+        <option value="">Todos</option>
+        {% for code,label in modulo_opts %}
+          <option value="{{ code }}" {% if filtros.modulo == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Situação workflow</label>
+      <select name="situacao">
+        <option value="">Todas</option>
+        {% for code,label in situacao_opts %}
+          <option value="{{ code }}" {% if filtros.situacao == code %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>Homologados</label>
+      <select name="homologado">
+        <option value="todos" {% if filtros.homologado == 'todos' %}selected{% endif %}>Todos</option>
+        <option value="sim" {% if filtros.homologado == 'sim' %}selected{% endif %}>Somente homologados</option>
+        <option value="nao" {% if filtros.homologado == 'nao' %}selected{% endif %}>Somente não homologados</option>
+      </select>
+    </div>
+    <div>
+      <label>Parado ha (dias)</label>
+      <input type="number" min="1" name="parados_dias" value="{{ parados_dias }}">
+    </div>
+    <div>
+      <label>Somente parados</label>
+      <select name="somente_parados">
+        <option value="" {% if not somente_parados %}selected{% endif %}>Não</option>
+        <option value="1" {% if somente_parados %}selected{% endif %}>Sim</option>
+      </select>
+    </div>
+    <div>
+      <label>Ordenacao</label>
+      <select name="ordem">
+        <option value="atualizado_desc" {% if filtros.ordem == 'atualizado_desc' %}selected{% endif %}>Atualizacao (mais recente)</option>
+        <option value="parado_desc" {% if filtros.ordem == 'parado_desc' %}selected{% endif %}>Mais tempo parado</option>
+        <option value="valor_desc" {% if filtros.ordem == 'valor_desc' %}selected{% endif %}>Maior valor estimado</option>
+        <option value="valor_homologado_desc" {% if filtros.ordem == 'valor_homologado_desc' %}selected{% endif %}>Maior valor homologado</option>
+        <option value="itens_desc" {% if filtros.ordem == 'itens_desc' %}selected{% endif %}>Mais itens</option>
+      </select>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:8px;">
+      <button type="submit">Aplicar filtros</button>
+    </div>
+  </form>
+</div>
+
+<div class="grid" style="margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+  <div class="card"><div class="muted">Processos filtrados</div><div class="kpi">{{ rows_total }}</div></div>
+  <div class="card"><div class="muted">Homologados</div><div class="kpi">{{ total_homologados }}</div></div>
+  <div class="card"><div class="muted">Parados</div><div class="kpi">{{ total_parados }}</div></div>
+  <div class="card"><div class="muted">Itens monitorados</div><div class="kpi">{{ total_itens }}</div></div>
+  <div class="card"><div class="muted">Quantidade total</div><div class="kpi">{{ total_quantidade|floatformat:3 }}</div></div>
+  <div class="card"><div class="muted">Valor estimado total</div><div class="kpi">{{ total_valor_estimado|moeda_brl }}</div></div>
+  <div class="card"><div class="muted">Valor homologado total</div><div class="kpi">{{ total_valor_homologado|moeda_brl }}</div></div>
+</div>
+
+<h3>Monitoramento integral dos processos</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Processo</th>
+      <th>Objeto</th>
+      <th>Secretaria</th>
+      <th>Módulo</th>
+      <th>Situação</th>
+      <th>Status</th>
+      <th>Itens</th>
+      <th>Lotes</th>
+      <th>Fornec.</th>
+      <th>Qtd.</th>
+      <th>Estimado</th>
+      <th>Homologado</th>
+      <th>Dias sem atualizacao</th>
+      <th>Ações</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+      <tr {% if r.is_parado %}style="background:var(--warn-bg);"{% elif r.is_homologado %}style="background:var(--success-bg);"{% endif %}>
+        <td>
+          <span class="process-num">
+            <span class="process-num-main">{{ r.processo.numero_processo_principal }}</span>
+            {% if r.processo.numero_processo_secundario %}
+              <span class="process-num-ref">{{ r.processo.numero_processo_secundario }}</span>
+            {% endif %}
+          </span>
+        </td>
+        <td>{{ r.processo.objeto|truncatechars:95 }}</td>
+        <td>{% if r.processo.secretaria %}{{ r.processo.secretaria.sigla }}{% else %}-{% endif %}</td>
+        <td>{% if r.workflow %}{{ r.workflow.get_modulo_atual_display }}{% else %}-{% endif %}</td>
+        <td>{% if r.workflow %}{{ r.workflow.get_situacao_display }}{% else %}-{% endif %}</td>
+        <td>{% if r.processo.status %}{{ r.processo.status.nome }}{% else %}-{% endif %}</td>
+        <td>{{ r.total_itens }}</td>
+        <td>{{ r.total_lotes }}</td>
+        <td>{{ r.total_fornecedores }}</td>
+        <td>{{ r.quantidade_total|floatformat:3 }}</td>
+        <td>{{ r.processo.valor_estimado|moeda_brl }}</td>
+        <td>{{ r.processo.valor_homologado|moeda_brl }}</td>
+        <td>{{ r.dias_sem_atualizacao }}</td>
+        <td>
+          <a href="{% url 'workflow:processo_resumo' r.processo.id %}">Resumo</a>
+          {% if r.workflow and r.workflow.modulo_atual == 'COMPRAS' %}
+            | <a href="{% url 'workflow:compras_detail' r.processo.id %}">Compras</a>
+          {% elif r.workflow and r.workflow.modulo_atual == 'PLANEJAMENTO' %}
+            | <a href="{% url 'workflow:planejamento_detail' r.processo.id %}">Planejamento</a>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="14">Nenhum processo encontrado com os filtros informados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <h3>Ranking por secretaria</h3>
+    <table>
+      <thead><tr><th>Secretaria</th><th>Processos</th><th>Itens</th><th>Quantidade</th><th>Estimado</th><th>Homologado</th></tr></thead>
+      <tbody>
+        {% for s in ranking_secretarias %}
+          <tr>
+            <td>{{ s.sigla }}</td>
+            <td>{{ s.processos }}</td>
+            <td>{{ s.itens }}</td>
+            <td>{{ s.quantidade|floatformat:3 }}</td>
+            <td>{{ s.valor_estimado|moeda_brl }}</td>
+            <td>{{ s.valor_homologado|moeda_brl }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">Sem dados para ranking.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Distribuição por módulo e status</h3>
+    <table style="margin-bottom:12px;">
+      <thead><tr><th>Módulo</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for r in ranking_modulos %}
+          <tr><td>{{ r.modulo }}</td><td>{{ r.total }}</td></tr>
+        {% empty %}
+          <tr><td colspan="2">Sem dados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Status</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for r in ranking_status %}
+          <tr><td>{{ r.status }}</td><td>{{ r.total }}</td></tr>
+        {% empty %}
+          <tr><td colspan="2">Sem dados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <h3>Top processos por valor estimado</h3>
+    <table>
+      <thead><tr><th>Processo</th><th>Secretaria</th><th>Estimado</th><th>Homologado</th></tr></thead>
+      <tbody>
+        {% for r in top_valores %}
+          <tr>
+            <td>
+              <a href="{% url 'workflow:processo_resumo' r.processo.id %}" class="process-num">
+                <span class="process-num-main">{{ r.processo.numero_processo_principal }}</span>
+                {% if r.processo.numero_processo_secundario %}
+                  <span class="process-num-ref">{{ r.processo.numero_processo_secundario }}</span>
+                {% endif %}
+              </a>
+            </td>
+            <td>{% if r.processo.secretaria %}{{ r.processo.secretaria.sigla }}{% else %}-{% endif %}</td>
+            <td>{{ r.processo.valor_estimado|moeda_brl }}</td>
+            <td>{{ r.processo.valor_homologado|moeda_brl }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Sem dados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Processos parados ({{ parados_dias }}+ dias)</h3>
+    <table style="margin-bottom:12px;">
+      <thead><tr><th>Processo</th><th>Módulo</th><th>Dias</th><th>Acompanhamento</th></tr></thead>
+      <tbody>
+        {% for r in processos_parados %}
+          <tr>
+            <td>
+              <span class="process-num">
+                <span class="process-num-main">{{ r.processo.numero_processo_principal }}</span>
+                {% if r.processo.numero_processo_secundario %}
+                  <span class="process-num-ref">{{ r.processo.numero_processo_secundario }}</span>
+                {% endif %}
+              </span>
+            </td>
+            <td>{% if r.workflow %}{{ r.workflow.get_modulo_atual_display }}{% else %}-{% endif %}</td>
+            <td>{{ r.dias_sem_atualizacao }}</td>
+            <td><a href="{% url 'workflow:processo_resumo' r.processo.id %}">Abrir</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Nenhum processo parado no limite informado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h3>Processos homologados</h3>
+    <table>
+      <thead><tr><th>Processo</th><th>Status</th><th>Homologado</th></tr></thead>
+      <tbody>
+        {% for r in processos_homologados %}
+          <tr>
+            <td>
+              <span class="process-num">
+                <span class="process-num-main">{{ r.processo.numero_processo_principal }}</span>
+                {% if r.processo.numero_processo_secundario %}
+                  <span class="process-num-ref">{{ r.processo.numero_processo_secundario }}</span>
+                {% endif %}
+              </span>
+            </td>
+            <td>{% if r.processo.status %}{{ r.processo.status.nome }}{% else %}-{% endif %}</td>
+            <td>{{ r.processo.valor_homologado|moeda_brl }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3">Nenhum homologado para os filtros atuais.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="two" style="margin-top:16px;">
+  <div class="card">
+    <h3>Itens consolidados (itens de processo)</h3>
+    <table>
+      <thead><tr><th>Descricao</th><th>Unidade</th><th>Processos</th><th>Quantidade</th><th>Valor total</th></tr></thead>
+      <tbody>
+        {% for i in top_itens_core %}
+          <tr>
+            <td>{{ i.descricao_snapshot|truncatechars:95 }}</td>
+            <td>{{ i.unidade_snapshot|default:'-' }}</td>
+            <td>{{ i.processos }}</td>
+            <td>{{ i.quantidade|floatformat:3 }}</td>
+            <td>{{ i.valor_total|moeda_brl }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">Sem itens consolidados nessa visao.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Itens DFD consolidados</h3>
+    <table>
+      <thead><tr><th>Descricao</th><th>Unidade</th><th>Processos</th><th>Quantidade</th></tr></thead>
+      <tbody>
+        {% for i in top_itens_dfd %}
+          <tr>
+            <td>{{ i.descricao|truncatechars:95 }}</td>
+            <td>{{ i.unidade|default:'-' }}</td>
+            <td>{{ i.processos }}</td>
+            <td>{{ i.quantidade|floatformat:3 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4">Sem itens DFD nessa visao.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+<article class="mapa-sheet">
+  <div class="mapa-banner">
+    {% if orgao %}
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        {% if orgao.logo %}
+          <img src="{{ orgao.logo.url }}" alt="Logo do orgao" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:4px;background:var(--surface);">
+        {% endif %}
+        <div>
+          <div style="font-weight:700;">{{ orgao.nome_fantasia|default:orgao.razao_social }}</div>
+          <p class="mapa-subtitle" style="margin:2px 0 0;">
+            {% if orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}
+            {% if orgao.endereco_completo %}<br>{{ orgao.endereco_completo }}{% endif %}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+    <h3 style="margin:0 0 6px;">Mapa de Distribuição por Secretaria</h3>
+    <p class="mapa-subtitle">Pré-visualização da distribuição de itens por secretaria (sem valores).</p>
+  </div>
+
+  <div class="mapa-body">
+    {% if not tr %}
+      <div class="empty-box">Nenhum TR cadastrado para este processo.</div>
+    {% elif not distribuicao_habilitada %}
+      <div class="empty-box">Distribuição por secretaria desabilitada no TR.</div>
+    {% else %}
+      <section class="mapa-block">
+        <h4>Resumo por item</h4>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+          <span class="tag ok">
+            <strong>Total DFD:</strong> {{ total_qtd_dfd|floatformat:3 }} |
+            <strong>Total distribuido:</strong> {{ total_qtd_distribuida|floatformat:3 }}
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Qtd. DFD</th><th>Qtd. distribuida</th><th>Saldo</th></tr></thead>
+            <tbody>
+              {% for r in distribuicao_resumo_itens %}
+                <tr>
+                  <td>{{ r.item.codigo }} - {{ r.item.descricao|truncatechars:90 }}</td>
+                  <td>{{ r.quantidade_dfd|floatformat:3 }}</td>
+                  <td>{{ r.quantidade_distribuida|floatformat:3 }}</td>
+                  <td>{{ r.quantidade_pendente|floatformat:3 }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4">Sem itens para distribuição.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="mapa-block">
+        <h4>Lancamentos por secretaria</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Secretaria</th><th>Item</th><th>Unidade</th><th>Quantidade</th></tr></thead>
+            <tbody>
+              {% for d in distribuicao_linhas %}
+                <tr>
+                  <td>{{ d.secretaria.sigla }}</td>
+                  <td>{{ d.item.codigo }} - {{ d.item.descricao|truncatechars:90 }}</td>
+                  <td>{{ d.item.unidade }}</td>
+                  <td>{{ d.quantidade|floatformat:3 }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4">Sem distribuicoes lancadas.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</article>

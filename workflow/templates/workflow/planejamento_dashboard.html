@@ -1,0 +1,159 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .dashboard-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-head h2 {
+    margin: 0;
+  }
+
+  .filtro-card {
+    margin-top: 14px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .filtro-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(240px, 1.5fr) minmax(170px, 0.8fr) minmax(170px, 0.8fr);
+  }
+
+  .filtro-campo {
+    display: grid;
+    gap: 6px;
+  }
+
+  .filtro-campo label {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .filtro-acoes {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tabela-acoes a {
+    text-decoration: none;
+  }
+
+  @media (max-width: 920px) {
+    .filtro-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-head">
+  <div>
+    <h2>Planejamento</h2>
+    <p class="muted">DFD, ETP/cotações, Termo de Referência, lotes, dotações e encaminhamento.</p>
+  </div>
+  <a class="btn" href="/sirel/planejamento/novo/">Novo processo no Planejamento</a>
+</div>
+
+<form method="get" class="card filtro-card">
+  <div class="filtro-grid">
+    <div class="filtro-campo">
+      <label for="filtro-q">Pesquisar processo</label>
+      <input
+        id="filtro-q"
+        type="text"
+        name="q"
+        value="{{ filtro_q }}"
+        placeholder="Nome, objeto, número SIREL ou externo"
+      >
+    </div>
+    <div class="filtro-campo">
+      <label for="filtro-campo">Filtrar por campo</label>
+      <select id="filtro-campo" name="campo">
+        <option value="todos" {% if filtro_campo == 'todos' %}selected{% endif %}>Todos</option>
+        <option value="nome" {% if filtro_campo == 'nome' %}selected{% endif %}>Nome</option>
+        <option value="objeto" {% if filtro_campo == 'objeto' %}selected{% endif %}>Objeto</option>
+        <option value="numero" {% if filtro_campo == 'numero' %}selected{% endif %}>Número</option>
+      </select>
+    </div>
+    <div class="filtro-campo">
+      <label for="filtro-situacao">Situação</label>
+      <select id="filtro-situacao" name="situacao">
+        <option value="">Todas</option>
+        {% for valor, label in situacoes_workflow %}
+          <option value="{{ valor }}" {% if filtro_situacao == valor %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="filtro-acoes">
+    <button type="submit">Filtrar</button>
+    <a class="btn" href="{% url 'workflow:planejamento_dashboard' %}">Limpar</a>
+  </div>
+</form>
+
+<div class="grid section">
+  <div class="card">
+    <div class="muted">Processos no Planejamento</div>
+    <div class="kpi">{{ processos|length }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">DFDs por modalidade</div>
+    {% for x in por_modalidade %}
+      <div>{{ x.modalidade_pretendida }}: {{ x.total }}</div>
+    {% empty %}
+      <div class="muted">Sem dados.</div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <div class="muted">Top secretarias</div>
+    {% for x in por_secretaria %}
+      <div>{{ x.secretaria__sigla }}: {{ x.total }}</div>
+    {% empty %}
+      <div class="muted">Sem dados.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<table class="section">
+  <thead>
+    <tr>
+      <th>Processo</th>
+      <th>Objeto</th>
+      <th>Etapa</th>
+      <th>Situação</th>
+      <th>Ação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for wf in processos %}
+      <tr>
+                <td>
+          <span class="process-num">
+            <span class="process-num-main">{{ wf.processo.numero_processo_principal }}</span>
+            {% if wf.processo.numero_processo_secundario %}
+              <span class="process-num-ref">{{ wf.processo.numero_processo_secundario }}</span>
+            {% endif %}
+          </span>
+        </td>
+        <td>{{ wf.processo.objeto|truncatechars:90 }}</td>
+        <td>{{ wf.etapa_atual }}</td>
+        <td>{{ wf.get_situacao_display }}</td>
+        <td class="tabela-acoes"><a href="/sirel/planejamento/{{ wf.processo.id }}/">Abrir</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhum processo encontrado com os filtros informados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
+

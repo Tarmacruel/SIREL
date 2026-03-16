@@ -1,0 +1,193 @@
+{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .lic-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .lic-field {
+    display: grid;
+    gap: 6px;
+  }
+
+  .lic-checklist {
+    margin-top: 14px;
+  }
+
+  .lic-checklist h3 {
+    margin: 0 0 8px;
+  }
+
+  .lic-checklist table td {
+    vertical-align: middle;
+  }
+
+  .doc-code {
+    font-size: 11px;
+    color: var(--muted);
+    opacity: .9;
+  }
+
+  .warn-card {
+    border: 1px solid var(--warn-border);
+    background: var(--warn-bg);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-top: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head">
+  <div>
+    <h2>Novo processo externo na Licitação</h2>
+    <p class="muted">
+      Cadastro direto para processos instaurados fora do SIREL, com checklist documental até a fase de publicação.
+    </p>
+  </div>
+  <div style="display:grid;gap:6px;justify-items:end;">
+    <a class="btn" href="{% url 'workflow:modulo_detail' 'LICITACAO' %}">Voltar ao módulo de Licitação</a>
+    <div class="muted" style="font-size:12px;">
+      Próximo número SIREL previsto: <strong>{{ proximo_numero_sirel }}</strong>
+    </div>
+  </div>
+</div>
+
+{% if pendencias_detectadas %}
+  <div class="warn-card">
+    <strong>Pendências detectadas nesta tentativa:</strong>
+    <div style="margin-top:6px;">
+      {{ pendencias_detectadas|join:', ' }}
+    </div>
+  </div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="card section" id="form-licitacao-externo">
+  {% csrf_token %}
+  <div class="lic-grid">
+    <div class="lic-field">
+      <label for="{{ form.ano_referencia.id_for_label }}">{{ form.ano_referencia.label }}</label>
+      {{ form.ano_referencia }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.numero_processo_externo.id_for_label }}">{{ form.numero_processo_externo.label }}</label>
+      {{ form.numero_processo_externo }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.numero_edital.id_for_label }}">{{ form.numero_edital.label }}</label>
+      {{ form.numero_edital }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.secretaria.id_for_label }}">{{ form.secretaria.label }}</label>
+      {{ form.secretaria }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.modalidade.id_for_label }}">{{ form.modalidade.label }}</label>
+      {{ form.modalidade }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+      {{ form.status }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.data_publicacao.id_for_label }}">{{ form.data_publicacao.label }}</label>
+      {{ form.data_publicacao }}
+    </div>
+    <div class="lic-field">
+      <label for="{{ form.valor_estimado.id_for_label }}">{{ form.valor_estimado.label }}</label>
+      {{ form.valor_estimado }}
+    </div>
+  </div>
+
+  <div class="lic-field section">
+    <label for="{{ form.objeto.id_for_label }}">{{ form.objeto.label }}</label>
+    {{ form.objeto }}
+  </div>
+
+  <input type="hidden" name="confirmar_pendencias" id="id_confirmar_pendencias" value="">
+
+  <section class="lic-checklist section">
+    {% for fase, docs in checklist_fases.items %}
+      <div class="card" style="padding:12px;margin-bottom:12px;">
+        <h3>{{ fase }}</h3>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:42%;">Documento</th>
+              <th style="width:58%;">Arquivo para anexar no cadastro inicial</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for doc in docs %}
+              <tr>
+                <td>
+                  <strong>{{ doc.label }}</strong><br>
+                  <span class="doc-code">{{ doc.codigo }}</span>
+                </td>
+                <td>
+                  <input type="file" name="arquivo_{{ doc.codigo }}" data-licitacao-doc-input="1" data-doc-label="{{ doc.label }}">
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+  </section>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button type="submit">Registrar processo externo na Licitação</button>
+    <a class="btn" href="{% url 'workflow:modulo_detail' 'LICITACAO' %}">Cancelar</a>
+  </div>
+</form>
+
+<script>
+  (function () {
+    const form = document.getElementById('form-licitacao-externo');
+    const confirmField = document.getElementById('id_confirmar_pendencias');
+    if (!form || !confirmField) return;
+
+    form.addEventListener('submit', function (event) {
+      const inputs = form.querySelectorAll('input[data-licitacao-doc-input="1"]');
+      const missing = [];
+      inputs.forEach(function (input) {
+        if (!input.files || !input.files.length) {
+          missing.push(input.getAttribute('data-doc-label') || 'Documento');
+        }
+      });
+      if (!missing.length) {
+        confirmField.value = '';
+        return;
+      }
+      if (confirmField.value === 'on') {
+        return;
+      }
+      const preview = missing.slice(0, 8).map(function (label) { return ' - ' + label; }).join('\n');
+      const extra = missing.length > 8 ? '\n - ...' : '';
+      const msg = (
+        'Existem ' + missing.length + ' documento(s) pendente(s):\n\n' +
+        preview + extra +
+        '\n\nDeseja registrar o processo mesmo assim?'
+      );
+      if (!window.confirm(msg)) {
+        event.preventDefault();
+        return;
+      }
+      confirmField.value = 'on';
+    });
+  })();
+</script>
+{% endblock %}
+

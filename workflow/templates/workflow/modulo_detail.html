@@ -1,0 +1,278 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .module-context {
+    --module-color: #1f5fa8;
+    --module-color-soft: #1f5fa82b;
+  }
+
+  .module-head-shell {
+    background:
+      radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.22), transparent 45%),
+      linear-gradient(160deg, var(--module-color-soft) 0%, rgba(6, 12, 24, 0.68) 100%);
+    border: 1px solid var(--module-color-soft);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 18px 30px rgba(5, 12, 22, 0.2);
+  }
+
+  .dashboard-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .module-title-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .module-title-row h2 {
+    margin: 4px 0 0;
+  }
+
+  .head-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .module-hero-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    flex: 0 0 auto;
+  }
+
+  .module-hero-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .module-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.12);
+    text-transform: uppercase;
+  }
+
+  .module-context .muted {
+    color: rgba(226, 235, 252, 0.86);
+  }
+
+  .filtro-card {
+    margin-top: 14px;
+    display: grid;
+    gap: 12px;
+    border-color: var(--module-color-soft);
+  }
+
+  .filtro-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(240px, 1.5fr) minmax(170px, 0.8fr) minmax(170px, 0.8fr);
+  }
+
+  .filtro-campo {
+    display: grid;
+    gap: 6px;
+  }
+
+  .filtro-campo label {
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .filtro-acoes {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tabela-acoes a {
+    text-decoration: none;
+  }
+
+  .module-context .btn,
+  .module-context button[type="submit"] {
+    background: linear-gradient(140deg, var(--module-color) 0%, rgba(255, 255, 255, 0.25) 165%);
+    border: 1px solid transparent;
+    color: #fff;
+    transition: filter 0.22s ease, transform 0.22s ease;
+  }
+
+  .module-context .btn:hover,
+  .module-context button[type="submit"]:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+  }
+
+  .module-context table thead th {
+    background: linear-gradient(180deg, var(--module-color-soft) 0%, var(--surface-soft) 100%);
+  }
+
+  @media (max-width: 920px) {
+    .filtro-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section
+  class="module-context"
+  style="
+    --module-color: {{ card.cor|default:'#1f5fa8' }};
+    --module-color-soft: {{ card.cor|default:'#1f5fa8' }}2b;
+  "
+>
+<div class="dashboard-head module-head-shell">
+  <div class="module-title-row">
+    <span class="module-hero-icon">{% include 'workflow/_module_icon.html' with slug=card.slug %}</span>
+    <div>
+      <span class="module-code">{{ card.slug }}</span>
+      <h2>{{ card.titulo }}</h2>
+      <p class="muted">{{ card.descricao }}</p>
+    </div>
+  </div>
+  {% if card.slug == "PLANEJAMENTO" %}
+    <div class="head-actions">
+      <a class="btn" href="{% url 'workflow:planejamento_dashboard' %}">Dashboard do Planejamento</a>
+      <a class="btn" href="{% url 'workflow:planejamento_novo' %}">Novo processo no Planejamento</a>
+    </div>
+  {% elif card.slug == "LICITACAO" %}
+    <div class="head-actions">
+      <a class="btn" href="{% url 'workflow:licitacao_novo_externo' %}">Novo processo externo na Licitação</a>
+    </div>
+  {% endif %}
+</div>
+
+<form method="get" class="card filtro-card">
+  <div class="filtro-grid">
+    <div class="filtro-campo">
+      <label for="filtro-q">Pesquisar processo</label>
+      <input
+        id="filtro-q"
+        type="text"
+        name="q"
+        value="{{ filtro_q }}"
+        placeholder="Nome, objeto, número SIREL ou externo"
+      >
+    </div>
+    <div class="filtro-campo">
+      <label for="filtro-campo">Filtrar por campo</label>
+      <select id="filtro-campo" name="campo">
+        <option value="todos" {% if filtro_campo == 'todos' %}selected{% endif %}>Todos</option>
+        <option value="nome" {% if filtro_campo == 'nome' %}selected{% endif %}>Nome</option>
+        <option value="objeto" {% if filtro_campo == 'objeto' %}selected{% endif %}>Objeto</option>
+        <option value="numero" {% if filtro_campo == 'numero' %}selected{% endif %}>Número</option>
+      </select>
+    </div>
+    <div class="filtro-campo">
+      <label for="filtro-situacao">Situação</label>
+      <select id="filtro-situacao" name="situacao">
+        <option value="">Todas</option>
+        {% for valor, label in situacoes_workflow %}
+          <option value="{{ valor }}" {% if filtro_situacao == valor %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="filtro-acoes">
+    <button type="submit">Filtrar</button>
+    <a class="btn" href="{% url 'workflow:modulo_detail' card.slug %}">Limpar</a>
+  </div>
+</form>
+
+<div class="grid section">
+  <div class="card">
+    <div class="muted">Processos no módulo</div>
+    <div class="kpi">{{ total_processos }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Itens, lotes e fornecedores</div>
+    <div>Itens: {{ total_itens }}</div>
+    <div>Lotes: {{ total_lotes }}</div>
+    <div>Fornecedores: {{ total_fornecedores }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Top secretarias</div>
+    {% for x in por_secretaria %}
+      <div>{{ x.secretaria__sigla|default:'N/D' }}: {{ x.total }}</div>
+    {% empty %}
+      <div class="muted">Sem dados.</div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <div class="muted">Top etapas</div>
+    {% for x in por_etapa %}
+      <div>{{ x.etapa_atual|default:'-' }}: {{ x.total }}</div>
+    {% empty %}
+      <div class="muted">Sem dados.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<table class="section">
+  <thead>
+    <tr>
+      <th>Processo</th>
+      <th>Objeto</th>
+      <th>Etapa</th>
+      <th>Situação</th>
+      <th>Itens</th>
+      <th>Lotes</th>
+      <th>Fornecedores</th>
+      <th>Ação</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in workflows_data %}
+      <tr>
+                <td>
+          <span class="process-num">
+            <span class="process-num-main">{{ row.wf.processo.numero_processo_principal }}</span>
+            {% if row.wf.processo.numero_processo_secundario %}
+              <span class="process-num-ref">{{ row.wf.processo.numero_processo_secundario }}</span>
+            {% endif %}
+          </span>
+        </td>
+        <td>{{ row.wf.processo.objeto|truncatechars:90 }}</td>
+        <td>{{ row.wf.etapa_atual|default:'-' }}</td>
+        <td>{{ row.wf.get_situacao_display }}</td>
+        <td>{{ row.total_itens }}</td>
+        <td>{{ row.total_lotes }}</td>
+        <td>{{ row.total_fornecedores }}</td>
+        <td class="tabela-acoes"><a href="{{ row.acao_url }}">{{ row.acao_label }}</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="8">Nenhum processo encontrado com os filtros informados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</section>
+{% endblock %}
+

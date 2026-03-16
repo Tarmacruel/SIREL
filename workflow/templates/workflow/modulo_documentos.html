@@ -1,0 +1,195 @@
+{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .module-context {
+    --module-color: {{ card.cor|default:'#245a63' }};
+    --module-color-soft: {{ card.cor|default:'#245a63' }}2b;
+  }
+  .module-head-shell {
+    background:
+      radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.22), transparent 45%),
+      linear-gradient(160deg, var(--module-color-soft) 0%, rgba(6, 12, 24, 0.68) 100%);
+    border: 1px solid var(--module-color-soft);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 18px 30px rgba(5, 12, 22, 0.2);
+  }
+  .module-title-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .module-title-row h2 {
+    margin: 4px 0 0;
+  }
+  .module-code {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.38);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.12);
+    text-transform: uppercase;
+  }
+  .module-hero-icon {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    flex: 0 0 auto;
+  }
+  .module-hero-icon svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .module-context .muted {
+    color: rgba(226, 235, 252, 0.86);
+  }
+  .filtro-card {
+    margin-top: 14px;
+    display: grid;
+    gap: 10px;
+    border-color: var(--module-color-soft);
+  }
+  .filtro-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+  }
+  .module-context .btn,
+  .module-context button[type="submit"] {
+    background: linear-gradient(140deg, var(--module-color) 0%, rgba(255, 255, 255, 0.25) 165%);
+    border: 1px solid transparent;
+    color: #fff;
+  }
+  .module-context .btn-secondary {
+    background: #eef4fb;
+    color: #12314f;
+  }
+  .docs-note {
+    margin-top: 10px;
+    border: 1px solid #cfe0f5;
+    background: #f6fbff;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #224564;
+    font-size: 13px;
+  }
+  .process-num {
+    display: grid;
+    gap: 2px;
+  }
+  .process-num-main {
+    font-weight: 700;
+  }
+  .process-num-ref {
+    color: #5b6f86;
+    font-size: 12px;
+  }
+  @media (max-width: 960px) {
+    .filtro-row {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="module-context">
+  <div class="module-head-shell">
+    <div class="module-title-row">
+      <span class="module-hero-icon">{% include 'workflow/_module_icon.html' with slug=card.slug %}</span>
+      <div>
+        <span class="module-code">{{ card.slug }}</span>
+        <h2>{{ card.titulo }}</h2>
+        <p class="muted">{{ card.descricao }}</p>
+      </div>
+    </div>
+    <div class="docs-note">
+      A geração integral funciona para processos completos, parciais ou incompletos, independentemente do módulo em que o processo está atualmente.
+      O padrão aplica A4, OCR, paginação e compressão por página (até 500KB). O botão e-TCM divide automaticamente em partes de até 4MB.
+    </div>
+  </div>
+
+  <form method="get" class="card filtro-card">
+    <label for="filtro-q">Pesquisar processo (ex.: 0049/2026)</label>
+    <div class="filtro-row">
+      <input
+        id="filtro-q"
+        type="text"
+        name="q"
+        value="{{ filtro_q }}"
+        placeholder="Número SIREL, número externo, edital ou objeto"
+      >
+      <button type="submit">Pesquisar</button>
+      <a class="btn btn-secondary" href="{% url 'workflow:modulo_detail' card.slug %}">Limpar</a>
+    </div>
+  </form>
+
+  <div class="grid section">
+    <div class="card">
+      <div class="muted">Processos listados</div>
+      <div class="kpi">{{ total_processos }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Anexos mapeados</div>
+      <div class="kpi">{{ total_docs }}</div>
+    </div>
+  </div>
+
+  <table class="section">
+    <thead>
+      <tr>
+        <th>Processo</th>
+        <th>Objeto</th>
+        <th>Módulo atual</th>
+        <th>Anexos</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <span class="process-num">
+              <span class="process-num-main">{{ row.processo.numero_processo_principal }}</span>
+              {% if row.processo.numero_processo_secundario %}
+                <span class="process-num-ref">{{ row.processo.numero_processo_secundario }}</span>
+              {% endif %}
+            </span>
+          </td>
+          <td>{{ row.processo.objeto|default:'-'|truncatechars:120 }}</td>
+          <td>{{ row.workflow.modulo_atual|default:'-' }}</td>
+          <td>
+            <strong>{{ row.qtd_docs_total }}</strong>
+            <div class="muted" style="font-size:12px;">
+              workflow: {{ row.qtd_docs_workflow }} | docs: {{ row.qtd_docs_app_docs }}
+            </div>
+          </td>
+          <td style="display:flex;gap:8px;flex-wrap:wrap;">
+            <a class="btn" href="{{ row.gerar_pdf_url }}">Gerar processo integral (PDF)</a>
+            <a class="btn" href="{{ row.gerar_etcm_url }}">Gerar e-TCM</a>
+            <a class="btn btn-secondary" href="{{ row.resumo_url }}">Abrir resumo</a>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Nenhum processo encontrado com o filtro informado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,50 @@
+﻿{% extends "admin/base_site.html" %}
+
+{% block content_title %}{% endblock %}
+{% block extrastyle %}
+<style>
+  .dash-wrap{max-width:1200px}
+  .dash-actions{margin:12px 0}
+  table.dash{width:100%;border-collapse:collapse}
+  table.dash th,table.dash td{border:1px solid #ddd;padding:6px 8px;vertical-align:top}
+  table.dash th{background:#f5f5f5;position:sticky;top:0}
+  tr.bad{background:#fff4f4}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dash-wrap">
+  <h1>{{ title|default:"Lotes mal sucedidos" }}</h1>
+
+  <div class="dash-actions">
+    <a class="button" href="{% url 'admin:core_processo_change' processo.pk %}">Voltar ao processo</a>
+  </div>
+
+  {% if rows %}
+  <table class="dash">
+    <thead>
+      <tr>
+        <th>Lote</th>
+        <th>Título</th>
+        <th>Status do lote</th>
+        <th>Qtd. itens</th>
+        <th>Itens c/ vencedor</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{% if r.malsucedido %}bad{% endif %}">
+        <td>{{ r.lote }}</td>
+        <td>{{ r.titulo }}</td>
+        <td>{{ r.status_lote }}</td>
+        <td style="text-align:right">{{ r.qtd_itens }}</td>
+        <td style="text-align:right">{{ r.qtd_itens_com_vencedor }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>Nenhum lote mal sucedido encontrado neste processo.</p>
+  {% endif %}
+</div>
+{% endblock %}
+

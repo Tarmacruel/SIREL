@@ -1,0 +1,217 @@
+﻿{% extends 'workflow/base.html' %}
+{% load formatacoes %}
+
+{% block extra_head %}
+<style>
+  .head-wrap {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .filtro-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(260px, 2fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(170px, 1fr);
+  }
+  .filtro-card {
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+  }
+  .badge.homologado {
+    background: var(--success-bg);
+    border-color: var(--success-border);
+  }
+  .badge.fracassado,
+  .badge.cancelado {
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+  .table-small td {
+    font-size: 13px;
+  }
+  @media (max-width: 1100px) {
+    .filtro-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head-wrap">
+  <div>
+    <h2>Rastreamento de Itens</h2>
+    <p class="muted">Pesquisa global de itens licitados/importados com histórico por processo, status e valores canônicos.</p>
+  </div>
+  <a class="btn" href="{% url 'workflow:integracoes' %}">Importar/atualizar PNCP</a>
+</div>
+
+<form method="get" class="card filtro-card">
+  <div class="filtro-grid">
+    <div>
+      <label for="f-q">Pesquisar item/processo/fornecedor</label>
+      <input id="f-q" type="text" name="q" value="{{ filtros.q }}" placeholder="Descrição, número SIREL/externo, CNPJ, fornecedor...">
+    </div>
+    <div>
+      <label for="f-status">Status do item</label>
+      <select id="f-status" name="status_item">
+        <option value="">Todos</option>
+        {% for valor, label in status_choices %}
+          <option value="{{ valor }}" {% if filtros.status_item == valor %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="f-situacao">Situação do processo</label>
+      <select id="f-situacao" name="situacao_workflow">
+        <option value="">Todas</option>
+        {% for valor, label in situacoes_workflow %}
+          <option value="{{ valor }}" {% if filtros.situacao_workflow == valor %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="f-homologado">Somente homologados</label>
+      <select id="f-homologado" name="homologado">
+        <option value="todos" {% if filtros.homologado == 'todos' %}selected{% endif %}>Todos</option>
+        <option value="sim" {% if filtros.homologado == 'sim' %}selected{% endif %}>Sim</option>
+        <option value="nao" {% if filtros.homologado == 'nao' %}selected{% endif %}>Não</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <button type="submit">Filtrar</button>
+    <a class="btn" href="{% url 'workflow:itens_rastreamento' %}">Limpar</a>
+  </div>
+</form>
+
+<div class="grid section">
+  <div class="card">
+    <div class="muted">Itens localizados</div>
+    <div class="kpi">{{ total_itens }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Processos com item</div>
+    <div class="kpi">{{ total_processos }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Status dos itens</div>
+    <div>Homologados: {{ homologados }}</div>
+    <div>Fracassados: {{ fracassados }}</div>
+    <div>Cancelados: {{ cancelados }}</div>
+    <div>Conflitos de lote: {{ conflitos_lote }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Totais acumulados</div>
+    <div>Estimado: {{ total_estimado|moeda_brl }}</div>
+    <div>Homologado: {{ total_homologado|moeda_brl }}</div>
+  </div>
+</div>
+
+<div class="card section">
+  <h3>Itens recorrentes no sistema</h3>
+  <table class="table-small">
+    <thead>
+      <tr>
+        <th>Descrição</th>
+        <th>Processos</th>
+        <th>Registros</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in ranking_itens %}
+        <tr>
+          <td>{{ row.descricao_snapshot|truncatechars:140 }}</td>
+          <td>{{ row.processos }}</td>
+          <td>{{ row.total }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">Sem dados para o filtro atual.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card section">
+  <h3>Histórico por item e processo</h3>
+  <table class="table-small">
+    <thead>
+      <tr>
+        <th>Processo</th>
+        <th>Item</th>
+        <th>Fornecedor</th>
+        <th>Status item</th>
+        <th>Qtd./Un.</th>
+        <th>Vlr. unit. est.</th>
+        <th>Vlr. total est.</th>
+        <th>Vlr. unit. homolog.</th>
+        <th>Vlr. total homolog.</th>
+        <th>Conflito lote</th>
+        <th>Situação PNCP</th>
+        <th>Atualização</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in itens %}
+        <tr>
+          <td>
+            <a href="{% url 'workflow:processo_resumo' item.processo_id %}">
+              <span class="process-num">
+                <span class="process-num-main">{{ item.processo.numero_processo_principal }}</span>
+                {% if item.processo.numero_processo_secundario %}
+                  <span class="process-num-ref">{{ item.processo.numero_processo_secundario }}</span>
+                {% endif %}
+              </span>
+            </a>
+          </td>
+          <td>{{ item.numero_item }} - {{ item.descricao_snapshot|truncatechars:100 }}</td>
+          <td>{% if item.fornecedor_homologado %}{{ item.fornecedor_homologado.razao_social }}{% else %}-{% endif %}</td>
+          <td>
+            <span class="badge {% if item.status_consolidado == 'HOMOLOGADO' %}homologado{% elif item.status_consolidado == 'FRACASSADO' %}fracassado{% elif item.status_consolidado == 'CANCELADO' %}cancelado{% endif %}">
+              {{ item.get_status_consolidado_display }}
+            </span>
+          </td>
+          <td>{{ item.quantidade|floatformat:3 }} {{ item.unidade_snapshot|default:'-' }}</td>
+          <td>{{ item.valor_referencia_unitario|moeda_brl }}</td>
+          <td>{{ item.valor_referencia_total|moeda_brl }}</td>
+          <td>{{ item.valor_homologado_unitario|moeda_brl }}</td>
+          <td>{{ item.valor_homologado_total|moeda_brl }}</td>
+          <td>
+            {% if item.conflito_lote %}
+              <span class="badge cancelado">Sim</span>
+            {% else %}
+              <span class="badge homologado">Não</span>
+            {% endif %}
+          </td>
+          <td>
+            {{ item.situacao_item_pncp|default:'-' }}
+            {% if item.situacao_resultado_pncp %}
+              <br><span class="muted">{{ item.situacao_resultado_pncp }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {{ item.pncp_ultima_atualizacao|date:'d/m/Y H:i'|default:'-' }}
+            {% if item.data_resultado_homologacao %}
+              <br><span class="muted">Homolog.: {{ item.data_resultado_homologacao|date:'d/m/Y' }}</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="12">Nenhum item encontrado para os filtros informados.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+

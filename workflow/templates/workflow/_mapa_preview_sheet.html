@@ -1,0 +1,85 @@
+{% load formatacoes %}
+<article class="mapa-sheet">
+  <div class="mapa-banner">
+    {% if orgao %}
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        {% if orgao.logo %}
+          <img src="{{ orgao.logo.url }}" alt="Logo do orgao" style="width:44px;height:44px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:4px;background:var(--surface);">
+        {% endif %}
+        <div>
+          <div style="font-weight:700;">{{ orgao.nome_fantasia|default:orgao.razao_social }}</div>
+          <p class="mapa-subtitle" style="margin:2px 0 0;">
+            {% if orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}
+            {% if orgao.endereco_completo %}<br>{{ orgao.endereco_completo }}{% endif %}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+    <h3 style="margin:0 0 6px;">Mapa Comparativo de Cotacoes (ETP)</h3>
+    <p class="mapa-subtitle">Pré-visualização dos valores lançados e médias consideradas.</p>
+  </div>
+
+  <div class="mapa-body">
+    {% if not etp %}
+      <div class="empty-box">Nenhum ETP cadastrado para este processo.</div>
+    {% else %}
+      <section class="mapa-block">
+        <h4>Estimativas por item</h4>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+          <span class="tag ok">
+            <strong>Total estimado do processo:</strong>
+            {{ total_estimado_processo|moeda_brl }}
+            ({{ total_estimado_processo|por_extenso }})
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Quantidade</th><th>Media considerada</th><th>Total estimado do item</th></tr></thead>
+            <tbody>
+              {% for c in itens_estimados %}
+                <tr>
+                  <td>{{ c.item.codigo }} - {{ c.item.descricao|truncatechars:90 }}</td>
+                  <td>{{ c.item.quantidade|floatformat:3 }}</td>
+                  <td>{% if c.media is not None %}{{ c.media|moeda_brl }}{% else %}-{% endif %}</td>
+                  <td>{% if c.total_estimado is not None %}{{ c.total_estimado|moeda_brl }}{% else %}-{% endif %}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="4">Sem itens para estimativa.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="mapa-block">
+        <h4>Cotacoes lancadas</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Item</th><th>Fonte</th><th>Valor</th><th>Situação</th><th>Considerar</th></tr></thead>
+            <tbody>
+              {% for cot in cotacoes %}
+                <tr {% if not cot.considerar_no_calculo %}class="mapa-desconsiderada"{% endif %}>
+                  <td>{{ cot.item.codigo }} - {{ cot.item.descricao|truncatechars:80 }}</td>
+                  <td>{{ cot.fonte.nome_fonte }}</td>
+                  <td>{{ cot.valor_unitario|moeda_brl }}</td>
+                  <td>
+                    {% if cot.inexequivel %}
+                      <span class="tag warn">Abaixo de 50% da media</span>
+                    {% elif cot.sobrepreco %}
+                      <span class="tag warn">Acima de 50% da media</span>
+                    {% else %}
+                      <span class="tag ok">Faixa normal</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ cot.considerar_no_calculo|yesno:'Sim,Nao' }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5">Nenhuma cotacao lancada.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    {% endif %}
+  </div>
+</article>

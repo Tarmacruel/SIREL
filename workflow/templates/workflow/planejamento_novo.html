@@ -1,0 +1,30 @@
+{% extends 'workflow/base.html' %}
+{% block content %}
+<h2>Novo processo no Planejamento</h2>
+<div class="card">
+  <div class="ok" style="margin-bottom:12px;">
+    Número SIREL previsto para {{ ano_preview }}: <strong>{{ proximo_numero_sirel }}</strong>
+  </div>
+  <form method="post">{% csrf_token %}
+    <div>
+      <label for="{{ form.ano_referencia.id_for_label }}">{{ form.ano_referencia.label }}</label>
+      {{ form.ano_referencia }}
+      {% if form.ano_referencia.errors %}<div class="warn">{{ form.ano_referencia.errors|join:', ' }}</div>{% endif %}
+    </div>
+    <div>
+      <label for="{{ form.numero_processo_externo.id_for_label }}">{{ form.numero_processo_externo.label }}</label>
+      {{ form.numero_processo_externo }}
+      <div class="muted" style="font-size:12px;margin-top:4px;">
+        Informe o número usado em outro sistema (PNCP/BLL/etc), quando existir.
+      </div>
+      {% if form.numero_processo_externo.errors %}<div class="warn">{{ form.numero_processo_externo.errors|join:', ' }}</div>{% endif %}
+    </div>
+    <div>
+      <label for="{{ form.objeto.id_for_label }}">{{ form.objeto.label }}</label>
+      {{ form.objeto }}
+      {% if form.objeto.errors %}<div class="warn">{{ form.objeto.errors|join:', ' }}</div>{% endif %}
+    </div>
+    <button type="submit">Criar processo</button>
+  </form>
+</div>
+{% endblock %}

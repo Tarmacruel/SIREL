@@ -1,0 +1,489 @@
+{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .freq-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto auto;
+    gap: 10px;
+    align-items: end;
+  }
+  .freq-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+  }
+  .freq-summary .card {
+    margin: 0;
+    padding: 10px 12px;
+  }
+  .freq-table-wrap {
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .freq-table {
+    width: 100%;
+    min-width: 1240px;
+    border-collapse: collapse;
+  }
+  .freq-table th,
+  .freq-table td {
+    border-bottom: 1px solid var(--border);
+    padding: 8px;
+    font-size: 13px;
+    vertical-align: top;
+  }
+  .freq-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--surface-soft);
+    z-index: 1;
+  }
+  .freq-table tr.pending {
+    background: var(--warn-bg);
+  }
+  .freq-table tr.weekend {
+    opacity: .88;
+  }
+  .freq-input-time {
+    width: 96px;
+  }
+  .freq-just-summary {
+    max-width: 260px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .freq-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .row-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: stretch;
+  }
+  .row-action-btn {
+    font-size: 11px;
+    line-height: 1.1;
+    padding: 5px 8px;
+    min-height: 28px;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .row-action-btn.row-save-btn {
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .row-action-btn.row-save-btn:hover {
+    filter: brightness(1.06);
+  }
+  .modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 18, 30, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1300;
+    padding: 14px;
+  }
+  .modal.show {
+    display: flex;
+  }
+  .modal-panel {
+    width: min(980px, 96vw);
+    max-height: 90vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 2;
+  }
+  .modal-body {
+    padding: 14px;
+  }
+  .preview-iframe {
+    width: 100%;
+    min-height: 68vh;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+  }
+  @media (max-width: 980px) {
+    .freq-toolbar {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Módulo de frequência</h2>
+<p class="muted">
+  Registro mensal direto na grade detalhada, com justificativas por dia, cálculo automático de horas extras
+  e geração da folha mensal.
+</p>
+
+<div class="card">
+  <h3>Competência e ações</h3>
+  <form method="get" class="freq-toolbar">
+    <div>
+      <label>Mês de referência</label>
+      <input type="month" name="mes" value="{{ mes_referencia }}">
+    </div>
+    {% if usuarios_opts %}
+    <div>
+      <label>Usuário</label>
+      <select name="usuario_id">
+        {% for u in usuarios_opts %}
+          <option value="{{ u.id }}" {% if usuario_id == u.id|stringformat:'s' %}selected{% endif %}>
+            {{ u.get_full_name|default:u.username }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <button type="submit">Atualizar grade</button>
+    <button type="button" id="btn-open-preview">Pré-visualizar folha</button>
+    <a class="btn" href="{{ export_pdf_url }}">Gerar PDF</a>
+    <a class="btn" href="{{ export_xlsx_url }}">Gerar XLSX</a>
+  </form>
+
+  <div class="freq-summary">
+    <div class="card"><div class="muted">Dias úteis</div><div class="kpi">{{ dias_uteis }}</div></div>
+    <div class="card"><div class="muted">Dias trabalhados</div><div class="kpi">{{ dias_trabalhados }}</div></div>
+    <div class="card"><div class="muted">Justificados</div><div class="kpi">{{ dias_justificados }}</div></div>
+    <div class="card"><div class="muted">Pendências</div><div class="kpi">{{ pendencias }}</div></div>
+    <div class="card"><div class="muted">Total trabalhado</div><div class="kpi">{{ total_horas }}</div></div>
+    <div class="card"><div class="muted">Total extras</div><div class="kpi">{{ total_extras }}</div></div>
+  </div>
+</div>
+
+<form method="post" id="freq-month-form" class="card" style="margin-top:14px;">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="save_month">
+  <input type="hidden" name="mes" value="{{ mes_referencia }}">
+  {% if usuarios_opts %}
+    <input type="hidden" name="usuario_id" value="{{ usuario_id }}">
+  {% endif %}
+
+  <h3>Folha mensal detalhada (edição direta)</h3>
+  <p class="muted">
+    Preencha os horários diretamente na tabela. O botão <strong>Justificativa</strong> de cada dia abre
+    o preenchimento detalhado.
+  </p>
+
+  <div class="freq-table-wrap">
+    <table class="freq-table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Dia</th>
+          <th>Não trabalhou?</th>
+          <th>Entrada</th>
+          <th>Início intervalo</th>
+          <th>Volta intervalo</th>
+          <th>Saída</th>
+          <th>Horas trabalhadas</th>
+          <th>Horas extras</th>
+          <th>Situação</th>
+          <th>Resumo justificativas</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in linhas %}
+          <tr class="{% if l.pendente %}pending{% endif %} {% if not l.is_util %}weekend{% endif %}" data-row-key="{{ l.date_key }}">
+            <td>{{ l.data|date:'d/m/Y' }}</td>
+            <td>{{ l.dia_semana }}</td>
+            <td>
+              <select name="nao_{{ l.date_key }}" class="row-nao" data-key="{{ l.date_key }}">
+                <option value="0" {% if l.nao_trabalhado_val == '0' %}selected{% endif %}>Não</option>
+                <option value="1" {% if l.nao_trabalhado_val == '1' %}selected{% endif %}>Sim</option>
+              </select>
+            </td>
+            <td><input class="freq-input-time row-time row-time-{{ l.date_key }}" type="time" name="entrada_{{ l.date_key }}" value="{{ l.entrada_val }}"></td>
+            <td><input class="freq-input-time row-time row-time-{{ l.date_key }}" type="time" name="inicio_intervalo_{{ l.date_key }}" value="{{ l.inicio_intervalo_val }}"></td>
+            <td><input class="freq-input-time row-time row-time-{{ l.date_key }}" type="time" name="fim_intervalo_{{ l.date_key }}" value="{{ l.fim_intervalo_val }}"></td>
+            <td><input class="freq-input-time row-time row-time-{{ l.date_key }}" type="time" name="saida_{{ l.date_key }}" value="{{ l.saida_val }}"></td>
+            <td>{{ l.horas_total }}</td>
+            <td>{{ l.horas_extras }}</td>
+            <td>{{ l.status_label }}</td>
+            <td class="freq-just-summary" id="just-summary-{{ l.date_key }}">{{ l.justificativa_resumo_curta }}</td>
+            <td>
+              <div class="row-actions">
+                <button
+                  type="button"
+                  class="row-action-btn row-just-btn"
+                  data-key="{{ l.date_key }}"
+                  data-data="{{ l.data|date:'d/m/Y' }}"
+                  data-dia="{{ l.dia_semana }}"
+                  data-horas="{{ l.horas_total }}"
+                  data-extras="{{ l.horas_extras }}"
+                >
+                  Justificativa
+                </button>
+                <button
+                  type="button"
+                  class="row-action-btn row-save-btn"
+                  data-row-save="{{ l.date_key }}"
+                >
+                  Salvar
+                </button>
+              </div>
+              <input type="hidden" name="just_extras_{{ l.date_key }}" id="just-extras-{{ l.date_key }}" value="{{ l.justificativa_horas_extras }}">
+              <input type="hidden" name="just_nao_{{ l.date_key }}" id="just-nao-{{ l.date_key }}" value="{{ l.justificativa_nao_trabalhado }}">
+              <input type="hidden" name="observacao_{{ l.date_key }}" id="observacao-{{ l.date_key }}" value="{{ l.observacao }}">
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="freq-actions">
+    <button type="submit">Salvar folha mensal</button>
+    <button type="button" id="btn-open-preview-bottom">Pré-visualizar folha</button>
+  </div>
+</form>
+
+<div class="modal" id="modal-justificativa" aria-hidden="true">
+  <div class="modal-panel" style="max-width:760px;">
+    <div class="modal-head">
+      <strong>Justificativa por dia</strong>
+      <button type="button" data-close="#modal-justificativa">Fechar</button>
+    </div>
+    <div class="modal-body">
+      <div class="card" style="margin:0 0 10px 0;">
+        <div><strong id="just-dia-label">Dia</strong></div>
+        <div class="muted" id="just-dia-sub">Horas trabalhadas 00:00 | Horas extras 00:00</div>
+      </div>
+      <input type="hidden" id="just-current-key" value="">
+      <label for="just-extra-text">Justificativa de horas extras</label>
+      <textarea id="just-extra-text" rows="4" placeholder="Informe a justificativa quando houver horas extras."></textarea>
+      <label for="just-nao-text">Justificativa de dia útil não trabalhado</label>
+      <textarea id="just-nao-text" rows="4" placeholder="Informe quando o dia útil não foi trabalhado."></textarea>
+      <label for="just-obs-text">Observação do dia</label>
+      <textarea id="just-obs-text" rows="3" placeholder="Observações complementares."></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+        <button type="button" data-close="#modal-justificativa">Cancelar</button>
+        <button type="button" id="btn-save-just">Aplicar justificativa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-preview" aria-hidden="true">
+  <div class="modal-panel" style="max-width:1220px;">
+    <div class="modal-head">
+      <strong>Pré-visualização da folha mensal</strong>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="btn-print-preview">Imprimir</button>
+        <a class="btn" href="{{ export_pdf_url }}">Gerar PDF</a>
+        <a class="btn" href="{{ export_xlsx_url }}">Gerar XLSX</a>
+        <button type="button" data-close="#modal-preview">Fechar</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <iframe id="freq-preview-frame" class="preview-iframe" src="" loading="lazy" title="Pré-visualização da folha de frequência"></iframe>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  function qs(sel, root) { return (root || document).querySelector(sel); }
+  function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
+  const monthForm = qs('#freq-month-form');
+
+  function notify(message, level) {
+    if (window.sirelShowToast) {
+      window.sirelShowToast(message, level || 'success');
+      return;
+    }
+    if (message) {
+      window.alert(message);
+    }
+  }
+
+  function syncRow(rowKey) {
+    const sel = qs('.row-nao[data-key="' + rowKey + '"]');
+    const disabled = sel && String(sel.value) === '1';
+    qsa('.row-time-' + rowKey).forEach(function (el) {
+      el.disabled = disabled;
+      if (disabled) { el.value = ''; }
+    });
+  }
+
+  qsa('.row-nao').forEach(function (sel) {
+    syncRow(sel.getAttribute('data-key'));
+    sel.addEventListener('change', function () {
+      syncRow(sel.getAttribute('data-key'));
+    });
+  });
+
+  function openModal(selector) {
+    const modal = qs(selector);
+    if (!modal) return;
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(selector) {
+    const modal = qs(selector);
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  qsa('[data-close]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      closeModal(btn.getAttribute('data-close'));
+    });
+  });
+
+  qsa('.modal').forEach(function (modal) {
+    modal.addEventListener('click', function (ev) {
+      if (ev.target === modal) {
+        closeModal('#' + modal.id);
+      }
+    });
+  });
+
+  qsa('.row-just-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const key = btn.getAttribute('data-key');
+      qs('#just-current-key').value = key;
+      qs('#just-dia-label').textContent = btn.getAttribute('data-data') + ' (' + btn.getAttribute('data-dia') + ')';
+      qs('#just-dia-sub').textContent = 'Horas trabalhadas ' + (btn.getAttribute('data-horas') || '00:00') + ' | Horas extras ' + (btn.getAttribute('data-extras') || '00:00');
+      qs('#just-extra-text').value = qs('#just-extras-' + key).value || '';
+      qs('#just-nao-text').value = qs('#just-nao-' + key).value || '';
+      qs('#just-obs-text').value = qs('#observacao-' + key).value || '';
+      openModal('#modal-justificativa');
+    });
+  });
+
+  qs('#btn-save-just').addEventListener('click', function () {
+    const key = qs('#just-current-key').value;
+    if (!key) return;
+    const extra = (qs('#just-extra-text').value || '').trim();
+    const nao = (qs('#just-nao-text').value || '').trim();
+    const obs = (qs('#just-obs-text').value || '').trim();
+    qs('#just-extras-' + key).value = extra;
+    qs('#just-nao-' + key).value = nao;
+    qs('#observacao-' + key).value = obs;
+    const parts = [];
+    if (extra) parts.push('Extras: ' + extra);
+    if (nao) parts.push('Não trabalhado: ' + nao);
+    if (obs) parts.push('Obs.: ' + obs);
+    const resumo = parts.join(' | ');
+    qs('#just-summary-' + key).textContent = resumo ? (resumo.length > 79 ? resumo.slice(0, 76) + '...' : resumo) : '-';
+    closeModal('#modal-justificativa');
+  });
+
+  async function postSave(formData, triggerBtn) {
+    if (!monthForm) return;
+    if (triggerBtn) triggerBtn.disabled = true;
+    try {
+      const response = await fetch(monthForm.getAttribute('action') || window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await response.json().catch(function () {
+        return { ok: false, message: 'Resposta inválida do servidor.' };
+      });
+      notify(data.message || 'Operação concluída.', data.ok ? 'success' : 'error');
+      if (data.ok && window.sirelRefreshMainContent) {
+        await window.sirelRefreshMainContent();
+      }
+    } catch (e) {
+      notify('Falha de comunicação ao salvar.', 'error');
+    } finally {
+      if (triggerBtn) triggerBtn.disabled = false;
+    }
+  }
+
+  if (monthForm) {
+    monthForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      const formData = new FormData(monthForm);
+      postSave(formData, event.submitter || null);
+    });
+  }
+
+  qsa('[data-row-save]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const key = btn.getAttribute('data-row-save');
+      if (!key || !monthForm) return;
+      const formData = new FormData();
+      const csrf = qs('input[name="csrfmiddlewaretoken"]', monthForm);
+      const mes = qs('input[name="mes"]', monthForm);
+      const action = qs('input[name="action"]', monthForm);
+      const usuarioId = qs('input[name="usuario_id"]', monthForm);
+      if (csrf) formData.append('csrfmiddlewaretoken', csrf.value);
+      formData.append('action', action ? action.value : 'save_month');
+      if (mes) formData.append('mes', mes.value);
+      if (usuarioId) formData.append('usuario_id', usuarioId.value);
+      formData.append('row_only_key', key);
+
+      [
+        'nao_' + key,
+        'entrada_' + key,
+        'inicio_intervalo_' + key,
+        'fim_intervalo_' + key,
+        'saida_' + key,
+        'just_extras_' + key,
+        'just_nao_' + key,
+        'observacao_' + key,
+      ].forEach(function (name) {
+        const input = qs('[name="' + name + '"]', monthForm);
+        if (!input) return;
+        formData.append(name, input.value);
+      });
+
+      postSave(formData, btn);
+    });
+  });
+
+  function openPreview() {
+    const frame = qs('#freq-preview-frame');
+    if (!frame) return;
+    frame.src = '{{ preview_url|escapejs }}' + '&_ts=' + Date.now();
+    openModal('#modal-preview');
+  }
+
+  const btnTop = qs('#btn-open-preview');
+  if (btnTop) btnTop.addEventListener('click', openPreview);
+  const btnBottom = qs('#btn-open-preview-bottom');
+  if (btnBottom) btnBottom.addEventListener('click', openPreview);
+
+  const btnPrint = qs('#btn-print-preview');
+  if (btnPrint) {
+    btnPrint.addEventListener('click', function () {
+      const frame = qs('#freq-preview-frame');
+      if (!frame || !frame.contentWindow) return;
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    });
+  }
+})();
+</script>
+{% endblock %}

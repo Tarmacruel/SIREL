@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block content %}
+  <h1>{{ title }}</h1>
+  <p>Envie um arquivo **XLSX** (gerado pelo botão Exportar) ou **CSV** com o layout padrão.</p>
+  <form method="post" enctype="multipart/form-data" style="margin-top:1rem;">
+    {% csrf_token %}
+    <input type="file" name="arquivo" accept=".xlsx,.csv" required>
+    <button type="submit" class="button default">Importar</button>
+    <a href="{% url 'admin:core_processo_change' pk %}" class="button">Voltar</a>
+  </form>
+{% endblock %}

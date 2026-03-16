@@ -1,0 +1,226 @@
+{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-soft);
+  }
+
+  .badge.ok {
+    background: var(--success-bg);
+    border-color: var(--success-border);
+  }
+
+  .badge.warn {
+    background: var(--warn-bg);
+    border-color: var(--warn-border);
+  }
+
+  .progress-shell {
+    height: 11px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--module-accent) 0%, color-mix(in srgb, var(--module-accent) 72%, #fff 28%) 100%);
+    transition: width .25s ease;
+  }
+
+  .warn-card {
+    border: 1px solid var(--warn-border);
+    background: var(--warn-bg);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-top: 12px;
+  }
+
+  .phase-title {
+    margin: 0 0 10px;
+  }
+
+  .doc-upload-inline {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .doc-upload-inline input[type="file"] {
+    min-width: 220px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="head">
+  <div>
+    <h2>MÃ³dulo LicitaÃ§Ã£o</h2>
+    <p class="muted">
+      Processo
+      <span class="process-num">
+        <span class="process-num-main">{{ processo.numero_processo_principal }}</span>
+        {% if processo.numero_processo_secundario %}
+          <span class="process-num-ref">{{ processo.numero_processo_secundario }}</span>
+        {% endif %}
+      </span>
+      | Etapa: {{ workflow.etapa_atual }}
+    </p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{% url 'workflow:processo_resumo' processo.id %}">Voltar ao resumo</a>
+    <a class="btn" href="{% url 'workflow:licitacao_novo_externo' %}">Novo processo externo</a>
+    <a class="btn" href="{% url 'workflow:licitacao_edital_generator' processo.id %}">Gerador de Minuta de Edital</a>
+    <a class="btn" href="{% url 'workflow:licitacao_relatorio_pendencias' processo.id %}" target="_blank" rel="noopener">RelatÃ³rio de pendÃªncias</a>
+    <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino=PROCURADORIA">Gerar C.I. e encaminhar para Procuradoria</a>
+    <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino=COMPRAS&acao=devolver">Devolver para Compras</a>
+  </div>
+</div>
+
+<section class="card section">
+  <h3>Completude documental</h3>
+  <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+    <div>
+      <strong>{{ total_docs_ok }}/{{ total_docs }}</strong> documento(s) da checklist anexado(s)
+    </div>
+    <div>
+      <strong>{{ percentual_completude }}%</strong>
+    </div>
+  </div>
+  <div class="progress-shell">
+    <div class="progress-bar" style="width: {{ percentual_completude }}%;"></div>
+  </div>
+  {% if pendencias %}
+    <div class="warn-card">
+      <strong>PendÃªncias atuais ({{ pendencias|length }})</strong><br>
+      {{ pendencias|join:', ' }}
+    </div>
+  {% else %}
+    <div class="ok" style="margin-top:10px;">
+      Checklist documental completo para a fase configurada.
+    </div>
+  {% endif %}
+</section>
+
+<section class="card section">
+  <h3>Anexo rÃ¡pido de documento</h3>
+  <form method="post" enctype="multipart/form-data" action="{% url 'workflow:licitacao_upload_documento' processo.id %}">
+    {% csrf_token %}
+    <div class="grid" style="grid-template-columns:2fr 3fr 1fr;align-items:end;">
+      <div>
+        <label for="{{ form_upload.doc_codigo.id_for_label }}">{{ form_upload.doc_codigo.label }}</label>
+        {{ form_upload.doc_codigo }}
+      </div>
+      <div>
+        <label for="{{ form_upload.arquivo.id_for_label }}">{{ form_upload.arquivo.label }}</label>
+        {{ form_upload.arquivo }}
+      </div>
+      <div>
+        <button type="submit">Anexar</button>
+      </div>
+    </div>
+  </form>
+</section>
+
+{% for fase, docs in checklist_fases.items %}
+  <section class="card section">
+    <h3 class="phase-title">{{ fase }}</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:29%;">Documento</th>
+          <th style="width:13%;">SituaÃ§Ã£o</th>
+          <th style="width:26%;">Arquivo anexado</th>
+          <th style="width:16%;">Gerar no SIREL</th>
+          <th style="width:16%;">Atualizar anexo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in docs %}
+          <tr>
+            <td>
+              <strong>{{ row.label }}</strong><br>
+              <span class="muted">{{ row.codigo }}</span>
+            </td>
+            <td>
+              {% if row.presente %}
+                <span class="badge ok">Anexado</span>
+              {% else %}
+                <span class="badge warn">Pendente</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.presente %}
+                <a href="{{ row.arquivo_url }}" target="_blank" rel="noopener">{{ row.arquivo_nome }}</a><br>
+                <span class="muted">{{ row.data_envio|date:'d/m/Y H:i' }}</span>
+              {% else %}
+                <span class="muted">Sem arquivo anexado</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.gerar_links %}
+                {% for link in row.gerar_links %}
+                  <a href="{{ link.url }}" target="_blank" rel="noopener">{{ link.label }}</a>{% if not forloop.last %}<br>{% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="muted">N/D</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" enctype="multipart/form-data" action="{% url 'workflow:licitacao_upload_documento' processo.id %}" class="doc-upload-inline">
+                {% csrf_token %}
+                <input type="hidden" name="doc_codigo" value="{{ row.codigo }}">
+                <input type="file" name="arquivo" required>
+                <button type="submit">Salvar</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endfor %}
+
+{% if docs_extras %}
+  <section class="card section">
+    <h3>Outros documentos do mÃ³dulo LicitaÃ§Ã£o</h3>
+    <table>
+      <thead>
+        <tr><th>Tipo</th><th>Arquivo</th><th>Data</th></tr>
+      </thead>
+      <tbody>
+        {% for doc in docs_extras %}
+          <tr>
+            <td>{{ doc.tipo_documento }}</td>
+            <td><a href="{{ doc.arquivo.url }}" target="_blank" rel="noopener">{{ doc.arquivo.name|cut:'workflow_documentos/' }}</a></td>
+            <td>{{ doc.criado_em|date:'d/m/Y H:i' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
+{% endblock %}

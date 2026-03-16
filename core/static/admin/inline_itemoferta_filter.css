@@ -1,0 +1,20 @@
+.oferta-toolbar{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin:8px 0 12px 0;
+  flex-wrap:wrap;
+}
+.oferta-toolbar .oferta-search{
+  flex:1 1 360px;
+  max-width:640px;
+  padding:6px 8px;
+}
+.oferta-toolbar .oferta-status{
+  padding:6px 8px;
+}
+.oferta-toolbar .oferta-count{
+  margin-left:auto;
+  font-size:12px;
+  opacity:0.8;
+}

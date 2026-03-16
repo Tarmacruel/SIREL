@@ -1,0 +1,110 @@
+<article class="dfd-sheet">
+  <div class="dfd-banner">
+    {% if orgao %}
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        {% if orgao.logo %}
+          <img src="{{ orgao.logo.url }}" alt="Logo do orgao" style="width:56px;height:56px;object-fit:contain;border:1px solid var(--border);border-radius:8px;padding:4px;background:var(--surface);">
+        {% endif %}
+        <div>
+          <h3 style="margin:0;">{{ orgao.nome_fantasia|default:orgao.razao_social }}</h3>
+          <p class="dfd-subtitle" style="margin:2px 0 0;">
+            {% if orgao.razao_social and orgao.nome_fantasia %}{{ orgao.razao_social }} | {% endif %}
+            {% if orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}
+            {% if orgao.endereco_completo %}<br>{{ orgao.endereco_completo }}{% endif %}
+          </p>
+        </div>
+      </div>
+    {% endif %}
+    <h3 style="margin:0 0 6px;">Documento de Formalizacao da Demanda (DFD)</h3>
+  </div>
+
+  <div class="dfd-grid">
+    <section class="dfd-card">
+      <h4>Objeto resumido</h4>
+      <p>{{ dfd.objeto_resumido|default:'-' }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Data da demanda</h4>
+      <p>{{ dfd.data_demanda|date:'d/m/Y' }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Modalidade pretendida</h4>
+      <p>{{ dfd.get_modalidade_pretendida_display }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Tipo de contratacao</h4>
+      <p>{{ dfd.get_tipo_contratacao_planejamento_display }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Especie da contratacao</h4>
+      <p>{{ dfd.get_especie_contratacao_display }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Cargo/Funcao</h4>
+      <p>{{ dfd.cargo_funcao|default:'-' }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Atendente (registro)</h4>
+      <p>{{ atendente_nome|default:'-' }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Identificacao do atendente</h4>
+      <p>{{ atendente_identificacao|default:'-' }}</p>
+    </section>
+    <section class="dfd-card full">
+      <h4>Descricao detalhada</h4>
+      <p>{{ dfd.descricao_detalhada|default:'-' }}</p>
+    </section>
+    <section class="dfd-card full">
+      <h4>Justificativa da contratacao</h4>
+      <p>{{ dfd.justificativa_contratacao|default:'-' }}</p>
+    </section>
+    <section class="dfd-card full">
+      <h4>Fundamento legal</h4>
+      <p>{{ dfd.fundamento_legal|default:'-' }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Previsao de entrega/execucao</h4>
+      <p>{{ previsao_entrega_execucao_formatada|default:'-' }}</p>
+    </section>
+    <section class="dfd-card">
+      <h4>Secretarias participantes</h4>
+      <ul class="dfd-list">
+        {% for s in dfd.secretarias_vinculadas.all %}
+          <li>{{ s.secretaria.sigla }} - {{ s.secretaria.nome }}{% if s.principal %} (principal){% endif %}</li>
+        {% empty %}
+          <li>Nenhuma secretaria vinculada.</li>
+        {% endfor %}
+      </ul>
+    </section>
+    <section class="dfd-card full">
+      <h4>Itens da demanda</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>No item</th><th>Codigo</th><th>Descricao</th><th>Unidade</th><th>Quantidade</th></tr></thead>
+          <tbody>
+            {% for item in dfd.itens.all %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.codigo }}</td>
+                <td>{{ item.descricao }}</td>
+                <td>{{ item.unidade }}</td>
+                <td>{{ item.quantidade|floatformat:2 }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5">Nenhum item cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="dfd-card full">
+      <h4>Assinatura do responsavel pela demanda</h4>
+      <div class="assinatura-box">
+        <div class="assinatura-line"></div>
+        <div>{{ dfd.responsavel_demanda|default:'-' }}</div>
+        <div class="dfd-subtitle">{{ dfd.cargo_funcao|default:'-' }}</div>
+      </div>
+    </section>
+  </div>
+</article>

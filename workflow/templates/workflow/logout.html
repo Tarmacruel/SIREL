@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Logout | SIREL Modular</title>
+  <style>
+    :root {
+      --bg-1: #0b1d35;
+      --bg-2: #143b67;
+      --card: #f7fafe;
+      --text: #11253f;
+      --muted: #637691;
+      --border: #cfd9e9;
+      --primary: #113b6f;
+      --primary-2: #1c4f8a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(60rem 40rem at 8% -10%, rgba(120, 166, 241, .24), transparent 60%),
+        radial-gradient(36rem 30rem at 90% 104%, rgba(96, 150, 224, .21), transparent 58%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      display: grid;
+      place-items: center;
+      padding: 20px;
+    }
+    .card {
+      width: min(560px, 100%);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 22px 50px rgba(3, 14, 29, .38);
+      overflow: hidden;
+    }
+    .head {
+      padding: 24px 24px 14px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(120deg, rgba(17, 59, 111, .11), rgba(28, 79, 138, .07));
+    }
+    h1 { margin: 0; font-size: 30px; }
+    p { margin: 8px 0 0; color: var(--muted); }
+    .body {
+      padding: 20px 24px 24px;
+      display: grid;
+      gap: 14px;
+    }
+    .btn {
+      display: inline-block;
+      text-decoration: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 16px;
+      color: #fff;
+      font-weight: 600;
+      background: linear-gradient(120deg, var(--primary), var(--primary-2));
+      width: fit-content;
+    }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <header class="head">
+      <h1>Sessão encerrada</h1>
+      <p>Você saiu do SIREL Modular com segurança.</p>
+    </header>
+    <div class="body">
+      <a class="btn" href="{% url 'workflow:login' %}">Entrar novamente</a>
+    </div>
+  </section>
+</body>
+</html>

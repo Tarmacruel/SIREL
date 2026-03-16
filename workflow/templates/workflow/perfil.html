@@ -1,0 +1,27 @@
+{% extends 'workflow/base.html' %}
+{% block content %}
+<div class="card" style="max-width:760px;margin:0 auto;">
+  <h2 style="margin-top:0;">Meu perfil</h2>
+  <p class="muted">Atualize seus dados de identificação do usuário.</p>
+  <form method="post" data-ajax="true">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="warn">{{ form.non_field_errors|striptags }}</div>
+    {% endif %}
+    <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+      {% for field in form %}
+        <div style="display:grid;gap:6px;">
+          <label for="{{ field.id_for_label }}" style="font-size:13px;color:var(--muted);font-weight:600;">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div style="color:#c12222;font-size:12px;">{{ field.errors|striptags }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="submit">Salvar dados</button>
+      <a class="btn" href="{% url 'workflow:password_change' %}">Alterar senha</a>
+      <a class="btn" href="{% url 'workflow:home' %}">Voltar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

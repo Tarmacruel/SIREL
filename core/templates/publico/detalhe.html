@@ -1,0 +1,159 @@
+{% extends "publico/base_publico.html" %}
+{% load formatacoes %}
+
+{% block content %}
+<section class="card">
+  <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
+    <div>
+      <h1 style="margin:0;font-size:24px;">{{ p.numero_processo_principal }}</h1>
+      {% if p.numero_processo_secundario %}
+        <div class="muted" style="margin-top:6px;">
+          Referência externa: <strong>{{ p.numero_processo_secundario }}</strong>
+        </div>
+      {% endif %}
+      {% if p.pncp_snapshot and p.pncp_snapshot.numero_controle_pncp %}
+        <div class="muted" style="margin-top:4px;">
+          Controle PNCP: <strong>{{ p.pncp_snapshot.numero_controle_pncp }}</strong>
+        </div>
+      {% endif %}
+    </div>
+    <a class="btn btn-light" href="{% url 'publico:lista' %}">Voltar para consulta</a>
+  </div>
+</section>
+
+<section class="grid cols-4 section">
+  <div class="card">
+    <div class="muted">Modalidade</div>
+    <div class="kpi" style="font-size:18px;">{% if p.modalidade %}{{ p.modalidade.nome }}{% else %}-{% endif %}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Situacao</div>
+    <div class="kpi" style="font-size:18px;">{% if p.status %}{{ p.status.nome }}{% else %}Publicacao ativa{% endif %}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Valor estimado</div>
+    <div class="kpi" style="font-size:20px;">{{ p.valor_estimado|moeda_brl }}</div>
+  </div>
+  <div class="card">
+    <div class="muted">Valor homologado</div>
+    <div class="kpi" style="font-size:20px;">{{ p.valor_homologado|moeda_brl }}</div>
+  </div>
+</section>
+
+<section class="card section">
+  <h2 style="margin:0 0 10px;font-size:19px;">Objeto da contratacao</h2>
+  <p style="margin:0;line-height:1.55;">{{ p.objeto|default:"Nao informado." }}</p>
+  <div class="muted" style="margin-top:12px;">
+    Secretaria demandante:
+    <strong>
+      {% if p.secretaria %}
+        {{ p.secretaria.sigla|default:p.secretaria.nome }}
+      {% else %}
+        -
+      {% endif %}
+    </strong>
+    {% if p.data_publicacao %}
+      | Publicado em: <strong>{{ p.data_publicacao|date:"d/m/Y" }}</strong>
+    {% elif p.pncp_snapshot and p.pncp_snapshot.data_publicacao_pncp %}
+      | Publicado em: <strong>{{ p.pncp_snapshot.data_publicacao_pncp|date:"d/m/Y" }}</strong>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card section">
+  <h2 style="margin:0 0 10px;font-size:19px;">Acompanhamento do processo</h2>
+  <div class="table-wrap">
+    <table style="min-width:560px;">
+      <thead>
+        <tr>
+          <th style="width:140px;">Data</th>
+          <th>Evento publico</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in eventos %}
+          <tr>
+            <td>{% if ev.data %}{{ ev.data|date:"d/m/Y" }}{% else %}-{% endif %}</td>
+            <td>{{ ev.descricao }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="2" class="muted">Sem eventos publicos registrados.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card section">
+  <h2 style="margin:0 0 10px;font-size:19px;">Itens e resultados consolidados</h2>
+  <p class="muted" style="margin:0 0 10px;">
+    Exibicao limitada a dados publicos de objeto, quantitativos, valores e resultado consolidado.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:8%;">Item</th>
+          <th>Descricao</th>
+          <th style="width:10%;">Qtd/Unid</th>
+          <th style="width:12%;">Status</th>
+          <th style="width:12%;">Valor estimado</th>
+          <th style="width:12%;">Valor homologado</th>
+          <th style="width:18%;">Fornecedor (quando homologado)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in itens %}
+          <tr>
+            <td>{{ item.numero_item }}</td>
+            <td>{{ item.descricao|truncatechars:170 }}</td>
+            <td>{{ item.quantidade }} {{ item.unidade }}</td>
+            <td>{{ item.status }}</td>
+            <td>{{ item.valor_referencia_total|moeda_brl }}</td>
+            <td>{{ item.valor_homologado_total|moeda_brl }}</td>
+            <td>
+              {{ item.fornecedor_nome }}
+              {% if item.fornecedor_doc and item.fornecedor_doc != "-" %}
+                <br><span class="muted">Documento: {{ item.fornecedor_doc }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="muted">Nao ha itens publicos consolidados para este processo.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card section">
+  <h2 style="margin:0 0 10px;font-size:19px;">Documentos de publicidade</h2>
+  <p class="muted" style="margin:0 0 10px;">
+    Somente documentos de publicidade (edital e aviso) estao disponiveis nesta area publica.
+  </p>
+  <div class="table-wrap">
+    <table style="min-width:540px;">
+      <thead>
+        <tr>
+          <th>Tipo</th>
+          <th>Descricao</th>
+          <th style="width:120px;">Data</th>
+          <th style="width:130px;">Arquivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in anexos %}
+          <tr>
+            <td>{{ a.get_tipo_display }}</td>
+            <td>{{ a.descricao|default:"-" }}</td>
+            <td>{{ a.uploaded_at|date:"d/m/Y" }}</td>
+            <td><a class="btn btn-light" href="{{ a.arquivo.url }}">Baixar</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="muted">Nenhum documento de publicidade disponivel.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

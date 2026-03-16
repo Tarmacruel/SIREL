@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pré-visualização do Mapa de Distribuição</title>
+  <style>
+    :root {
+      --bg: #edf2fa;
+      --surface: #ffffff;
+      --surface-soft: #f4f7fc;
+      --border: #d6e0ef;
+      --text: #162339;
+      --muted: #66758f;
+      --shadow: 0 10px 28px rgba(8, 36, 73, 0.09);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", "Tahoma", sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
+    .mapa-sheet { border: 1px solid var(--border); background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+    .mapa-banner { padding: 18px; background: linear-gradient(120deg, rgba(15, 45, 82, 0.12), rgba(28, 77, 134, 0.08)); border-bottom: 1px solid var(--border); }
+    .mapa-subtitle { color: var(--muted); margin: 6px 0 0; }
+    .mapa-body { padding: 14px; display: grid; gap: 12px; }
+    .mapa-block { border: 1px solid var(--border); background: var(--surface-soft); border-radius: 12px; padding: 12px; }
+    .mapa-block h4 { margin: 0 0 10px; font-size: 15px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    th, td { text-align: left; border-bottom: 1px solid var(--border); padding: 8px 10px; font-size: 13px; }
+    th { background: #eef3fb; }
+    tr:last-child td { border-bottom: none; }
+    .tag { border-radius: 8px; padding: 4px 8px; font-size: 12px; border: 1px solid transparent; display: inline-block; }
+    .tag.ok { background: #e9f9ef; border-color: #8ad7a2; color: #1d4d2f; }
+    .empty-box { border: 1px dashed var(--border); background: var(--surface-soft); border-radius: 12px; padding: 16px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  {% include 'workflow/_distribuicao_preview_sheet.html' %}
+</body>
+</html>
