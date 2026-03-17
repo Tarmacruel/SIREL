@@ -3,6 +3,8 @@ import { asc, eq } from "drizzle-orm";
 import {
   grauPrioridadeLabels,
   grauPrioridadeOptions,
+  metodologiaCotacaoLabels,
+  metodologiaCotacaoOptions,
   modoDisputaLabels,
   modoDisputaOptions,
   modalidadeCatalog,
@@ -57,6 +59,7 @@ export const cadastrosRouter = router({
       workflowModules: workflowModuleOptions,
       modoDisputa: modoDisputaOptions.map((codigo) => ({ codigo, nome: modoDisputaLabels[codigo] })),
       grauPrioridade: grauPrioridadeOptions.map((codigo) => ({ codigo, nome: grauPrioridadeLabels[codigo] })),
+      metodologiaCotacao: metodologiaCotacaoOptions.map((codigo) => ({ codigo, nome: metodologiaCotacaoLabels[codigo] })),
     };
   }),
 });

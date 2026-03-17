@@ -167,6 +167,21 @@ export const dfdSecretariasParticipantes = pgTable("dfd_secretarias_participante
   uqDfdSecretaria: uniqueIndex("dfd_secretarias_participantes_dfd_secretaria_uq").on(table.dfdId, table.secretariaId),
 }));
 
+export const etp = pgTable("etp", {
+  id: serial("id").primaryKey(),
+  processoId: integer("processo_id").notNull().unique().references(() => processos.id, { onDelete: "cascade" }),
+  metodologiaCotacao: varchar("metodologia_cotacao", { length: 32 }).notNull().default("MEDIA"),
+  descricaoNecessidade: text("descricao_necessidade"),
+  analiseSolucoesMercado: text("analise_solucoes_mercado"),
+  justificativaTecnica: text("justificativa_tecnica"),
+  providenciasPrevias: text("providencias_previas"),
+  conclusaoViabilidade: text("conclusao_viabilidade"),
+  observacoes: text("observacoes"),
+  concluido: boolean("concluido").notNull().default(false),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const catalogoItens = pgTable("catalogo_itens", {
   id: serial("id").primaryKey(),
   descricao: text("descricao").notNull(),
@@ -220,6 +235,28 @@ export const itensProcesso = pgTable("itens_processo", {
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
   idxProcesso: index("itens_processo_idx").on(table.processoId)
+}));
+
+export const etpCotacoesPreliminares = pgTable("etp_cotacoes_preliminares", {
+  id: serial("id").primaryKey(),
+  etpId: integer("etp_id").notNull().references(() => etp.id, { onDelete: "cascade" }),
+  itemId: integer("item_id").notNull().references(() => itensProcesso.id, { onDelete: "cascade" }),
+  fonte: varchar("fonte", { length: 255 }).notNull(),
+  fornecedorNome: varchar("fornecedor_nome", { length: 255 }).notNull(),
+  documento: varchar("documento", { length: 80 }),
+  dataCotacao: date("data_cotacao"),
+  quantidadeConsiderada: numeric("quantidade_considerada", { precision: 14, scale: 3 }).notNull(),
+  valorUnitario: numeric("valor_unitario", { precision: 14, scale: 2 }).notNull(),
+  valorTotal: numeric("valor_total", { precision: 14, scale: 2 }).notNull(),
+  considerada: boolean("considerada").notNull().default(true),
+  motivoDesconsideracao: varchar("motivo_desconsideracao", { length: 32 }),
+  justificativaDesconsideracao: text("justificativa_desconsideracao"),
+  observacao: text("observacao"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()
+}, (table) => ({
+  idxEtp: index("etp_cotacoes_preliminares_etp_idx").on(table.etpId),
+  idxItem: index("etp_cotacoes_preliminares_item_idx").on(table.itemId)
 }));
 
 export const fornecedores = pgTable("fornecedores", {

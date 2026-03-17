@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateDfdForm } from "@/features/planejamento/form";
+import { validateDfdForm, validateEtpCotacaoForm, validateEtpForm } from "@/features/planejamento/form";
 
 describe("dfd form", () => {
   it("rejects systemic demand without at least two participant secretarias", () => {
@@ -32,6 +32,57 @@ describe("dfd form", () => {
       dataNecessidade: "2026-04-01",
       dataPrevistaConclusao: "2026-04-10",
       concluir: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("etp form", () => {
+  it("accepts a valid ETP payload", () => {
+    const result = validateEtpForm(1, {
+      metodologiaCotacao: "MEDIANA",
+      observacoes: "ETP externo anexado e apto para a fase de cotações preliminares.",
+      concluir: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("etp cotacao form", () => {
+  it("rejects invalid preliminary quotation payload", () => {
+    const result = validateEtpCotacaoForm(1, {
+      itemId: 10,
+      fonte: "A",
+      fornecedorNome: "",
+      documento: "",
+      dataCotacao: "2026-05-10",
+      quantidadeConsiderada: 0,
+      valorUnitario: 0,
+      considerada: false,
+      motivoDesconsideracao: "OUTRO",
+      justificativaDesconsideracao: "",
+      observacao: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts valid preliminary quotation payload", () => {
+    const result = validateEtpCotacaoForm(1, {
+      cotacaoId: 3,
+      itemId: 10,
+      fonte: "Painel de Precos",
+      fornecedorNome: "Fornecedor Exemplo Ltda",
+      documento: "PE-2026-001",
+      dataCotacao: "2026-05-10",
+      quantidadeConsiderada: 12.5,
+      valorUnitario: 1530.44,
+      considerada: false,
+      motivoDesconsideracao: "SOBREPRECO",
+      justificativaDesconsideracao: "Cotação desconsiderada por possível sobrepreço em relação à média das referências válidas.",
+      observacao: "Menor valor encontrado para o item.",
     });
 
     expect(result.success).toBe(true);

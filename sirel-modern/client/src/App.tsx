@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+﻿import { Suspense, lazy, useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 
@@ -13,8 +13,14 @@ const DocumentosPage = lazy(() => import("@/pages/documentos-page").then((module
 const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ default: module.LoginPage })));
 const LicitacaoPage = lazy(() => import("@/pages/licitacao-page").then((module) => ({ default: module.LicitacaoPage })));
 const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage })));
+const PlanejamentoCotacoesPage = lazy(() =>
+  import("@/pages/planejamento-cotacoes-page").then((module) => ({ default: module.PlanejamentoCotacoesPage })),
+);
 const PlanejamentoDfdPage = lazy(() =>
   import("@/pages/planejamento-dfd-page").then((module) => ({ default: module.PlanejamentoDfdPage })),
+);
+const PlanejamentoEtpPage = lazy(() =>
+  import("@/pages/planejamento-etp-page").then((module) => ({ default: module.PlanejamentoEtpPage })),
 );
 const PlanejamentoPage = lazy(() => import("@/pages/planejamento-page").then((module) => ({ default: module.PlanejamentoPage })));
 const ProcessosPage = lazy(() => import("@/pages/processos-page").then((module) => ({ default: module.ProcessosPage })));
@@ -69,6 +75,12 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           <Route path="/planejamento/dfd/:processoId">
             {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}
           </Route>
+          <Route path="/planejamento/etp/:processoId">
+            {(params) => <PlanejamentoEtpPage processoId={Number(params.processoId)} />}
+          </Route>
+          <Route path="/planejamento/cotacoes/:processoId">
+            {(params) => <PlanejamentoCotacoesPage processoId={Number(params.processoId)} />}
+          </Route>
           <Route path="/planejamento" component={PlanejamentoPage} />
           <Route path="/compras">{() => <PlaceholderPage title="Módulo de Compras" />}</Route>
           <Route path="/processos" component={ProcessosPage} />
@@ -118,3 +130,4 @@ export default function App() {
     </trpc.Provider>
   );
 }
+

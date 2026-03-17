@@ -1,6 +1,6 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
-import { grauPrioridadeOptions } from "../const.js";
+import { grauPrioridadeOptions, metodologiaCotacaoOptions } from "../const.js";
 
 export const planejamentoListInputSchema = z.object({
   search: z.string().trim().optional(),
@@ -77,6 +77,57 @@ export const dfdCatalogItemsAddInputSchema = z.object({
   })).min(1),
 });
 
+export const etpSaveInputSchema = z.object({
+  processoId: z.number().int().positive(),
+  metodologiaCotacao: z.enum(metodologiaCotacaoOptions).default("MEDIA"),
+  descricaoNecessidade: z.string().trim().max(6000).optional(),
+  analiseSolucoesMercado: z.string().trim().max(6000).optional(),
+  justificativaTecnica: z.string().trim().max(6000).optional(),
+  providenciasPrevias: z.string().trim().max(4000).optional(),
+  conclusaoViabilidade: z.string().trim().max(6000).optional(),
+  observacoes: z.string().trim().max(4000).optional(),
+  concluir: z.boolean().default(false),
+});
+
+export const etpCotacaoSaveInputSchema = z.object({
+  processoId: z.number().int().positive(),
+  cotacaoId: z.number().int().positive().optional(),
+  itemId: z.number().int().positive(),
+  fonte: z.string().trim().min(2).max(255),
+  fornecedorNome: z.string().trim().min(2).max(255),
+  documento: z.string().trim().max(80).optional(),
+  dataCotacao: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  quantidadeConsiderada: z.number().positive(),
+  valorUnitario: z.number().positive(),
+  considerada: z.boolean().default(true),
+  motivoDesconsideracao: z.enum(["SOBREPRECO", "INEXEQUIVEL", "OUTRO"]).optional(),
+  justificativaDesconsideracao: z.string().trim().max(4000).optional(),
+  observacao: z.string().trim().max(4000).optional(),
+}).superRefine((value, ctx) => {
+  if (!value.considerada && !value.motivoDesconsideracao) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["motivoDesconsideracao"],
+      message: "Informe o motivo da desconsideracao da cotacao.",
+    });
+  }
+  if (!value.considerada && !value.justificativaDesconsideracao?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["justificativaDesconsideracao"],
+      message: "Registre a justificativa para desconsiderar a cotacao.",
+    });
+  }
+});
+
+export const etpCotacaoDeleteInputSchema = z.object({
+  processoId: z.number().int().positive(),
+  cotacaoId: z.number().int().positive(),
+});
+
 export type PlanejamentoListInput = z.infer<typeof planejamentoListInputSchema>;
 export type DfdSaveInput = z.infer<typeof dfdSaveInputSchema>;
 export type DfdItemSaveInput = z.infer<typeof dfdItemSaveInputSchema>;
@@ -85,3 +136,6 @@ export type DfdDeleteInput = z.infer<typeof dfdDeleteInputSchema>;
 export type CatalogoItemListInput = z.infer<typeof catalogoItemListInputSchema>;
 export type CatalogoItemCreateInput = z.infer<typeof catalogoItemCreateInputSchema>;
 export type DfdCatalogItemsAddInput = z.infer<typeof dfdCatalogItemsAddInputSchema>;
+export type EtpSaveInput = z.infer<typeof etpSaveInputSchema>;
+export type EtpCotacaoSaveInput = z.infer<typeof etpCotacaoSaveInputSchema>;
+export type EtpCotacaoDeleteInput = z.infer<typeof etpCotacaoDeleteInputSchema>;

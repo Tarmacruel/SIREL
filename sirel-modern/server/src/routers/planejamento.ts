@@ -10,6 +10,9 @@ import {
   dfdItemDeleteInputSchema,
   dfdItemSaveInputSchema,
   dfdSaveInputSchema,
+  etpCotacaoDeleteInputSchema,
+  etpCotacaoSaveInputSchema,
+  etpSaveInputSchema,
   planejamentoListInputSchema,
 } from "@sirel/shared/schemas/planejamento";
 
@@ -20,6 +23,9 @@ import {
   dfd,
   dfdResponsaveis,
   dfdSecretariasParticipantes,
+  documentos,
+  etp,
+  etpCotacoesPreliminares,
   itensProcesso,
   movimentacoesWorkflow,
   pessoas,
@@ -29,6 +35,26 @@ import {
   workflowProcesso,
 } from "../db/schema.js";
 import { gestorProcedure, publicProcedure, router } from "../trpc.js";
+
+function toNumber(value: number | string | null | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function classifyQuoteAgainstAverage(valorUnitario: number, mediaReferencia: number) {
+  if (!Number.isFinite(mediaReferencia) || mediaReferencia <= 0) return "OK" as const;
+  if (valorUnitario > mediaReferencia * 1.5) return "SOBREPRECO" as const;
+  if (valorUnitario < mediaReferencia * 0.5) return "INEXEQUIVEL" as const;
+  return "OK" as const;
+}
+
+function calculateMedian(values: number[]) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted.length % 2 === 1
+    ? sorted[(sorted.length - 1) / 2]
+    : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+}
 
 async function resolveSecretariaAdministracaoId() {
   const db = requireDb();
@@ -55,6 +81,106 @@ async function resolveSecretariaAdministracaoId() {
   }
 
   return secretariaAdministracao.id;
+}
+
+async function syncProcessoEstimativasFromEtp(processoId: number) {
+  const db = requireDb();
+  const [etpRow] = await db
+    .select({ id: etp.id, metodologiaCotacao: etp.metodologiaCotacao })
+    .from(etp)
+    .where(eq(etp.processoId, processoId))
+    .limit(1);
+  const itens = await db
+    .select({
+      id: itensProcesso.id,
+      quantidade: itensProcesso.quantidade,
+    })
+    .from(itensProcesso)
+    .where(eq(itensProcesso.processoId, processoId));
+
+  if (!itens.length) {
+    await db.update(processos).set({ valorEstimado: null, atualizadoEm: new Date() }).where(eq(processos.id, processoId));
+    return;
+  }
+
+  if (!etpRow) {
+    await Promise.all(
+      itens.map((item) =>
+        db
+          .update(itensProcesso)
+          .set({
+            valorUnitarioEstimado: null,
+            valorTotalEstimado: null,
+            atualizadoEm: new Date(),
+          })
+          .where(eq(itensProcesso.id, item.id)),
+      ),
+    );
+    await db.update(processos).set({ valorEstimado: null, atualizadoEm: new Date() }).where(eq(processos.id, processoId));
+    return;
+  }
+
+  const cotacoes = await db
+    .select({
+      itemId: etpCotacoesPreliminares.itemId,
+      valorUnitario: etpCotacoesPreliminares.valorUnitario,
+      considerada: etpCotacoesPreliminares.considerada,
+    })
+    .from(etpCotacoesPreliminares)
+    .where(eq(etpCotacoesPreliminares.etpId, etpRow.id));
+
+  const totalPorProcesso: number[] = [];
+
+  await Promise.all(
+    itens.map(async (item) => {
+      const cotacoesDoItem = cotacoes.filter((cotacao) => cotacao.itemId === item.id && cotacao.considerada);
+      if (!cotacoesDoItem.length) {
+        await db
+          .update(itensProcesso)
+          .set({
+            valorUnitarioEstimado: null,
+            valorTotalEstimado: null,
+            atualizadoEm: new Date(),
+          })
+          .where(eq(itensProcesso.id, item.id));
+        return;
+      }
+
+      const valores = cotacoesDoItem.map((cotacao) => toNumber(cotacao.valorUnitario));
+      const menorPreco = Math.min(...valores);
+      const mediaUnitaria = valores.reduce((acc, current) => acc + current, 0) / valores.length;
+      const medianaUnitaria = calculateMedian(valores);
+      const referenciaUnitaria =
+        etpRow.metodologiaCotacao === "MENOR_PRECO"
+          ? menorPreco
+          : etpRow.metodologiaCotacao === "MEDIANA"
+            ? medianaUnitaria
+            : mediaUnitaria;
+      const valorTotal = referenciaUnitaria * toNumber(item.quantidade);
+      totalPorProcesso.push(valorTotal);
+
+      await db
+        .update(itensProcesso)
+        .set({
+          valorUnitarioEstimado: referenciaUnitaria.toFixed(2),
+          valorTotalEstimado: valorTotal.toFixed(2),
+          atualizadoEm: new Date(),
+        })
+        .where(eq(itensProcesso.id, item.id));
+    }),
+  );
+
+  const valorEstimado = totalPorProcesso.length
+    ? totalPorProcesso.reduce((acc, current) => acc + current, 0).toFixed(2)
+    : null;
+
+  await db
+    .update(processos)
+    .set({
+      valorEstimado,
+      atualizadoEm: new Date(),
+    })
+    .where(eq(processos.id, processoId));
 }
 
 export const planejamentoRouter = router({
@@ -85,6 +211,8 @@ export const planejamentoRouter = router({
         situacao: workflowProcesso.situacao,
         dfdId: dfd.id,
         dfdConcluido: dfd.concluido,
+        etpId: etp.id,
+        etpConcluido: etp.concluido,
         atualizadoEm: workflowProcesso.atualizadoEm,
         grauPrioridade: dfd.grauPrioridade,
         demandaSistemica: dfd.demandaSistemica,
@@ -93,6 +221,7 @@ export const planejamentoRouter = router({
       .innerJoin(processos, eq(processos.id, workflowProcesso.processoId))
       .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
       .leftJoin(dfd, eq(dfd.processoId, processos.id))
+      .leftJoin(etp, eq(etp.processoId, processos.id))
       .where(and(...filters))
       .orderBy(asc(processos.numeroSirel));
 
@@ -106,9 +235,20 @@ export const planejamentoRouter = router({
       : [];
     const itemMap = new Map(itemCounts.map((row) => [row.processoId, Number(row.total)]));
 
+    const cotacoesCountRows = processoIds.length
+      ? await db
+          .select({ processoId: etp.processoId, total: count() })
+          .from(etpCotacoesPreliminares)
+          .innerJoin(etp, eq(etp.id, etpCotacoesPreliminares.etpId))
+          .where(inArray(etp.processoId, processoIds))
+          .groupBy(etp.processoId)
+      : [];
+    const cotacoesMap = new Map(cotacoesCountRows.map((row) => [row.processoId, Number(row.total)]));
+
     return rows.map((row) => ({
       ...row,
       itensCount: itemMap.get(row.processoId) ?? 0,
+      cotacoesCount: cotacoesMap.get(row.processoId) ?? 0,
     }));
   }),
 
@@ -125,6 +265,7 @@ export const planejamentoRouter = router({
         etapaAtual: workflowProcesso.etapaAtual,
         situacao: workflowProcesso.situacao,
         autoridadeCompetenteId: processos.autoridadeCompetenteId,
+        valorEstimado: processos.valorEstimado,
       })
       .from(processos)
       .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
@@ -136,9 +277,12 @@ export const planejamentoRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
     }
 
-    const [dfdRow] = await db.select().from(dfd).where(eq(dfd.processoId, input.processoId)).limit(1);
+    const [dfdRow, etpRow] = await Promise.all([
+      db.select().from(dfd).where(eq(dfd.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+    ]);
 
-    const [solicitante, secretariaResponsavel, responsaveis, secretariasParticipantes, itens] = await Promise.all([
+    const [solicitante, secretariaResponsavel, responsaveis, secretariasParticipantes, itens, cotacoesPreliminares] = await Promise.all([
       dfdRow?.solicitanteUserId
         ? db
             .select({ id: users.id, name: users.name, username: users.username, email: users.email })
@@ -178,11 +322,98 @@ export const planejamentoRouter = router({
           descricao: itensProcesso.descricao,
           quantidade: itensProcesso.quantidade,
           unidade: itensProcesso.unidade,
+          valorUnitarioEstimado: itensProcesso.valorUnitarioEstimado,
+          valorTotalEstimado: itensProcesso.valorTotalEstimado,
         })
         .from(itensProcesso)
         .where(eq(itensProcesso.processoId, input.processoId))
         .orderBy(asc(itensProcesso.numeroItem)),
+      etpRow
+        ? db
+            .select({
+              id: etpCotacoesPreliminares.id,
+              itemId: etpCotacoesPreliminares.itemId,
+              numeroItem: itensProcesso.numeroItem,
+              itemDescricao: itensProcesso.descricao,
+              itemQuantidade: itensProcesso.quantidade,
+              itemUnidade: itensProcesso.unidade,
+              fonte: etpCotacoesPreliminares.fonte,
+              fornecedorNome: etpCotacoesPreliminares.fornecedorNome,
+              documento: etpCotacoesPreliminares.documento,
+              dataCotacao: etpCotacoesPreliminares.dataCotacao,
+              quantidadeConsiderada: etpCotacoesPreliminares.quantidadeConsiderada,
+              valorUnitario: etpCotacoesPreliminares.valorUnitario,
+              valorTotal: etpCotacoesPreliminares.valorTotal,
+              considerada: etpCotacoesPreliminares.considerada,
+              motivoDesconsideracao: etpCotacoesPreliminares.motivoDesconsideracao,
+              justificativaDesconsideracao: etpCotacoesPreliminares.justificativaDesconsideracao,
+              observacao: etpCotacoesPreliminares.observacao,
+              atualizadoEm: etpCotacoesPreliminares.atualizadoEm,
+            })
+            .from(etpCotacoesPreliminares)
+            .innerJoin(itensProcesso, eq(itensProcesso.id, etpCotacoesPreliminares.itemId))
+            .where(eq(etpCotacoesPreliminares.etpId, etpRow.id))
+            .orderBy(asc(itensProcesso.numeroItem), asc(etpCotacoesPreliminares.fornecedorNome), desc(etpCotacoesPreliminares.atualizadoEm))
+        : Promise.resolve([]),
     ]);
+
+    const cotacoesComAnalise = cotacoesPreliminares.map((cotacao) => {
+      const cotacoesDoItem = cotacoesPreliminares.filter((entry) => entry.itemId === cotacao.itemId);
+      const mediaItem =
+        cotacoesDoItem.reduce((acc, entry) => acc + toNumber(entry.valorUnitario), 0) / (cotacoesDoItem.length || 1);
+      return {
+        ...cotacao,
+        analiseFaixa: classifyQuoteAgainstAverage(toNumber(cotacao.valorUnitario), mediaItem),
+      };
+    });
+
+    const mapaComparativo = itens.map((item) => {
+      const cotacoesDoItem = cotacoesComAnalise.filter((cotacao) => cotacao.itemId === item.id && cotacao.considerada);
+      if (!cotacoesDoItem.length) {
+        return {
+          itemId: item.id,
+          numeroItem: item.numeroItem,
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          unidade: item.unidade,
+          totalCotacoes: 0,
+          metodologiaCotacao: etpRow?.metodologiaCotacao ?? "MEDIA",
+          menorValorUnitario: null,
+          maiorValorUnitario: null,
+          valorMedioUnitario: null,
+          valorMedianoUnitario: null,
+          valorSelecionadoUnitario: null,
+          valorReferenciaTotal: null,
+        };
+      }
+
+      const valores = cotacoesDoItem.map((cotacao) => toNumber(cotacao.valorUnitario)).sort((left, right) => left - right);
+      const media = valores.reduce((acc, current) => acc + current, 0) / valores.length;
+      const mediana = calculateMedian(valores);
+      const quantidade = toNumber(item.quantidade);
+      const valorSelecionado =
+        (etpRow?.metodologiaCotacao ?? "MEDIA") === "MENOR_PRECO"
+          ? valores[0]
+          : (etpRow?.metodologiaCotacao ?? "MEDIA") === "MEDIANA"
+            ? mediana
+            : media;
+
+      return {
+        itemId: item.id,
+        numeroItem: item.numeroItem,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        totalCotacoes: cotacoesDoItem.length,
+        metodologiaCotacao: etpRow?.metodologiaCotacao ?? "MEDIA",
+        menorValorUnitario: valores[0].toFixed(2),
+        maiorValorUnitario: valores[valores.length - 1].toFixed(2),
+        valorMedioUnitario: media.toFixed(2),
+        valorMedianoUnitario: mediana.toFixed(2),
+        valorSelecionadoUnitario: valorSelecionado.toFixed(2),
+        valorReferenciaTotal: (valorSelecionado * quantidade).toFixed(2),
+      };
+    });
 
     return {
       processo,
@@ -195,7 +426,10 @@ export const planejamentoRouter = router({
             secretariasParticipantes,
           }
         : null,
+      etp: etpRow,
       itens,
+      cotacoesPreliminares: cotacoesComAnalise,
+      mapaComparativo,
     };
   }),
 
@@ -338,8 +572,8 @@ export const planejamentoRouter = router({
       descricao: input.descricao,
       quantidade: input.quantidade.toString(),
       unidade: input.unidade,
-      valorUnitarioEstimado: null,
-      valorTotalEstimado: null,
+      valorUnitarioEstimado: existingItem?.valorUnitarioEstimado ?? null,
+      valorTotalEstimado: existingItem?.valorTotalEstimado ?? null,
       atualizadoEm: new Date(),
     };
 
@@ -354,6 +588,8 @@ export const planejamentoRouter = router({
             ...payload,
           })
           .returning();
+
+    await syncProcessoEstimativasFromEtp(input.processoId);
 
     await db
       .update(workflowProcesso)
@@ -401,6 +637,7 @@ export const planejamentoRouter = router({
     const [processo] = await db.select({ numeroSirel: processos.numeroSirel }).from(processos).where(eq(processos.id, input.processoId)).limit(1);
 
     await db.delete(itensProcesso).where(eq(itensProcesso.id, input.itemId));
+    await syncProcessoEstimativasFromEtp(input.processoId);
 
     await db.insert(movimentacoesWorkflow).values({
       processoId: input.processoId,
@@ -430,11 +667,18 @@ export const planejamentoRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "DFD nao encontrada para este processo." });
     }
 
-    const [processo] = await db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1);
+    const [processo, existingEtp] = await Promise.all([
+      db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+    ]);
     const itensRemovidos = await db.select().from(itensProcesso).where(eq(itensProcesso.processoId, input.processoId));
 
     await db.delete(itensProcesso).where(eq(itensProcesso.processoId, input.processoId));
+    if (existingEtp) {
+      await db.delete(etp).where(eq(etp.id, existingEtp.id));
+    }
     await db.delete(dfd).where(eq(dfd.id, existingDfd.id));
+    await db.update(processos).set({ valorEstimado: null, atualizadoEm: new Date() }).where(eq(processos.id, input.processoId));
 
     await db
       .update(workflowProcesso)
@@ -450,7 +694,7 @@ export const planejamentoRouter = router({
       moduloOrigem: "PLANEJAMENTO",
       moduloDestino: "PLANEJAMENTO",
       descricao: "DFD excluida no Planejamento",
-      observacao: "DFD e itens vinculados removidos para reinicio da etapa.",
+      observacao: "DFD, ETP e itens vinculados removidos para reinicio da etapa.",
       usuarioId: ctx.user?.id ?? null,
       criadoEm: new Date(),
     });
@@ -459,8 +703,236 @@ export const planejamentoRouter = router({
       tabela: "dfd",
       registroId: existingDfd.id,
       acao: "DELETE",
-      dadosAnteriores: { ...existingDfd, itensRemovidos },
+      dadosAnteriores: { ...existingDfd, etp: existingEtp, itensRemovidos },
       descricao: `DFD do processo ${processo?.numeroSirel ?? input.processoId} excluida`,
+    });
+
+    return { success: true };
+  }),
+
+  saveEtp: gestorProcedure.input(etpSaveInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [processo, dfdRow, existingEtp, etpDocumentoRow] = await Promise.all([
+      db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select({ id: dfd.id, concluido: dfd.concluido }).from(dfd).where(eq(dfd.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db
+        .select({ id: documentos.id })
+        .from(documentos)
+        .where(and(eq(documentos.processoId, input.processoId), eq(documentos.categoria, "ETP_EXTERNO")))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+    ]);
+
+    if (!processo) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
+    }
+    if (!dfdRow) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Conclua a DFD antes de iniciar o ETP." });
+    }
+    if (input.concluir && !etpDocumentoRow) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Anexe o documento principal do ETP antes de concluir esta etapa.",
+      });
+    }
+
+    const payload = {
+      metodologiaCotacao: input.metodologiaCotacao,
+      descricaoNecessidade: input.descricaoNecessidade?.trim() || null,
+      analiseSolucoesMercado: input.analiseSolucoesMercado?.trim() || null,
+      justificativaTecnica: input.justificativaTecnica?.trim() || null,
+      providenciasPrevias: input.providenciasPrevias?.trim() || null,
+      conclusaoViabilidade: input.conclusaoViabilidade?.trim() || null,
+      observacoes: input.observacoes ?? null,
+      concluido: input.concluir,
+      atualizadoEm: new Date(),
+    };
+
+    const [saved] = existingEtp
+      ? await db.update(etp).set(payload).where(eq(etp.id, existingEtp.id)).returning()
+      : await db
+          .insert(etp)
+          .values({
+            processoId: input.processoId,
+            criadoEm: new Date(),
+            ...payload,
+          })
+          .returning();
+
+    await syncProcessoEstimativasFromEtp(input.processoId);
+
+    await db
+      .update(workflowProcesso)
+      .set({
+        etapaAtual: input.concluir ? "ETP externo anexado" : "ETP externo em elaboracao",
+        situacao: "EM_ANDAMENTO",
+        atualizadoEm: new Date(),
+      })
+      .where(eq(workflowProcesso.processoId, input.processoId));
+
+    await db.insert(movimentacoesWorkflow).values({
+      processoId: input.processoId,
+      moduloOrigem: "PLANEJAMENTO",
+      moduloDestino: "PLANEJAMENTO",
+      descricao: existingEtp ? "Configuracao do ETP atualizada" : "ETP externo iniciado no Planejamento",
+      observacao: input.concluir
+        ? "Documentos do ETP anexados e etapa marcada como concluida."
+        : "Etapa do ETP externo salva em elaboracao.",
+      usuarioId: ctx.user?.id ?? null,
+      criadoEm: new Date(),
+    });
+
+    await logAuditoria(ctx, {
+      tabela: "etp",
+      registroId: saved.id,
+      acao: existingEtp ? "UPDATE" : "CREATE",
+      dadosAnteriores: existingEtp ?? null,
+      dadosNovos: saved,
+      descricao: `ETP do processo ${processo.numeroSirel} ${existingEtp ? "atualizado" : "criado"} como anexo externo`,
+    });
+
+    return saved;
+  }),
+
+  saveCotacaoPreliminar: gestorProcedure.input(etpCotacaoSaveInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [processo, etpRow, item] = await Promise.all([
+      db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db
+        .select({
+          id: itensProcesso.id,
+          numeroItem: itensProcesso.numeroItem,
+          quantidade: itensProcesso.quantidade,
+        })
+        .from(itensProcesso)
+        .where(and(eq(itensProcesso.id, input.itemId), eq(itensProcesso.processoId, input.processoId)))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+    ]);
+
+    if (!processo) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
+    }
+    if (!etpRow) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Salve o ETP antes de registrar cotacoes preliminares." });
+    }
+    if (!item) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Item nao encontrado para este processo." });
+    }
+
+    const [existingCotacao] = input.cotacaoId
+      ? await db
+          .select()
+          .from(etpCotacoesPreliminares)
+          .where(and(eq(etpCotacoesPreliminares.id, input.cotacaoId), eq(etpCotacoesPreliminares.etpId, etpRow.id)))
+          .limit(1)
+      : [];
+
+    if (input.cotacaoId && !existingCotacao) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Cotacao preliminar nao encontrada." });
+    }
+
+    const valorTotal = input.quantidadeConsiderada * input.valorUnitario;
+    const payload = {
+      itemId: input.itemId,
+      fonte: input.fonte,
+      fornecedorNome: input.fornecedorNome,
+      documento: input.documento ?? null,
+      dataCotacao: input.dataCotacao ?? null,
+      quantidadeConsiderada: input.quantidadeConsiderada.toString(),
+      valorUnitario: input.valorUnitario.toFixed(2),
+      valorTotal: valorTotal.toFixed(2),
+      considerada: input.considerada,
+      motivoDesconsideracao: input.considerada ? null : input.motivoDesconsideracao ?? null,
+      justificativaDesconsideracao: input.considerada ? null : input.justificativaDesconsideracao ?? null,
+      observacao: input.observacao ?? null,
+      atualizadoEm: new Date(),
+    };
+
+    const [saved] = existingCotacao
+      ? await db.update(etpCotacoesPreliminares).set(payload).where(eq(etpCotacoesPreliminares.id, existingCotacao.id)).returning()
+      : await db
+          .insert(etpCotacoesPreliminares)
+          .values({
+            etpId: etpRow.id,
+            criadoEm: new Date(),
+            ...payload,
+          })
+          .returning();
+
+    await syncProcessoEstimativasFromEtp(input.processoId);
+
+    await db
+      .update(workflowProcesso)
+      .set({
+        etapaAtual: "Cotacoes preliminares em elaboracao",
+        situacao: "EM_ANDAMENTO",
+        atualizadoEm: new Date(),
+      })
+      .where(eq(workflowProcesso.processoId, input.processoId));
+
+    await db.insert(movimentacoesWorkflow).values({
+      processoId: input.processoId,
+      moduloOrigem: "PLANEJAMENTO",
+      moduloDestino: "PLANEJAMENTO",
+      descricao: existingCotacao ? "Cotacao preliminar atualizada" : "Cotacao preliminar registrada",
+      observacao: input.considerada
+        ? `Item ${item.numeroItem} com cotacao preliminar considerada no mapa comparativo.`
+        : `Item ${item.numeroItem} com cotacao preliminar desconsiderada mediante justificativa.`,
+      usuarioId: ctx.user?.id ?? null,
+      criadoEm: new Date(),
+    });
+
+    await logAuditoria(ctx, {
+      tabela: "etp_cotacoes_preliminares",
+      registroId: saved.id,
+      acao: existingCotacao ? "UPDATE" : "CREATE",
+      dadosAnteriores: existingCotacao ?? null,
+      dadosNovos: saved,
+      descricao: `Cotacao preliminar do item ${item.numeroItem} no processo ${processo.numeroSirel} ${existingCotacao ? "atualizada" : "criada"}`,
+    });
+
+    return saved;
+  }),
+
+  deleteCotacaoPreliminar: gestorProcedure.input(etpCotacaoDeleteInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [etpRow] = await db.select({ id: etp.id }).from(etp).where(eq(etp.processoId, input.processoId)).limit(1);
+    if (!etpRow) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Nao ha ETP registrado para este processo." });
+    }
+
+    const [existingCotacao] = await db
+      .select()
+      .from(etpCotacoesPreliminares)
+      .where(and(eq(etpCotacoesPreliminares.id, input.cotacaoId), eq(etpCotacoesPreliminares.etpId, etpRow.id)))
+      .limit(1);
+
+    if (!existingCotacao) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Cotacao preliminar nao encontrada." });
+    }
+
+    await db.delete(etpCotacoesPreliminares).where(eq(etpCotacoesPreliminares.id, input.cotacaoId));
+    await syncProcessoEstimativasFromEtp(input.processoId);
+
+    await db.insert(movimentacoesWorkflow).values({
+      processoId: input.processoId,
+      moduloOrigem: "PLANEJAMENTO",
+      moduloDestino: "PLANEJAMENTO",
+      descricao: "Cotacao preliminar removida",
+      observacao: "Registro removido da etapa de cotacoes preliminares.",
+      usuarioId: ctx.user?.id ?? null,
+      criadoEm: new Date(),
+    });
+
+    await logAuditoria(ctx, {
+      tabela: "etp_cotacoes_preliminares",
+      registroId: existingCotacao.id,
+      acao: "DELETE",
+      dadosAnteriores: existingCotacao,
+      descricao: `Cotacao preliminar ${existingCotacao.id} removida do processo ${input.processoId}`,
     });
 
     return { success: true };
@@ -590,3 +1062,4 @@ export const planejamentoRouter = router({
     return inserted;
   }),
 });
+

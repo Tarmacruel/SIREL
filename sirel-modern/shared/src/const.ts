@@ -1,4 +1,4 @@
-export const workflowModuleOptions = [
+﻿export const workflowModuleOptions = [
   "PLANEJAMENTO",
   "COMPRAS",
   "LICITACAO",
@@ -31,6 +31,12 @@ export const grauPrioridadeOptions = [
   "URGENTE",
 ] as const;
 
+export const metodologiaCotacaoOptions = [
+  "MENOR_PRECO",
+  "MEDIA",
+  "MEDIANA",
+] as const;
+
 export const modoDisputaLabels: Record<(typeof modoDisputaOptions)[number], string> = {
   NAO_SE_APLICA: "N\u00e3o se aplica",
   ABERTO: "Aberto",
@@ -41,9 +47,15 @@ export const modoDisputaLabels: Record<(typeof modoDisputaOptions)[number], stri
 
 export const grauPrioridadeLabels: Record<(typeof grauPrioridadeOptions)[number], string> = {
   BAIXA: "Baixa",
-  MEDIA: "Média",
+  MEDIA: "M\u00e9dia",
   ALTA: "Alta",
   URGENTE: "Urgente",
+};
+
+export const metodologiaCotacaoLabels: Record<(typeof metodologiaCotacaoOptions)[number], string> = {
+  MENOR_PRECO: "Menor pre\u00e7o",
+  MEDIA: "M\u00e9dia",
+  MEDIANA: "Mediana",
 };
 
 export const modalidadeCatalog = [
@@ -67,9 +79,9 @@ export const appModules = [
   { key: "dashboard", label: "Dashboard", href: "/" },
   { key: "planejamento", label: "Planejamento", href: "/planejamento" },
   { key: "compras", label: "Compras", href: "/compras" },
-  { key: "licitacao", label: "Licitação", href: "/licitacao" },
+  { key: "licitacao", label: "Licita\u00e7\u00e3o", href: "/licitacao" },
   { key: "documentos", label: "Documentos", href: "/documentos" },
   { key: "contratos", label: "Contratos", href: "/contratos" },
   { key: "workflow", label: "Workflow", href: "/workflow" },
-  { key: "usuarios", label: "Usuários", href: "/usuarios" },
+  { key: "usuarios", label: "Usu\u00e1rios", href: "/usuarios" },
 ] as const;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
   Building2,
@@ -30,6 +30,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { Textarea } from "@/components/ui/textarea";
 import { type DfdFormState, validateDfdForm } from "@/features/planejamento/form";
 import { formatDecimalInput, formatNumberBR, normalizeDecimalInput } from "@/lib/formatters";
+import { buildDfdHtml, openPrintableHtml } from "@/lib/print-documents";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -366,6 +367,16 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
   if (detailQuery.error || !detalhe) {
     return <Alert variant="warning">Falha ao carregar o processo selecionado no Planejamento.</Alert>;
   }
+
+  function handleOpenDfd(autoPrint: boolean) {
+    if (!detalhe) return;
+    openPrintableHtml({
+      title: `DFD ${detalhe.processo.numeroSirel}`,
+      bodyHtml: buildDfdHtml(detalhe),
+      autoPrint,
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-3 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
@@ -378,10 +389,18 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
               Tela específica da DFD com seletores em modal, catálogo de itens e conferência em formato de carrinho.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setLocation("/planejamento")}>
-            <ArrowLeft className="h-4 w-4" />
-            Voltar ao Planejamento
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="outline" onClick={() => handleOpenDfd(false)}>
+              Pré-visualizar HTML
+            </Button>
+            <Button onClick={() => handleOpenDfd(true)}>
+              Gerar PDF
+            </Button>
+            <Button variant="outline" onClick={() => setLocation("/planejamento")}>
+              <ArrowLeft className="h-4 w-4" />
+              Voltar ao Planejamento
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -409,6 +428,24 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
             >
               <PackagePlus className="h-4 w-4 shrink-0" />
               {!navCollapsed ? <span>Itens da DFD</span> : null}
+            </Button>
+            <Button
+              variant="outline"
+              className={navCollapsed ? "w-full justify-center px-0" : "w-full justify-start"}
+              onClick={() => setLocation(`/planejamento/etp/${processoId}`)}
+              disabled={!detalhe.dfd}
+            >
+              <FilePenLine className="h-4 w-4 shrink-0" />
+              {!navCollapsed ? <span>Ir para ETP</span> : null}
+            </Button>
+            <Button
+              variant="outline"
+              className={navCollapsed ? "w-full justify-center px-0" : "w-full justify-start"}
+              onClick={() => setLocation(`/planejamento/cotacoes/${processoId}`)}
+              disabled={!detalhe.dfd}
+            >
+              <ShoppingCart className="h-4 w-4 shrink-0" />
+              {!navCollapsed ? <span>Ir para Cotações</span> : null}
             </Button>
             <Button
               variant="destructive"
@@ -604,6 +641,9 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
                   <div className="flex flex-wrap gap-3">
                     <Button type="submit" disabled={saveMutation.isPending}>
                       {saveMutation.isPending ? "Salvando DFD..." : "Salvar DFD"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setLocation(`/planejamento/etp/${processoId}`)} disabled={!detalhe.dfd}>
+                      Abrir ETP
                     </Button>
                     {detalhe.dfd ? (
                       <Button type="button" variant="destructive" onClick={() => setOpenDeleteDialog(true)} disabled={deleteDfdMutation.isPending}>
@@ -1016,3 +1056,7 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
     </div>
   );
 }
+
+
+
+
