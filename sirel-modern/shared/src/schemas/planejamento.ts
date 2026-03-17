@@ -48,7 +48,6 @@ export const dfdItemSaveInputSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   quantidade: z.number().positive(),
   unidade: z.string().trim().min(1).max(32),
-  valorUnitarioEstimado: z.number().nonnegative().optional(),
 });
 
 export const dfdItemDeleteInputSchema = z.object({
@@ -67,7 +66,6 @@ export const catalogoItemListInputSchema = z.object({
 export const catalogoItemCreateInputSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   unidadePadrao: z.string().trim().min(1).max(32),
-  valorReferencia: z.number().nonnegative().optional(),
 });
 
 export const dfdCatalogItemsAddInputSchema = z.object({
@@ -76,7 +74,6 @@ export const dfdCatalogItemsAddInputSchema = z.object({
     catalogoItemId: z.number().int().positive(),
     quantidade: z.number().positive(),
     unidade: z.string().trim().min(1).max(32),
-    valorUnitarioEstimado: z.number().nonnegative().optional(),
   })).min(1),
 });
 

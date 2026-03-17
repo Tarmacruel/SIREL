@@ -1,8 +1,22 @@
-﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { KeyRound, Shield, UserCog, Users } from "lucide-react";
 
 import { SectionCard } from "@/components/shared/section-card";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
+import {
+  validateChangePasswordForm,
+  validateCreateUserForm,
+  validateUpdateUserForm,
+} from "@/features/usuarios/form";
 import { trpc } from "@/lib/trpc";
+import { mapZodFieldErrors } from "@/lib/zod-errors";
 
 function toOptionalId(value: string) {
   const parsed = Number(value);
@@ -41,9 +55,19 @@ export function UsuariosPage() {
   const [adminError, setAdminError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
 
   const isAdmin = meQuery.data?.user.role === "admin";
-  const userFilters = useMemo(() => ({ search: search.trim() || undefined, secretariaId: toOptionalId(filterSecretariaId), ativo: filterAtivo === "todos" ? undefined : filterAtivo === "ativos" }), [filterAtivo, filterSecretariaId, search]);
+  const userFilters = useMemo(
+    () => ({
+      search: search.trim() || undefined,
+      secretariaId: toOptionalId(filterSecretariaId),
+      ativo: filterAtivo === "todos" ? undefined : filterAtivo === "ativos",
+    }),
+    [filterAtivo, filterSecretariaId, search],
+  );
   const usersQuery = trpc.usuarios.list.useQuery(userFilters, { enabled: isAdmin, retry: false });
   const users = usersQuery.data ?? [];
   const selectedUser = users.find((item) => item.id === selectedUserId) ?? null;
@@ -53,6 +77,7 @@ export function UsuariosPage() {
       setSelectedUserId(null);
       return;
     }
+
     if (!selectedUserId || !users.some((item) => item.id === selectedUserId)) {
       setSelectedUserId(users[0].id);
     }
@@ -71,15 +96,20 @@ export function UsuariosPage() {
 
   useEffect(() => {
     if (!catalogQuery.data?.secretarias.length) return;
-    setCreateForm((current) => ({ ...current, secretariaId: current.secretariaId || String(catalogQuery.data?.secretarias[0]?.id ?? "") }));
+
+    setCreateForm((current) => ({
+      ...current,
+      secretariaId: current.secretariaId || String(catalogQuery.data?.secretarias[0]?.id ?? ""),
+    }));
   }, [catalogQuery.data]);
 
   const createMutation = trpc.usuarios.create.useMutation({
     onSuccess: async () => {
       await utils.usuarios.list.invalidate();
       setCreateForm((current) => ({ ...initialCreateForm, role: current.role, secretariaId: current.secretariaId }));
+      setCreateErrors({});
       setAdminError(null);
-      setAdminMessage("Usuario criado com sucesso.");
+      setAdminMessage("Usuário criado com sucesso.");
     },
     onError: (error) => {
       setAdminMessage(null);
@@ -91,8 +121,9 @@ export function UsuariosPage() {
     onSuccess: async (updated) => {
       await Promise.all([utils.usuarios.list.invalidate(), utils.auth.me.invalidate()]);
       setSelectedUserId(updated.id);
+      setEditErrors({});
       setAdminError(null);
-      setAdminMessage(`Usuario ${updated.username} atualizado.`);
+      setAdminMessage(`Usuário ${updated.username} atualizado.`);
     },
     onError: (error) => {
       setAdminMessage(null);
@@ -105,7 +136,7 @@ export function UsuariosPage() {
       await utils.usuarios.list.invalidate();
       setResetPassword("");
       setAdminError(null);
-      setAdminMessage(`Senha do usuario ${updated.username} redefinida.`);
+      setAdminMessage(`Senha do usuário ${updated.username} redefinida.`);
     },
     onError: (error) => {
       setAdminMessage(null);
@@ -117,6 +148,7 @@ export function UsuariosPage() {
     onSuccess: async () => {
       await utils.auth.me.invalidate();
       setOwnPasswordForm(initialPasswordForm);
+      setPasswordErrors({});
       setPasswordError(null);
       setPasswordMessage("Sua senha foi atualizada.");
     },
@@ -130,15 +162,25 @@ export function UsuariosPage() {
     event.preventDefault();
     setAdminMessage(null);
     setAdminError(null);
-    await createMutation.mutateAsync({
+
+    const parsed = validateCreateUserForm({
       username: createForm.username.trim().toLowerCase(),
       name: createForm.name.trim(),
       email: createForm.email.trim() || undefined,
-      role: createForm.role as "user" | "admin" | "gestor" | "operador",
+      role: createForm.role,
       secretariaId: toOptionalId(createForm.secretariaId),
       ativo: createForm.ativo,
       password: createForm.password,
     });
+
+    if (!parsed.success) {
+      setCreateErrors(mapZodFieldErrors(parsed.error));
+      setAdminError("Revise os campos do cadastro antes de criar o usuário.");
+      return;
+    }
+
+    setCreateErrors({});
+    await createMutation.mutateAsync(parsed.data);
   }
 
   async function handleUpdateUser(event: FormEvent<HTMLFormElement>) {
@@ -146,14 +188,24 @@ export function UsuariosPage() {
     if (!selectedUser) return;
     setAdminMessage(null);
     setAdminError(null);
-    await updateMutation.mutateAsync({
+
+    const parsed = validateUpdateUserForm({
       userId: selectedUser.id,
       name: editForm.name.trim(),
       email: editForm.email.trim() || undefined,
-      role: editForm.role as "user" | "admin" | "gestor" | "operador",
+      role: editForm.role,
       secretariaId: toOptionalId(editForm.secretariaId) ?? null,
       ativo: editForm.ativo,
     });
+
+    if (!parsed.success) {
+      setEditErrors(mapZodFieldErrors(parsed.error));
+      setAdminError("Revise os dados do usuário selecionado antes de salvar.");
+      return;
+    }
+
+    setEditErrors({});
+    await updateMutation.mutateAsync(parsed.data);
   }
 
   async function handleResetPassword(event: FormEvent<HTMLFormElement>) {
@@ -161,6 +213,12 @@ export function UsuariosPage() {
     if (!selectedUser) return;
     setAdminMessage(null);
     setAdminError(null);
+
+    if (resetPassword.length < 8) {
+      setAdminError("A nova senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+
     await resetMutation.mutateAsync({ userId: selectedUser.id, newPassword: resetPassword });
   }
 
@@ -168,48 +226,181 @@ export function UsuariosPage() {
     event.preventDefault();
     setPasswordMessage(null);
     setPasswordError(null);
-    await changeOwnPasswordMutation.mutateAsync(ownPasswordForm);
+
+    const parsed = validateChangePasswordForm(ownPasswordForm);
+    if (!parsed.success) {
+      setPasswordErrors(mapZodFieldErrors(parsed.error));
+      setPasswordError("Revise os campos da troca de senha.");
+      return;
+    }
+
+    setPasswordErrors({});
+    await changeOwnPasswordMutation.mutateAsync(parsed.data);
+  }
+
+  if (meQuery.isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-40" />
+        <Skeleton className="h-72" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Usuarios e seguranca" description="Gestao administrativa de usuarios e troca de senha da Beta 2.0.">
+      <SectionCard title="Usuários e segurança" description="Gestão administrativa de usuários e troca de senha da Beta 2.0.">
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
           <div className="space-y-4">
-            <SectionCard title="Minha senha" description="Altere sua senha de acesso ao beta." action={<div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white"><KeyRound className="h-4 w-4" />Seguranca</div>}>
+            <SectionCard
+              title="Minha senha"
+              description="Altere sua senha de acesso ao ambiente beta."
+              action={
+                <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
+                  <KeyRound className="h-4 w-4" />
+                  Segurança
+                </div>
+              }
+            >
               <form className="space-y-4" onSubmit={handleOwnPasswordChange}>
                 <div className="grid gap-3 md:grid-cols-3">
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Senha atual</span><input type="password" value={ownPasswordForm.currentPassword} onChange={(event) => setOwnPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Nova senha</span><input type="password" value={ownPasswordForm.newPassword} onChange={(event) => setOwnPasswordForm((current) => ({ ...current, newPassword: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Confirmacao</span><input type="password" value={ownPasswordForm.confirmPassword} onChange={(event) => setOwnPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
+                  <FormField label="Senha atual" error={passwordErrors.currentPassword}>
+                    <Input
+                      type="password"
+                      error={Boolean(passwordErrors.currentPassword)}
+                      value={ownPasswordForm.currentPassword}
+                      onChange={(event) => setOwnPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                    />
+                  </FormField>
+                  <FormField label="Nova senha" error={passwordErrors.newPassword}>
+                    <Input
+                      type="password"
+                      error={Boolean(passwordErrors.newPassword)}
+                      value={ownPasswordForm.newPassword}
+                      onChange={(event) => setOwnPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                    />
+                  </FormField>
+                  <FormField label="Confirmação" error={passwordErrors.confirmPassword}>
+                    <Input
+                      type="password"
+                      error={Boolean(passwordErrors.confirmPassword)}
+                      value={ownPasswordForm.confirmPassword}
+                      onChange={(event) => setOwnPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                    />
+                  </FormField>
                 </div>
-                {passwordMessage ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{passwordMessage}</div> : null}
-                {passwordError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{passwordError}</div> : null}
-                <button type="submit" disabled={changeOwnPasswordMutation.isPending} className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50">{changeOwnPasswordMutation.isPending ? "Atualizando senha..." : "Atualizar senha"}</button>
+
+                {passwordMessage ? <Alert variant="success">{passwordMessage}</Alert> : null}
+                {passwordError ? <Alert variant="error">{passwordError}</Alert> : null}
+
+                <Button type="submit" disabled={changeOwnPasswordMutation.isPending}>
+                  {changeOwnPasswordMutation.isPending ? "Atualizando senha..." : "Atualizar senha"}
+                </Button>
               </form>
             </SectionCard>
+
             {isAdmin ? (
-              <SectionCard title="Usuarios cadastrados" description="Administracao de acessos, perfis e vinculacao por secretaria." action={<div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-sky-800"><Users className="h-4 w-4" />Admin</div>}>
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por login, nome ou e-mail" className="min-w-[260px] rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" />
-                    <select value={filterSecretariaId} onChange={(event) => setFilterSecretariaId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Todas as secretarias</option>{catalogQuery.data?.secretarias.map((item) => <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>)}</select>
-                    <select value={filterAtivo} onChange={(event) => setFilterAtivo(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="todos">Todos</option><option value="ativos">Ativos</option><option value="inativos">Inativos</option></select>
+              <SectionCard
+                title="Usuários cadastrados"
+                description="Administração de acessos, perfis e vinculação por secretaria."
+                action={
+                  <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-sky-800">
+                    <Users className="h-4 w-4" />
+                    Administração
                   </div>
+                }
+              >
+                <div className="space-y-4">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px_180px]">
+                    <FormField label="Buscar">
+                      <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Login, nome ou e-mail" />
+                    </FormField>
+                    <FormField label="Secretaria">
+                      <Select value={filterSecretariaId} onChange={(event) => setFilterSecretariaId(event.target.value)}>
+                        <option value="">Todas as secretarias</option>
+                        {catalogQuery.data?.secretarias.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.sigla} - {item.nome}
+                          </option>
+                        ))}
+                      </Select>
+                    </FormField>
+                    <FormField label="Status">
+                      <Select value={filterAtivo} onChange={(event) => setFilterAtivo(event.target.value)}>
+                        <option value="todos">Todos</option>
+                        <option value="ativos">Ativos</option>
+                        <option value="inativos">Inativos</option>
+                      </Select>
+                    </FormField>
+                  </div>
+
                   <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                    <table className="min-w-full divide-y divide-slate-200 text-sm">
-                      <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500"><tr><th className="px-4 py-3">Usuario</th><th className="px-4 py-3">Perfil</th><th className="px-4 py-3">Secretaria</th><th className="px-4 py-3">Status</th></tr></thead>
-                      <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
-                        {users.map((item) => <tr key={item.id} onClick={() => setSelectedUserId(item.id)} className={["cursor-pointer transition", item.id === selectedUserId ? "bg-sky-50/80" : "hover:bg-slate-50"].join(" ")}><td className="px-4 py-3 align-top"><div className="font-bold text-slate-950">{item.name}</div><div className="text-xs text-slate-500">{item.username} {item.email ? `| ${item.email}` : ""}</div></td><td className="px-4 py-3 align-top">{item.role}</td><td className="px-4 py-3 align-top">{item.secretaria ?? "Nao vinculada"}</td><td className="px-4 py-3 align-top"><span className={["inline-flex rounded-full px-3 py-1 text-xs font-bold", item.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700"].join(" ")}>{item.ativo ? "Ativo" : "Inativo"}</span></td></tr>)}
-                        {!users.length && <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={4}>{usersQuery.isFetching ? "Carregando usuarios..." : "Nenhum usuario encontrado."}</td></tr>}
-                      </tbody>
-                    </table>
+                    <Table>
+                      <TableHead>
+                        <tr>
+                          <TableHeaderCell>Usuário</TableHeaderCell>
+                          <TableHeaderCell>Perfil</TableHeaderCell>
+                          <TableHeaderCell>Secretaria</TableHeaderCell>
+                          <TableHeaderCell>Status</TableHeaderCell>
+                        </tr>
+                      </TableHead>
+                      <TableBody>
+                        {users.map((item) => (
+                          <TableRow
+                            key={item.id}
+                            onClick={() => setSelectedUserId(item.id)}
+                            className={[
+                              "cursor-pointer transition",
+                              item.id === selectedUserId ? "bg-sky-50/80" : "hover:bg-slate-50",
+                            ].join(" ")}
+                          >
+                            <TableCell className="align-top">
+                              <div className="font-bold text-slate-950">{item.name}</div>
+                              <div className="text-xs text-slate-500">
+                                {item.username}
+                                {item.email ? ` | ${item.email}` : ""}
+                              </div>
+                            </TableCell>
+                            <TableCell className="align-top uppercase">{item.role}</TableCell>
+                            <TableCell className="align-top">{item.secretaria ?? "Não vinculada"}</TableCell>
+                            <TableCell className="align-top">
+                              <span
+                                className={[
+                                  "inline-flex rounded-full px-3 py-1 text-xs font-bold",
+                                  item.ativo ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-700",
+                                ].join(" ")}
+                              >
+                                {item.ativo ? "Ativo" : "Inativo"}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {!users.length ? (
+                          <TableRow>
+                            <TableCell className="py-8 text-center text-slate-500" colSpan={4}>
+                              {usersQuery.isFetching ? "Carregando usuários..." : "Nenhum usuário encontrado."}
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </SectionCard>
             ) : (
-              <SectionCard title="Acesso administrativo" description="Seu perfil atual nao possui permissao para gerenciar outros usuarios." action={<div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-800"><Shield className="h-4 w-4" />Somente admin</div>}>
-                <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">A gestao de usuarios fica disponivel apenas para administradores. Seu acesso continua habilitado para troca da propria senha.</div>
+              <SectionCard
+                title="Acesso administrativo"
+                description="Seu perfil atual não possui permissão para gerenciar outros usuários."
+                action={
+                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
+                    <Shield className="h-4 w-4" />
+                    Somente admin
+                  </div>
+                }
+              >
+                <Alert variant="warning">
+                  A gestão de usuários fica disponível apenas para administradores. Seu acesso continua habilitado para troca da própria senha.
+                </Alert>
               </SectionCard>
             )}
           </div>
@@ -217,34 +408,182 @@ export function UsuariosPage() {
           <div className="space-y-4">
             {isAdmin ? (
               <>
-                <SectionCard title="Novo usuario" description="Crie acessos locais para homologacao do beta." action={<div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white"><UserCog className="h-4 w-4" />Cadastro</div>}>
+                <SectionCard
+                  title="Novo usuário"
+                  description="Crie acessos locais para homologação do beta."
+                  action={
+                    <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
+                      <UserCog className="h-4 w-4" />
+                      Cadastro
+                    </div>
+                  }
+                >
                   <form className="space-y-4" onSubmit={handleCreateUser}>
-                    <div className="grid gap-3 md:grid-cols-2"><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Login</span><input value={createForm.username} onChange={(event) => setCreateForm((current) => ({ ...current, username: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Nome</span><input value={createForm.name} onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label></div>
-                    <div className="grid gap-3 md:grid-cols-2"><label className="space-y-2 text-sm font-semibold text-slate-700"><span>E-mail</span><input value={createForm.email} onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Senha inicial</span><input type="password" value={createForm.password} onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label></div>
-                    <div className="grid gap-3 md:grid-cols-2"><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Perfil</span><select value={createForm.role} onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="admin">admin</option><option value="gestor">gestor</option><option value="operador">operador</option><option value="user">user</option></select></label><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Secretaria</span><select value={createForm.secretariaId} onChange={(event) => setCreateForm((current) => ({ ...current, secretariaId: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Sem vinculacao</option>{catalogQuery.data?.secretarias.map((item) => <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>)}</select></label></div>
-                    <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={createForm.ativo} onChange={(event) => setCreateForm((current) => ({ ...current, ativo: event.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />Usuario ativo</label>
-                    {adminMessage ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{adminMessage}</div> : null}
-                    {adminError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{adminError}</div> : null}
-                    <button type="submit" disabled={createMutation.isPending} className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50">{createMutation.isPending ? "Criando usuario..." : "Criar usuario"}</button>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <FormField label="Login" error={createErrors.username}>
+                        <Input
+                          value={createForm.username}
+                          error={Boolean(createErrors.username)}
+                          onChange={(event) => setCreateForm((current) => ({ ...current, username: event.target.value }))}
+                        />
+                      </FormField>
+                      <FormField label="Nome" error={createErrors.name}>
+                        <Input
+                          value={createForm.name}
+                          error={Boolean(createErrors.name)}
+                          onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
+                        />
+                      </FormField>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <FormField label="E-mail" error={createErrors.email}>
+                        <Input
+                          value={createForm.email}
+                          error={Boolean(createErrors.email)}
+                          onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))}
+                        />
+                      </FormField>
+                      <FormField label="Senha inicial" error={createErrors.password}>
+                        <Input
+                          type="password"
+                          value={createForm.password}
+                          error={Boolean(createErrors.password)}
+                          onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
+                        />
+                      </FormField>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <FormField label="Perfil" error={createErrors.role}>
+                        <Select
+                          value={createForm.role}
+                          error={Boolean(createErrors.role)}
+                          onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="gestor">Gestor</option>
+                          <option value="operador">Operador</option>
+                          <option value="user">Usuário</option>
+                        </Select>
+                      </FormField>
+                      <FormField label="Secretaria" error={createErrors.secretariaId}>
+                        <Select
+                          value={createForm.secretariaId}
+                          error={Boolean(createErrors.secretariaId)}
+                          onChange={(event) => setCreateForm((current) => ({ ...current, secretariaId: event.target.value }))}
+                        >
+                          <option value="">Sem vinculação</option>
+                          {catalogQuery.data?.secretarias.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.sigla} - {item.nome}
+                            </option>
+                          ))}
+                        </Select>
+                      </FormField>
+                    </div>
+
+                    <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                      <Checkbox
+                        checked={createForm.ativo}
+                        onChange={(event) => setCreateForm((current) => ({ ...current, ativo: event.target.checked }))}
+                      />
+                      Usuário ativo
+                    </label>
+
+                    {adminMessage ? <Alert variant="success">{adminMessage}</Alert> : null}
+                    {adminError ? <Alert variant="error">{adminError}</Alert> : null}
+
+                    <Button type="submit" disabled={createMutation.isPending}>
+                      {createMutation.isPending ? "Criando usuário..." : "Criar usuário"}
+                    </Button>
                   </form>
                 </SectionCard>
-                <SectionCard title="Editar usuario" description="Atualize perfil, secretaria e status do usuario selecionado.">
+
+                <SectionCard title="Editar usuário" description="Atualize perfil, secretaria, status e senha do usuário selecionado.">
                   {!selectedUser ? (
-                    <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-500">Selecione um usuario na lista para editar.</div>
+                    <Alert variant="info">Selecione um usuário na lista para editar.</Alert>
                   ) : (
                     <div className="space-y-4">
                       <form className="space-y-4" onSubmit={handleUpdateUser}>
-                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Selecionado</p><p className="mt-2 text-lg font-black text-slate-950">{selectedUser.name}</p><p className="mt-1 text-sm text-slate-600">{selectedUser.username}</p></div>
-                        <div className="grid gap-3 md:grid-cols-2"><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Nome</span><input value={editForm.name} onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label><label className="space-y-2 text-sm font-semibold text-slate-700"><span>E-mail</span><input value={editForm.email} onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label></div>
-                        <div className="grid gap-3 md:grid-cols-2"><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Perfil</span><select value={editForm.role} onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="admin">admin</option><option value="gestor">gestor</option><option value="operador">operador</option><option value="user">user</option></select></label><label className="space-y-2 text-sm font-semibold text-slate-700"><span>Secretaria</span><select value={editForm.secretariaId} onChange={(event) => setEditForm((current) => ({ ...current, secretariaId: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Sem vinculacao</option>{catalogQuery.data?.secretarias.map((item) => <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>)}</select></label></div>
-                        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={editForm.ativo} onChange={(event) => setEditForm((current) => ({ ...current, ativo: event.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />Usuario ativo</label>
-                        <button type="submit" disabled={updateMutation.isPending} className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50">{updateMutation.isPending ? "Salvando alteracoes..." : "Salvar alteracoes"}</button>
+                        <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Selecionado</p>
+                          <p className="mt-2 text-lg font-black text-slate-950">{selectedUser.name}</p>
+                          <p className="mt-1 text-sm text-slate-600">{selectedUser.username}</p>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <FormField label="Nome" error={editErrors.name}>
+                            <Input
+                              value={editForm.name}
+                              error={Boolean(editErrors.name)}
+                              onChange={(event) => setEditForm((current) => ({ ...current, name: event.target.value }))}
+                            />
+                          </FormField>
+                          <FormField label="E-mail" error={editErrors.email}>
+                            <Input
+                              value={editForm.email}
+                              error={Boolean(editErrors.email)}
+                              onChange={(event) => setEditForm((current) => ({ ...current, email: event.target.value }))}
+                            />
+                          </FormField>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <FormField label="Perfil" error={editErrors.role}>
+                            <Select
+                              value={editForm.role}
+                              error={Boolean(editErrors.role)}
+                              onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value }))}
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="gestor">Gestor</option>
+                              <option value="operador">Operador</option>
+                              <option value="user">Usuário</option>
+                            </Select>
+                          </FormField>
+                          <FormField label="Secretaria" error={editErrors.secretariaId}>
+                            <Select
+                              value={editForm.secretariaId}
+                              error={Boolean(editErrors.secretariaId)}
+                              onChange={(event) => setEditForm((current) => ({ ...current, secretariaId: event.target.value }))}
+                            >
+                              <option value="">Sem vinculação</option>
+                              {catalogQuery.data?.secretarias.map((item) => (
+                                <option key={item.id} value={item.id}>
+                                  {item.sigla} - {item.nome}
+                                </option>
+                              ))}
+                            </Select>
+                          </FormField>
+                        </div>
+
+                        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+                          <Checkbox
+                            checked={editForm.ativo}
+                            onChange={(event) => setEditForm((current) => ({ ...current, ativo: event.target.checked }))}
+                          />
+                          Usuário ativo
+                        </label>
+
+                        <Button type="submit" disabled={updateMutation.isPending}>
+                          {updateMutation.isPending ? "Salvando alterações..." : "Salvar alterações"}
+                        </Button>
                       </form>
 
                       <form className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4" onSubmit={handleResetPassword}>
-                        <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Reset de senha</p><p className="mt-2 text-sm text-slate-600">Defina uma nova senha para o usuario selecionado.</p></div>
-                        <input type="password" value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} placeholder="Nova senha" className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" />
-                        <button type="submit" disabled={resetMutation.isPending || !resetPassword} className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-50">{resetMutation.isPending ? "Redefinindo senha..." : "Redefinir senha"}</button>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Reset de senha</p>
+                          <p className="mt-2 text-sm text-slate-600">Defina uma nova senha para o usuário selecionado.</p>
+                        </div>
+
+                        <FormField label="Nova senha">
+                          <Input type="password" value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} />
+                        </FormField>
+
+                        <Button type="submit" variant="outline" disabled={resetMutation.isPending || !resetPassword}>
+                          {resetMutation.isPending ? "Redefinindo senha..." : "Redefinir senha"}
+                        </Button>
                       </form>
                     </div>
                   )}

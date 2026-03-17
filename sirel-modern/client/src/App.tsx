@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 
@@ -6,22 +6,33 @@ import { AppShell } from "@/components/layout/app-shell";
 import { clearStoredSession, loadStoredSession, saveStoredSession, type AuthSession } from "@/lib/auth-session";
 import { queryClient } from "@/lib/query-client";
 import { trpc, trpcClient } from "@/lib/trpc";
-import { ContratosPage } from "@/pages/contratos-page";
-import { DashboardPage } from "@/pages/dashboard-page";
-import { DocumentosPage } from "@/pages/documentos-page";
-import { LoginPage } from "@/pages/login-page";
-import { LicitacaoPage } from "@/pages/licitacao-page";
-import { NotFoundPage } from "@/pages/not-found-page";
-import { PlanejamentoDfdPage } from "@/pages/planejamento-dfd-page";
-import { PlanejamentoPage } from "@/pages/planejamento-page";
-import { ProcessosPage } from "@/pages/processos-page";
-import { UsuariosPage } from "@/pages/usuarios-page";
-import { WorkflowPage } from "@/pages/workflow-page";
+
+const ContratosPage = lazy(() => import("@/pages/contratos-page").then((module) => ({ default: module.ContratosPage })));
+const DashboardPage = lazy(() => import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
+const DocumentosPage = lazy(() => import("@/pages/documentos-page").then((module) => ({ default: module.DocumentosPage })));
+const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ default: module.LoginPage })));
+const LicitacaoPage = lazy(() => import("@/pages/licitacao-page").then((module) => ({ default: module.LicitacaoPage })));
+const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage })));
+const PlanejamentoDfdPage = lazy(() =>
+  import("@/pages/planejamento-dfd-page").then((module) => ({ default: module.PlanejamentoDfdPage })),
+);
+const PlanejamentoPage = lazy(() => import("@/pages/planejamento-page").then((module) => ({ default: module.PlanejamentoPage })));
+const ProcessosPage = lazy(() => import("@/pages/processos-page").then((module) => ({ default: module.ProcessosPage })));
+const UsuariosPage = lazy(() => import("@/pages/usuarios-page").then((module) => ({ default: module.UsuariosPage })));
+const WorkflowPage = lazy(() => import("@/pages/workflow-page").then((module) => ({ default: module.WorkflowPage })));
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-      {title} sera detalhado nas proximas iteracoes da Beta 2.0.
+      {title} será detalhado nas próximas iterações da Beta 2.0.
+    </div>
+  );
+}
+
+function RouteFallback() {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
+      Carregando módulo...
     </div>
   );
 }
@@ -42,7 +53,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
         <div className="rounded-3xl border border-slate-200 bg-white px-6 py-5 text-sm text-slate-600 shadow-sm">
-          Validando sessao...
+          Validando sessão...
         </div>
       </div>
     );
@@ -52,21 +63,23 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
 
   return (
     <AppShell user={user} onLogout={onLogout}>
-      <Switch>
-        <Route path="/" component={DashboardPage} />
-        <Route path="/planejamento/dfd/:processoId">
-          {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}
-        </Route>
-        <Route path="/planejamento" component={PlanejamentoPage} />
-        <Route path="/compras">{() => <PlaceholderPage title="Modulo de Compras" />}</Route>
-        <Route path="/processos" component={ProcessosPage} />
-        <Route path="/licitacao" component={LicitacaoPage} />
-        <Route path="/documentos" component={DocumentosPage} />
-        <Route path="/contratos" component={ContratosPage} />
-        <Route path="/workflow" component={WorkflowPage} />
-        <Route path="/usuarios" component={UsuariosPage} />
-        <Route component={NotFoundPage} />
-      </Switch>
+      <Suspense fallback={<RouteFallback />}>
+        <Switch>
+          <Route path="/" component={DashboardPage} />
+          <Route path="/planejamento/dfd/:processoId">
+            {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}
+          </Route>
+          <Route path="/planejamento" component={PlanejamentoPage} />
+          <Route path="/compras">{() => <PlaceholderPage title="Módulo de Compras" />}</Route>
+          <Route path="/processos" component={ProcessosPage} />
+          <Route path="/licitacao" component={LicitacaoPage} />
+          <Route path="/documentos" component={DocumentosPage} />
+          <Route path="/contratos" component={ContratosPage} />
+          <Route path="/workflow" component={WorkflowPage} />
+          <Route path="/usuarios" component={UsuariosPage} />
+          <Route component={NotFoundPage} />
+        </Switch>
+      </Suspense>
     </AppShell>
   );
 }
@@ -86,7 +99,11 @@ function AppContent() {
   }
 
   if (!session) {
-    return <LoginPage onLogin={handleLogin} />;
+    return (
+      <Suspense fallback={<RouteFallback />}>
+        <LoginPage onLogin={handleLogin} />
+      </Suspense>
+    );
   }
 
   return <AuthenticatedApp session={session} onLogout={handleLogout} />;

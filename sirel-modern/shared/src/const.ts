@@ -41,7 +41,7 @@ export const modoDisputaLabels: Record<(typeof modoDisputaOptions)[number], stri
 
 export const grauPrioridadeLabels: Record<(typeof grauPrioridadeOptions)[number], string> = {
   BAIXA: "Baixa",
-  MEDIA: "Media",
+  MEDIA: "Média",
   ALTA: "Alta",
   URGENTE: "Urgente",
 };
@@ -67,9 +67,9 @@ export const appModules = [
   { key: "dashboard", label: "Dashboard", href: "/" },
   { key: "planejamento", label: "Planejamento", href: "/planejamento" },
   { key: "compras", label: "Compras", href: "/compras" },
-  { key: "licitacao", label: "Licitacao", href: "/licitacao" },
+  { key: "licitacao", label: "Licitação", href: "/licitacao" },
   { key: "documentos", label: "Documentos", href: "/documentos" },
   { key: "contratos", label: "Contratos", href: "/contratos" },
   { key: "workflow", label: "Workflow", href: "/workflow" },
-  { key: "usuarios", label: "Usuarios", href: "/usuarios" },
+  { key: "usuarios", label: "Usuários", href: "/usuarios" },
 ] as const;

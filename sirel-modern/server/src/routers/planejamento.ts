@@ -178,8 +178,6 @@ export const planejamentoRouter = router({
           descricao: itensProcesso.descricao,
           quantidade: itensProcesso.quantidade,
           unidade: itensProcesso.unidade,
-          valorUnitarioEstimado: itensProcesso.valorUnitarioEstimado,
-          valorTotalEstimado: itensProcesso.valorTotalEstimado,
         })
         .from(itensProcesso)
         .where(eq(itensProcesso.processoId, input.processoId))
@@ -336,14 +334,12 @@ export const planejamentoRouter = router({
       .orderBy(desc(itensProcesso.numeroItem))
       .limit(1);
 
-    const valorUnitarioEstimado = input.valorUnitarioEstimado != null ? input.valorUnitarioEstimado.toFixed(2) : null;
-    const valorTotalEstimado = input.valorUnitarioEstimado != null ? (input.quantidade * input.valorUnitarioEstimado).toFixed(2) : null;
     const payload = {
       descricao: input.descricao,
       quantidade: input.quantidade.toString(),
       unidade: input.unidade,
-      valorUnitarioEstimado,
-      valorTotalEstimado,
+      valorUnitarioEstimado: null,
+      valorTotalEstimado: null,
       atualizadoEm: new Date(),
     };
 
@@ -482,7 +478,6 @@ export const planejamentoRouter = router({
         id: catalogoItens.id,
         descricao: catalogoItens.descricao,
         unidadePadrao: catalogoItens.unidadePadrao,
-        valorReferencia: catalogoItens.valorReferencia,
       })
       .from(catalogoItens)
       .where(and(...filters))
@@ -496,7 +491,7 @@ export const planejamentoRouter = router({
       .values({
         descricao: input.descricao,
         unidadePadrao: input.unidadePadrao,
-        valorReferencia: input.valorReferencia != null ? input.valorReferencia.toFixed(2) : null,
+        valorReferencia: null,
         criadoPor: ctx.user?.id ?? null,
         criadoEm: new Date(),
         atualizadoEm: new Date(),
@@ -550,17 +545,14 @@ export const planejamentoRouter = router({
       if (!catalogItem) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Um dos itens selecionados nao existe mais no catalogo." });
       }
-      const valorUnitarioEstimado = item.valorUnitarioEstimado != null ? item.valorUnitarioEstimado.toFixed(2) : null;
-      const valorTotalEstimado = item.valorUnitarioEstimado != null ? (item.quantidade * item.valorUnitarioEstimado).toFixed(2) : null;
-
       return {
         processoId: input.processoId,
         numeroItem: nextNumeroItem++,
         descricao: catalogItem.descricao,
         quantidade: item.quantidade.toString(),
         unidade: item.unidade || catalogItem.unidadePadrao,
-        valorUnitarioEstimado,
-        valorTotalEstimado,
+        valorUnitarioEstimado: null,
+        valorTotalEstimado: null,
         criadoEm: new Date(),
         atualizadoEm: new Date(),
       };
