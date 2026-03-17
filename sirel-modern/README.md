@@ -1,10 +1,21 @@
 # SIREL Beta 2.0
 
-Base inicial da nova arquitetura do SIREL em monorepo full-stack.
+Base nova do SIREL em monorepo full-stack, preparada para homologacao funcional com dados basicos e processos recriados no proprio sistema.
 
 ## Objetivo
 
-Criar uma camada moderna e desacoplada para evolucao gradual do sistema atual em Django, sem interromper a operacao existente.
+Substituir gradualmente a dependencia operacional da base antiga e validar o novo fluxo sobre:
+
+- React no frontend;
+- Express + tRPC no backend;
+- PostgreSQL com Drizzle ORM;
+- contratos tipados compartilhados em `shared/`.
+
+Neste momento, a estrategia de homologacao e:
+
+- importar apenas cadastros basicos;
+- recriar processos e movimentacoes no sistema novo;
+- validar consistencia, UX e regras de negocio diretamente na Beta 2.0.
 
 ## Stack
 
@@ -22,66 +33,126 @@ Criar uma camada moderna e desacoplada para evolucao gradual do sistema atual em
 
 - `client/`: frontend React
 - `server/`: backend Express + tRPC
-- `shared/`: contratos, tipos e schemas compartilhados
+- `shared/`: tipos, schemas e constantes compartilhadas
 - `drizzle/`: schema PostgreSQL e migrations
-- `docs/`: plano de migracao e backlog da Beta 2.0
+- `docs/`: plano de migracao e backlog
+- `storage/`: artefatos locais de migracao
 
-## Estado atual
+## Estado funcional atual
 
-Esta entrega ja possui:
+Ja implementado:
 
-- monorepo funcional com `client`, `server`, `shared` e `drizzle`
-- PostgreSQL 16 provisionado localmente
-- migrations aplicadas no banco `sirel_db`
-- snapshot do legado Django exportado e importado
-- sincronizacao incremental Django -> Beta 2.0 com estado persistido
-- workflow operacional com filtros, paginação e histórico
-- saneamento semântico controlado para catálogos e textos administrativos degradados
-- routers tRPC validados contra dados reais
-- dashboard e modulo de processos conectados ao PostgreSQL
+- login local de homologacao;
+- dashboard inicial;
+- cadastro de processos com numero SIREL automatico;
+- workflow operacional entre modulos;
+- modulo de Licitacao separado da tela de Processos;
+- publicacao como ato proprio do modulo de Licitacao;
+- numero de edital automatico por modalidade:
+  - `CE`, `CP`, `CD`, `DLS`, `DLE`, `IL`, `LE`, `PE`, `PP`
+- gestao de usuarios e troca de senha;
+- Planejamento com DFD em tela dedicada;
+- solicitante automatico na DFD;
+- demanda sistemica com secretaria responsavel automatica;
+- seletores em modal para secretarias participantes e responsaveis;
+- catalogo de itens;
+- selecao de itens da DFD em formato de carrinho;
+- edicao e exclusao de itens ja incorporados a DFD;
+- exclusao completa da DFD com reinicio da etapa.
 
-## Fluxo de migracao inicial
+## Fluxo de teste recomendado
 
-- `npm run legacy:export`: exporta o banco Django atual para `storage/migration/legacy_snapshot.json`
-- `npm run legacy:import`: importa o snapshot para o PostgreSQL da Beta 2.0
-- `npm run legacy:sync:full`: executa exportacao completa + importacao + atualizacao do estado local
-- `npm run legacy:sync`: executa sincronizacao incremental com base em `storage/migration/legacy_sync_state.json`
+1. fazer login;
+2. criar um processo em `Processos`;
+3. abrir a DFD em `Planejamento`;
+4. salvar a DFD;
+5. selecionar itens pelo catalogo;
+6. movimentar o processo no `Workflow`;
+7. executar a publicacao no modulo `Licitacao` quando chegar a etapa correta.
 
-O snapshot atual exportado a partir do legado contem:
+## Banco e carga inicial
 
-- 709 processos
-- 709 workflows
-- 151 fornecedores
-- 17 documentos
-- 27 pessoas
-- 17 secretarias
+Uso atual do legado:
 
-## Como evoluir
+- apenas para seed basico de cadastros;
+- sem dependencia de sincronizacao continua para homologacao.
 
-1. Instalar Node.js 22+ nesta maquina
-2. Copiar `.env.example` para `.env`
-3. Rodar `npm install` na raiz de `sirel-modern/`
-4. Gerar migrations com `npm run db:generate`
-5. Aplicar migrations com `npm run db:migrate`
-6. Exportar o legado com `npm run legacy:export`
-7. Importar no PostgreSQL com `npm run legacy:import`
-8. Subir backend e frontend com `npm run dev`
-9. Para convivencia paralela, rodar `npm run legacy:sync` periodicamente
+Comando recomendado para preparar a base:
+
+```powershell
+npm run legacy:seed:basics
+```
+
+Esse comando:
+
+- exporta o snapshot do legado;
+- reseta a base da Beta 2.0;
+- importa apenas cadastros essenciais para teste.
+
+## Como rodar
+
+### Opcao 1 - comando manual
+
+```powershell
+npm install
+npm run db:migrate
+npm run legacy:seed:basics
+npm run dev
+```
+
+### Opcao 2 - Windows
+
+Execute:
+
+```text
+Iniciar_SIREL_Beta_2.bat
+```
 
 ## Ambiente
 
-- `DATABASE_URL=postgresql://sirel_user:senha_segura@localhost:5432/sirel_db`
-- `PORT=3030`
-- `CLIENT_URL=http://localhost:5173`
-- `VITE_API_URL=http://localhost:3030/api/trpc`
+Exemplo de `.env`:
 
-## Validacao executada
+```env
+DATABASE_URL=postgresql://sirel_user:senha_segura@localhost:5432/sirel_db
+PORT=3030
+CLIENT_URL=http://localhost:5173
+VITE_API_URL=http://localhost:3030/api/trpc
+JWT_SECRET=troque_esta_chave
+BETA_DEFAULT_PASSWORD=SirelBeta@2026
+BETA_ADMIN_USERNAME=jonatas.sousa
+BETA_ADMIN_NAME=Jonatas Sousa
+BETA_ADMIN_EMAIL=jonatassousa@outlook.com
+```
 
-- `npm install`
-- `npm run check`
+## Credencial inicial
+
+- usuario: `jonatas.sousa`
+- senha: `SirelBeta@2026`
+
+## Scripts principais
+
+- `npm run dev`
 - `npm run build`
+- `npm run check`
+- `npm run db:generate`
 - `npm run db:migrate`
 - `npm run legacy:export`
 - `npm run legacy:import`
-- `npm run legacy:sync:full`
-- `npm run legacy:sync`
+- `npm run legacy:import:basics`
+- `npm run legacy:seed:basics`
+
+## Validacao executada
+
+Validacoes tecnicas mais recentes:
+
+- `npm run check`
+- `npm run build`
+- `npm run db:migrate`
+
+## Proximas entregas
+
+- ETP como continuidade da DFD;
+- subetapas internas da Licitacao;
+- modulo de Documentos com upload e versionamento;
+- exportador e-TCM no novo stack;
+- refinamento de UX, tema claro e acessibilidade.

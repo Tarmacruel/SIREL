@@ -1,19 +1,26 @@
-# Backlog inicial da Beta 2.0
+# Backlog da Beta 2.0
 
 ## Prioridade alta
-- OAuth real e sessao segura
+
+- ETP como sequencia direta da DFD
+- TR e continuidade completa do Planejamento
+- subetapas do modulo de Licitacao
 - upload versionado de documentos
-- workflow visual por modulo
-- agenda operacional com alertas
-- gerador de aviso, edital e CI em React
-- exportador e-TCM com OCR e fracionamento
+- geracao de aviso, edital e CI no novo stack
+- exportador e-TCM com OCR, paginacao e fracionamento
+- refinamento de UX da homologacao
 
 ## Prioridade media
-- notificacoes por email e painel
+
+- agenda operacional com alertas
+- workflow visual por etapa
 - relatorios gerenciais por secretaria
 - visao por pregoeiro e condutor
+- auditoria expandida por acao e campo alterado
 
 ## Prioridade baixa
+
+- notificacoes por email
+- painel BI com historico
 - app mobile apenas leitura
-- BI com series historicas
 - automacoes assistivas

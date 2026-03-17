@@ -1,246 +1,93 @@
-# SIREL Modular
+# SIREL
 
-Sistema de Registro e Gestão de Licitações com arquitetura modular, workflow por etapas, integrações com PNCP e BLL, geração documental e consolidação de processos para envio ao e-TCM/BA.
+Repositorio principal do SIREL, com duas frentes de trabalho:
 
-## Visão geral
+- `workflow/`, `core/`, `publico/` e demais apps Django da base atual;
+- `sirel-modern/`, que concentra a Beta 2.0 em React + tRPC + PostgreSQL.
 
-O projeto organiza a rotina administrativa da contratação pública em módulos operacionais integrados, preservando a base do sistema anterior e ampliando o fluxo com:
+## Estado atual
 
-- planejamento da contratação;
-- compras e pesquisa de preços;
-- licitação e montagem documental;
-- integrações com PNCP e BLL;
-- portal público;
-- geração de documentos em HTML, PDF e DOCX;
-- consolidação de processo completo para auditoria e envio ao e-TCM.
+O versionamento oficial esta neste repositorio:
 
-## Principais funcionalidades
+- GitHub: `https://github.com/Tarmacruel/SIREL`
+- branch principal: `main`
 
-### Workflow modular
+O projeto ja possui historico ativo no Git e as entregas recentes da Beta 2.0 ja foram registradas no remoto.
 
-Área principal em ` /sirel/ ` com navegação por módulos:
-
-- Planejamento
-- Compras
-- Licitação
-- Documentos
-- Integrações
-- Dashboards
-- Itens
-- Frequência
-- Cadastros
-
-### Planejamento
-
-- abertura de processo;
-- DFD com suporte a múltiplas secretarias;
-- ETP com fontes, cotações e alertas;
-- TR com lotes, dotações e distribuição;
-- exportações auxiliares em PDF, DOCX e XLSX.
-
-### Compras
-
-- pesquisa de preços;
-- lançamento de fontes e cotações;
-- anexação de comprovantes;
-- documentos auxiliares do fluxo de compras.
-
-### Licitação
-
-- geração de comunicações internas;
-- gerador HTML de documentos com visual institucional;
-- geração de edital por tipo de contratação;
-- pré-visualização em tempo real;
-- exportação em PDF e DOCX.
-
-### Documentos
-
-- consolidação do processo completo mesmo que esteja parcial;
-- capa inicial do processo;
-- capa individual por anexo;
-- montagem cronológica dos documentos anexados;
-- exportação integral em PDF;
-- geração de pacote para e-TCM/BA com divisão automática por tamanho.
-
-### Padrão e-TCM/BA
-
-Na exportação documental o sistema aplica:
-
-- padronização para A4;
-- paginação institucional;
-- compressão por página;
-- preservação de texto nativo quando o PDF já é pesquisável;
-- OCR seletivo nas páginas rasterizadas;
-- divisão em partes de até 4 MB no fluxo de envio e-TCM.
-
-### Integrações
-
-- importação de processos por JSON;
-- importação PNCP;
-- fila de processamento PNCP;
-- importação e exportação BLL por CSV e XLSX;
-- importação de contratos por XLSX.
-
-### Portal público
-
-- lista pública de licitações;
-- página de detalhe por processo;
-- publicação de anexos;
-- downloads de documentos públicos.
-
-## Tecnologias
-
-- Python 3.12
-- Django 5.2.5
-- Django REST Framework
-- django-import-export
-- django-simple-history
-- ReportLab
-- python-docx
-- OpenPyXL
-- pandas
-- PyMuPDF
-- pypdf
-- easyocr
-
-## Estrutura do projeto
+## Estrutura principal
 
 ```text
 .
-├── api/          API e endpoints auxiliares
-├── core/         modelos centrais da contratação e admin
-├── docs/         anexos e modelos DOCX
-├── licitaweb/    configurações do projeto Django
-├── ofertas/      estruturas de fornecedores/ofertas
-├── publico/      portal público
-├── scripts/      automações operacionais em PowerShell
-├── templates/    templates compartilhados
-├── tools/        utilitários de apoio
-└── workflow/     módulos, telas, serviços e exportações do SIREL
+|-- api/
+|-- core/
+|-- docs/
+|-- licitaweb/
+|-- publico/
+|-- workflow/
+`-- sirel-modern/
 ```
 
-## Requisitos
+## Base Django atual
 
-- Python 3.12 ou superior
-- pip atualizado
-- ambiente virtual recomendado
+A base Django continua no repositorio para referencia, manutencao e comparacao funcional.
 
-## Instalação local
+Principais capacidades ja existentes:
 
-### Windows PowerShell
+- workflow modular;
+- geracao documental HTML, PDF e DOCX;
+- consolidacao de processo e pacote e-TCM;
+- integracoes PNCP e BLL;
+- portal publico.
+
+## Beta 2.0
+
+A Beta 2.0 fica em `sirel-modern/` e ja esta apta para homologacao inicial.
+
+Capacidades atuais:
+
+- login local para homologacao;
+- dashboard inicial;
+- cadastro de processos;
+- workflow entre modulos;
+- modulo de Licitacao separado da tela de Processos;
+- Planejamento com DFD em tela propria;
+- seletores em modal para secretarias participantes e responsaveis;
+- catalogo de itens com selecao em estilo carrinho;
+- cadastro, edicao e exclusao de itens da DFD;
+- gestao basica de usuarios e troca de senha.
+
+## Como iniciar a Beta 2.0
+
+No diretorio `sirel-modern/`:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+npm install
+npm run db:migrate
+npm run legacy:seed:basics
+npm run dev
 ```
 
-### Linux
+Ou, no Windows, execute:
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+```text
+sirel-modern\\Iniciar_SIREL_Beta_2.bat
 ```
 
-## Scripts úteis
+## Credencial beta padrao
 
-Na pasta `scripts/` existem rotinas prontas para uso local:
+- usuario: `jonatas.sousa`
+- senha: `SirelBeta@2026`
 
-- `_instalar_dependencias.ps1`
-- `_migrar_e_estaticos.ps1`
-- `_popular_basicos.ps1`
-- `_rodar_local.ps1`
-- `agendar_importacao_dados_licitacao_0300.ps1`
+## Documentacao complementar
 
-## URLs principais
+- [README da Beta 2.0](C:\SIREL_Modular_Base_Rodavel\sirel_modular\sirel-modern\README.md)
+- [Plano de migracao da Beta 2.0](C:\SIREL_Modular_Base_Rodavel\sirel_modular\sirel-modern\docs\migracao-beta-2.md)
+- [Backlog da Beta 2.0](C:\SIREL_Modular_Base_Rodavel\sirel_modular\sirel-modern\docs\backlog-beta-2.md)
 
-- Área modular: `http://127.0.0.1:8000/sirel/`
-- Admin: `http://127.0.0.1:8000/admin/`
-- Portal público: `http://127.0.0.1:8000/`
+## Proximos focos
 
-## Comandos de gestão
-
-### Integrações e carga
-
-```powershell
-python manage.py import_dados_licitacao_json
-python manage.py processar_fila_pncp
-python manage.py import_bll_csv --help
-python manage.py import_bll_xlsx --help
-python manage.py export_bll_csv --help
-python manage.py export_bll_xlsx --help
-python manage.py import_contratos_xlsx --help
-```
-
-### Base inicial e manutenção
-
-```powershell
-python manage.py seed_basicos
-python manage.py fill_lotes
-python manage.py sync_itens_canonicos
-python manage.py sync_lotes_from_itens
-```
-
-## Geração documental
-
-O sistema possui dois grupos principais de geração de documentos:
-
-### Modelos DOCX
-
-Rotas em `docs/urls.py` para:
-
-- termo de autuação;
-- ato/termo de autorização;
-- aviso de licitação;
-- CI para procuradoria;
-- CI para contabilidade;
-- CI para controladoria;
-- declaração de não fracionamento.
-
-### Documentos HTML
-
-No módulo de Licitação há geração com:
-
-- formulário editável;
-- pré-visualização em tempo real;
-- exportação PDF;
-- exportação DOCX;
-- impressão de rascunho.
-
-## Processo completo e e-TCM
-
-No módulo Documentos é possível:
-
-- gerar o processo completo em PDF;
-- montar capas automáticas por documento;
-- respeitar a ordem de anexação;
-- consolidar documentos do workflow e anexos do módulo `docs`;
-- gerar pacote e-TCM com fracionamento automático por tamanho.
-
-## Observações operacionais
-
-- `db.sqlite3`, `media/`, caches e arquivos temporários não são versionados.
-- o projeto está preparado para uso local imediato, mas algumas rotinas dependem do conteúdo cadastrado no banco.
-- a exportação documental usa preservação de texto nativo e OCR seletivo para manter desempenho aceitável.
-
-## Versionamento
-
-Repositório remoto oficial:
-
-- `https://github.com/Tarmacruel/SIREL`
-
-## Próximos passos recomendados
-
-- consolidar documentação funcional por módulo;
-- registrar usuário responsável em todos os anexos persistidos;
-- ampliar testes automatizados dos fluxos documentais;
-- preparar configuração de produção com banco dedicado, arquivos estáticos e mídia externos.
+- ETP como sequencia da DFD no Planejamento;
+- subetapas do modulo de Licitacao;
+- documentos e versionamento na Beta 2.0;
+- exportacao e-TCM no novo stack;
+- refinamento de UX e responsividade.
