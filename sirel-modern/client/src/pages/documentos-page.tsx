@@ -1,20 +1,21 @@
-import { FileStack, ShieldCheck, Stamp } from "lucide-react";
+﻿import { FileStack, ShieldCheck, Stamp } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 
 const pillars = [
-  { title: "Versionamento", icon: FileStack, body: "Cada documento passa a ter versoes, categoria, trilha e origem de upload." },
-  { title: "Padrao e-TCM", icon: Stamp, body: "Capas, paginacao, OCR, compressao e fracionamento serao tratados no pipeline do backend." },
-  { title: "Rastreabilidade", icon: ShieldCheck, body: "Toda inclusao, revisao e substituicao sera auditada por usuario, data e processo." },
+  { title: "Versionamento", icon: FileStack, body: "Cada documento passa a ter versões, categoria, trilha e origem de upload." },
+  { title: "Padrão e-TCM", icon: Stamp, body: "Capas, paginação, OCR, compressão e fracionamento serão tratados no pipeline do backend." },
+  { title: "Rastreabilidade", icon: ShieldCheck, body: "Toda inclusão, revisão e substituição será auditada por usuário, data e processo." },
 ];
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -40,12 +41,12 @@ export function DocumentosPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <SectionCard title="Gestao documental" description="Camada de documentos da Beta 2.0 com consulta real, versionamento e base pronta para upload padronizado.">
+    <SectionCard title="Gestão documental" description="Camada de documentos da Beta 2.0 com consulta real, versionamento e acervo pronto para operação administrativa.">
       <Tabs
         items={[
           {
             value: "visao-geral",
-            label: "Visao geral",
+            label: "Visão geral",
             content: (
               <div className="space-y-4">
                 <div className="grid gap-4 lg:grid-cols-3">
@@ -62,7 +63,11 @@ export function DocumentosPage() {
                 </div>
                 {summaryQuery.error ? <Alert variant="error">Falha ao consultar o resumo documental.</Alert> : null}
                 <div className="grid gap-4 md:grid-cols-3">
-                  {[{ label: "Documentos", value: summaryQuery.data?.total }, { label: "Processos com documentos", value: summaryQuery.data?.processosComDocumentos }, { label: "Editais", value: summaryQuery.data?.editais }].map((item) => (
+                  {[
+                    { label: "Documentos", value: summaryQuery.data?.total },
+                    { label: "Processos com documentos", value: summaryQuery.data?.processosComDocumentos },
+                    { label: "Editais", value: summaryQuery.data?.editais },
+                  ].map((item) => (
                     <article key={item.label} className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
                       {summaryQuery.isLoading ? <Skeleton className="mt-3 h-10 w-20" /> : <p className="mt-3 text-3xl font-black text-slate-950">{item.value ?? 0}</p>}
@@ -78,43 +83,35 @@ export function DocumentosPage() {
             content: (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
-                  <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por processo, titulo ou categoria" className="max-w-md" />
-                  <Select value={tipo} onChange={(event) => setTipo(event.target.value as "" | "DFD" | "ETP" | "TR" | "EDITAL" | "COMUNICACAO_INTERNA" | "RESULTADO" | "CONTRATO" | "OUTRO")} className="max-w-[220px]">
+                  <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por processo, título ou categoria" className="max-w-md" />
+                  <Select value={tipo} onChange={(event) => setTipo(event.target.value as typeof tipo)} className="max-w-[220px]">
                     <option value="">Todos os tipos</option>
-                    {[
-                      "DFD",
-                      "ETP",
-                      "TR",
-                      "EDITAL",
-                      "COMUNICACAO_INTERNA",
-                      "RESULTADO",
-                      "CONTRATO",
-                      "OUTRO",
-                    ].map((option) => <option key={option} value={option}>{option}</option>)}
+                    {["DFD", "ETP", "TR", "EDITAL", "COMUNICACAO_INTERNA", "RESULTADO", "CONTRATO", "OUTRO"].map((option) => <option key={option} value={option}>{option}</option>)}
                   </Select>
                   <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))} className="max-w-[140px]">
-                    {[10, 20, 50].map((option) => <option key={option} value={option}>{option} por pagina</option>)}
+                    {[10, 20, 50].map((option) => <option key={option} value={option}>{option} por página</option>)}
                   </Select>
                 </div>
 
                 {listQuery.error ? <Alert variant="error">Falha ao carregar os documentos da base.</Alert> : null}
 
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                  <Table>
+                <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+                  <Table className="min-w-[760px]">
                     <TableHead>
                       <tr>
                         <TableHeaderCell>Documento</TableHeaderCell>
                         <TableHeaderCell>Processo</TableHeaderCell>
                         <TableHeaderCell>Tipo</TableHeaderCell>
-                        <TableHeaderCell>Versao</TableHeaderCell>
+                        <TableHeaderCell>Versão</TableHeaderCell>
                         <TableHeaderCell>Criado em</TableHeaderCell>
+                        <TableHeaderCell className="text-right">Arquivo</TableHeaderCell>
                       </tr>
                     </TableHead>
                     <TableBody>
                       {listQuery.isLoading
                         ? Array.from({ length: 5 }).map((_, index) => (
                             <TableRow key={index}>
-                              <TableCell colSpan={5}><Skeleton className="h-12 w-full" /></TableCell>
+                              <TableCell colSpan={6}><Skeleton className="h-12 w-full" /></TableCell>
                             </TableRow>
                           ))
                         : rows.map((row) => (
@@ -127,11 +124,20 @@ export function DocumentosPage() {
                               <TableCell>{row.tipo}</TableCell>
                               <TableCell>v{row.versao}</TableCell>
                               <TableCell>{formatDate(row.criadoEm)}</TableCell>
+                              <TableCell className="text-right">
+                                {row.arquivoUrl ? (
+                                  <a href={row.arquivoUrl} target="_blank" rel="noreferrer">
+                                    <Button variant="outline" size="sm">Baixar</Button>
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-slate-400">Sem arquivo</span>
+                                )}
+                              </TableCell>
                             </TableRow>
                           ))}
                       {!listQuery.isLoading && !rows.length ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-slate-500">Nenhum documento encontrado.</TableCell>
+                          <TableCell colSpan={6} className="text-center text-slate-500">Nenhum documento encontrado.</TableCell>
                         </TableRow>
                       ) : null}
                     </TableBody>

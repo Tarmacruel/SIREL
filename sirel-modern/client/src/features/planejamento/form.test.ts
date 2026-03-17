@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 
-import { validateDfdForm, validateEtpCotacaoForm, validateEtpForm } from "@/features/planejamento/form";
+import { validateDfdForm, validateEtpCotacaoForm, validateEtpForm, validateTrForm } from "@/features/planejamento/form";
 
 describe("dfd form", () => {
   it("rejects systemic demand without at least two participant secretarias", () => {
@@ -42,7 +42,19 @@ describe("etp form", () => {
   it("accepts a valid ETP payload", () => {
     const result = validateEtpForm(1, {
       metodologiaCotacao: "MEDIANA",
-      observacoes: "ETP externo anexado e apto para a fase de cotações preliminares.",
+      observacoes: "ETP externo anexado e apto para a fase de cotacoes preliminares.",
+      concluir: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("tr form", () => {
+  it("accepts a valid TR stage payload", () => {
+    const result = validateTrForm(1, {
+      orcamentoSigiloso: true,
+      observacoes: "TR externo anexado e etapa pronta para consolidacao documental.",
       concluir: true,
     });
 
@@ -81,7 +93,7 @@ describe("etp cotacao form", () => {
       valorUnitario: 1530.44,
       considerada: false,
       motivoDesconsideracao: "SOBREPRECO",
-      justificativaDesconsideracao: "Cotação desconsiderada por possível sobrepreço em relação à média das referências válidas.",
+      justificativaDesconsideracao: "Cotacao desconsiderada por possivel sobrepreco em relacao a media das referencias validas.",
       observacao: "Menor valor encontrado para o item.",
     });
 

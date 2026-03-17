@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react";
+﻿import { useDeferredValue, useMemo, useState } from "react";
 
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert } from "@/components/ui/alert";
@@ -40,15 +40,19 @@ export function ContratosPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <SectionCard title="Contratos" description="Base de contratos da Beta 2.0 com filtros, resumo e paginacao para crescimento real da operacao.">
+    <SectionCard title="Contratos" description="Base de contratos da Beta 2.0 com filtros, resumo e paginação para crescimento real da operação.">
       <Tabs
         items={[
           {
             value: "visao-geral",
-            label: "Visao geral",
+            label: "Visão geral",
             content: (
               <div className="grid gap-4 md:grid-cols-3">
-                {[{ label: "Total", value: summaryQuery.data?.total }, { label: "Ativos", value: summaryQuery.data?.ativos }, { label: "Expirando em 30 dias", value: summaryQuery.data?.expirandoEm30Dias }].map((item) => (
+                {[
+                  { label: "Total", value: summaryQuery.data?.total },
+                  { label: "Ativos", value: summaryQuery.data?.ativos },
+                  { label: "Expirando em 30 dias", value: summaryQuery.data?.expirandoEm30Dias },
+                ].map((item) => (
                   <article key={item.label} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
                     {summaryQuery.isLoading ? <Skeleton className="mt-3 h-10 w-20" /> : <p className="mt-3 text-3xl font-black text-slate-950">{item.value ?? 0}</p>}
@@ -65,25 +69,25 @@ export function ContratosPage() {
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por contrato, processo, fornecedor ou objeto" className="max-w-md" />
-                  <Select value={status} onChange={(event) => setStatus(event.target.value as "" | "ATIVO" | "ENCERRADO" | "SUSPENSO" | "RESCINDIDO")} className="max-w-[180px]">
+                  <Select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="max-w-[180px]">
                     <option value="">Todos os status</option>
                     {["ATIVO", "ENCERRADO", "SUSPENSO", "RESCINDIDO"].map((option) => <option key={option} value={option}>{option}</option>)}
                   </Select>
                   <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))} className="max-w-[140px]">
-                    {[10, 20, 50].map((option) => <option key={option} value={option}>{option} por pagina</option>)}
+                    {[10, 20, 50].map((option) => <option key={option} value={option}>{option} por página</option>)}
                   </Select>
                 </div>
 
                 {listQuery.error ? <Alert variant="error">Falha ao carregar os contratos da base.</Alert> : null}
 
-                <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                  <Table>
+                <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+                  <Table className="min-w-[760px]">
                     <TableHead>
                       <tr>
                         <TableHeaderCell>Contrato</TableHeaderCell>
                         <TableHeaderCell>Processo</TableHeaderCell>
                         <TableHeaderCell>Fornecedor</TableHeaderCell>
-                        <TableHeaderCell>Vigencia final</TableHeaderCell>
+                        <TableHeaderCell>Vigência final</TableHeaderCell>
                         <TableHeaderCell className="text-right">Valor</TableHeaderCell>
                       </tr>
                     </TableHead>

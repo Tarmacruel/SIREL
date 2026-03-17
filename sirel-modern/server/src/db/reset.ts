@@ -12,6 +12,7 @@ const RESET_TABLES = [
   "etp_cotacoes_preliminares",
   "itens_processo",
   "lotes",
+  "tr",
   "etp",
   "dfd",
   "dfd_responsaveis",

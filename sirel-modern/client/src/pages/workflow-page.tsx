@@ -175,7 +175,7 @@ export function WorkflowPage() {
         description="Fila consolidada com filtros, linha do tempo e movimentação manual entre módulos."
         action={
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_150px]">
-            <FormField label="Buscar" className="min-w-[240px]">
+            <FormField label="Buscar" className="w-full">
               <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
                 <Search className="h-4 w-4 text-slate-400" />
                 <input
@@ -220,8 +220,8 @@ export function WorkflowPage() {
       >
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-              <Table>
+            <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+              <Table className="min-w-[820px]">
                 <TableHead>
                   <tr>
                     <TableHeaderCell>Processo</TableHeaderCell>

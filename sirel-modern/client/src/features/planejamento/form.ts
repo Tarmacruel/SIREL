@@ -2,6 +2,7 @@ import {
   dfdSaveInputSchema,
   etpCotacaoSaveInputSchema,
   etpSaveInputSchema,
+  trSaveInputSchema,
 } from "@sirel/shared/schemas/planejamento";
 
 export interface DfdFormState {
@@ -54,6 +55,25 @@ export function buildEtpPayload(processoId: number, form: EtpFormState) {
 
 export function validateEtpForm(processoId: number, form: EtpFormState) {
   return etpSaveInputSchema.safeParse(buildEtpPayload(processoId, form));
+}
+
+export interface TrFormState {
+  orcamentoSigiloso: boolean;
+  observacoes: string;
+  concluir: boolean;
+}
+
+export function buildTrPayload(processoId: number, form: TrFormState) {
+  return {
+    processoId,
+    orcamentoSigiloso: form.orcamentoSigiloso,
+    observacoes: form.observacoes.trim() || undefined,
+    concluir: form.concluir,
+  };
+}
+
+export function validateTrForm(processoId: number, form: TrFormState) {
+  return trSaveInputSchema.safeParse(buildTrPayload(processoId, form));
 }
 
 export interface EtpCotacaoFormState {

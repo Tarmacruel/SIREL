@@ -15,7 +15,13 @@ import { Tabs } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type EtpCotacaoFormState, validateEtpCotacaoForm, validateEtpForm } from "@/features/planejamento/form";
 import { formatCurrencyBRL, formatDecimalInput, formatNumberBR, formatShortDateBR, normalizeDecimalInput } from "@/lib/formatters";
-import { buildMapaComparativoHtml, openPrintableHtml } from "@/lib/print-documents";
+import {
+  buildMapaComparativoHtml,
+  navigatePreviewWindow,
+  openPreviewWindow,
+  openPrintableHtml,
+  renderPreviewWindowMessage,
+} from "@/lib/print-documents";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -77,6 +83,17 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
   const deleteMutation = trpc.planejamento.deleteCotacaoPreliminar.useMutation({
     onSuccess: async () => { await Promise.all([utils.planejamento.detail.invalidate({ processoId }), utils.processos.overview.invalidate({ processoId })]); setMessage("Cotação removida."); setErrorMessage(null); },
     onError: (error) => { setMessage(null); setErrorMessage(error.message); },
+  });
+  const generateMutation = trpc.planejamento.generateDocumento.useMutation({
+    onSuccess: async (created) => {
+      await Promise.all([utils.documentos.list.invalidate(), utils.documentos.summary.invalidate()]);
+      setMessage(`Documento persistido no processo: ${created.titulo}.`);
+      setErrorMessage(null);
+    },
+    onError: (error) => {
+      setMessage(null);
+      setErrorMessage(error.message);
+    },
   });
 
   const detalhe = detailQuery.data;
@@ -147,6 +164,38 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
     openPrintableHtml({ title: `Mapa Comparativo ${detalhe.processo.numeroSirel}`, bodyHtml: buildMapaComparativoHtml(detalhe, metodologiaLabel), autoPrint });
   }
 
+  async function persistMapa(formato: "HTML" | "PDF") {
+    if (!detalhe) return;
+
+    let previewWindow: Window;
+    try {
+      previewWindow = openPreviewWindow(`Mapa comparativo ${detalhe.processo.numeroSirel}`);
+    } catch (error) {
+      setMessage(null);
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível abrir a pré-visualização.");
+      return;
+    }
+
+    try {
+      renderPreviewWindowMessage(
+        previewWindow,
+        `Mapa comparativo ${detalhe.processo.numeroSirel}`,
+        "Gerando o arquivo e preparando a visualização...",
+      );
+      const created = await generateMutation.mutateAsync({ processoId, documento: "MAPA_COMPARATIVO", formato });
+      if (!created.arquivoUrl) {
+        throw new Error("O documento foi gerado, mas a URL de visualização não foi retornada.");
+      }
+      navigatePreviewWindow(previewWindow, created.arquivoUrl);
+    } catch (error) {
+      renderPreviewWindowMessage(
+        previewWindow,
+        `Mapa comparativo ${detalhe.processo.numeroSirel}`,
+        error instanceof Error ? error.message : "Falha ao abrir a visualização do documento gerado.",
+      );
+    }
+  }
+
   if (detailQuery.isLoading || catalogQuery.isLoading) return <div className="space-y-4"><Skeleton className="h-16" /><Skeleton className="h-32" /><Skeleton className="h-96" /></div>;
   if (detailQuery.error || catalogQuery.error || !detalhe) return <Alert variant="warning">Falha ao carregar a etapa de cotações preliminares.</Alert>;
   if (!detalhe.etp) return <div className="space-y-6"><Alert variant="warning">Registre a etapa do ETP e anexe o documento principal antes de lançar as cotações preliminares.</Alert><Button variant="outline" onClick={() => setLocation(`/planejamento/etp/${processoId}`)}>Voltar ao ETP</Button></div>;
@@ -191,7 +240,7 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
               {message ? <Alert variant="success">{message}</Alert> : null}{errorMessage ? <Alert variant="error">{errorMessage}</Alert> : null}
               <div className="flex flex-wrap gap-3"><Button type="submit" disabled={saveMutation.isPending}>{saveMutation.isPending ? "Salvando..." : form.cotacaoId ? "Atualizar cotação" : "Registrar cotação"}</Button><Button type="button" variant="outline" onClick={() => selectedItemId && resetForm(selectedItemId, itens)}>Limpar</Button></div>
             </form> : <Alert variant="warning">Selecione um item da DFD para registrar as cotações preliminares.</Alert>}
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white"><Table><TableHead><tr><TableHeaderCell>Fonte</TableHeaderCell><TableHeaderCell>Fornecedor</TableHeaderCell><TableHeaderCell>Valor unitário</TableHeaderCell><TableHeaderCell>Análise</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell className="text-right">Ações</TableHeaderCell></tr></TableHead><TableBody>{cotacoesDoItem.map((cotacao) => <TableRow key={cotacao.id}><TableCell className="align-top"><div className="font-semibold text-slate-950">{cotacao.fonte}</div><div className="text-xs text-slate-500">{cotacao.documento || "Sem documento"}</div></TableCell><TableCell className="align-top"><div className="font-medium text-slate-800">{cotacao.fornecedorNome}</div><div className="text-xs text-slate-500">{formatShortDateBR(cotacao.dataCotacao)}</div></TableCell><TableCell className="align-top font-semibold text-slate-900">{formatCurrencyBRL(cotacao.valorUnitario)}<div className="text-xs text-slate-500">Qtde considerada: {formatNumberBR(cotacao.quantidadeConsiderada, 3)}</div></TableCell><TableCell className="align-top"><span className={["inline-flex rounded-full border px-3 py-1 text-xs font-bold", cotacao.analiseFaixa === "OK" ? "border-slate-200 bg-slate-50 text-slate-700" : "border-amber-200 bg-amber-50 text-amber-700"].join(" ")}>{label(cotacao.analiseFaixa as AnaliseFaixa)}</span></TableCell><TableCell className="align-top"><span className={["inline-flex rounded-full border px-3 py-1 text-xs font-bold", chip(cotacao.considerada)].join(" ")}>{cotacao.considerada ? "Considerada" : "Desconsiderada"}</span>{!cotacao.considerada && cotacao.justificativaDesconsideracao ? <p className="mt-2 text-xs leading-5 text-slate-500">{cotacao.justificativaDesconsideracao}</p> : null}</TableCell><TableCell className="align-top"><div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => editCotacao(cotacao)}>Editar</Button><Button type="button" variant="ghost" size="sm" onClick={() => void (window.confirm("Deseja excluir esta cotação preliminar?") && deleteMutation.mutate({ processoId, cotacaoId: cotacao.id }))}><Trash2 className="h-4 w-4" /></Button></div></TableCell></TableRow>)}{!cotacoesDoItem.length ? <TableRow><TableCell className="py-8 text-center text-slate-500" colSpan={6}>Nenhuma cotação registrada para o item selecionado.</TableCell></TableRow> : null}</TableBody></Table></div>
+            <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white"><Table className="min-w-[860px]"><TableHead><tr><TableHeaderCell>Fonte</TableHeaderCell><TableHeaderCell>Fornecedor</TableHeaderCell><TableHeaderCell>Valor unitário</TableHeaderCell><TableHeaderCell>Análise</TableHeaderCell><TableHeaderCell>Status</TableHeaderCell><TableHeaderCell className="text-right">Ações</TableHeaderCell></tr></TableHead><TableBody>{cotacoesDoItem.map((cotacao) => <TableRow key={cotacao.id}><TableCell className="align-top"><div className="font-semibold text-slate-950">{cotacao.fonte}</div><div className="text-xs text-slate-500">{cotacao.documento || "Sem documento"}</div></TableCell><TableCell className="align-top"><div className="font-medium text-slate-800">{cotacao.fornecedorNome}</div><div className="text-xs text-slate-500">{formatShortDateBR(cotacao.dataCotacao)}</div></TableCell><TableCell className="align-top font-semibold text-slate-900">{formatCurrencyBRL(cotacao.valorUnitario)}<div className="text-xs text-slate-500">Qtde considerada: {formatNumberBR(cotacao.quantidadeConsiderada, 3)}</div></TableCell><TableCell className="align-top"><span className={["inline-flex rounded-full border px-3 py-1 text-xs font-bold", cotacao.analiseFaixa === "OK" ? "border-slate-200 bg-slate-50 text-slate-700" : "border-amber-200 bg-amber-50 text-amber-700"].join(" ")}>{label(cotacao.analiseFaixa as AnaliseFaixa)}</span></TableCell><TableCell className="align-top"><span className={["inline-flex rounded-full border px-3 py-1 text-xs font-bold", chip(cotacao.considerada)].join(" ")}>{cotacao.considerada ? "Considerada" : "Desconsiderada"}</span>{!cotacao.considerada && cotacao.justificativaDesconsideracao ? <p className="mt-2 text-xs leading-5 text-slate-500">{cotacao.justificativaDesconsideracao}</p> : null}</TableCell><TableCell className="align-top"><div className="flex justify-end gap-2"><Button type="button" variant="outline" size="sm" onClick={() => editCotacao(cotacao)}>Editar</Button><Button type="button" variant="ghost" size="sm" onClick={() => void (window.confirm("Deseja excluir esta cotação preliminar?") && deleteMutation.mutate({ processoId, cotacaoId: cotacao.id }))}><Trash2 className="h-4 w-4" /></Button></div></TableCell></TableRow>)}{!cotacoesDoItem.length ? <TableRow><TableCell className="py-8 text-center text-slate-500" colSpan={6}>Nenhuma cotação registrada para o item selecionado.</TableCell></TableRow> : null}</TableBody></Table></div>
           </div>
         </SectionCard>
       </section>
@@ -201,8 +250,8 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
         <SectionCard title="Mapa comparativo" description="Consolidação automática das cotações consideradas, respeitando a metodologia escolhida.">
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-4"><article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Itens com referência</p><p className="mt-2 text-2xl font-black text-slate-950">{detalhe.mapaComparativo.filter((item) => item.totalCotacoes > 0).length}</p></article><article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Cotações registradas</p><p className="mt-2 text-2xl font-black text-slate-950">{detalhe.cotacoesPreliminares.length}</p></article><article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Metodologia</p><p className="mt-2 text-lg font-black text-slate-950">{metodologiaOptions.find((option) => option.codigo === metodologiaCotacao)?.nome ?? "Média"}</p></article><article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Valor estimado</p><p className="mt-2 text-lg font-black text-slate-950">{formatCurrencyBRL(detalhe.processo.valorEstimado)}</p></article></div>
-            <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={() => previewMapa(false)}><FileSearch className="h-4 w-4" />Pré-visualizar HTML</Button><Button type="button" onClick={() => previewMapa(true)}><Printer className="h-4 w-4" />Gerar PDF</Button></div>
-            <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white"><Table><TableHead><tr><TableHeaderCell>Item</TableHeaderCell><TableHeaderCell>Qtd.</TableHeaderCell><TableHeaderCell>Menor preço</TableHeaderCell><TableHeaderCell>Média</TableHeaderCell><TableHeaderCell>Mediana</TableHeaderCell><TableHeaderCell>Selecionado</TableHeaderCell><TableHeaderCell>Total</TableHeaderCell></tr></TableHead><TableBody>{detalhe.mapaComparativo.map((item) => <TableRow key={item.itemId}><TableCell className="align-top"><div className="font-bold text-slate-950">Item {item.numeroItem}</div><div className="text-xs text-slate-500">{item.descricao}</div></TableCell><TableCell className="align-top font-medium text-slate-800">{formatNumberBR(item.quantidade, 3)} {item.unidade}</TableCell><TableCell className="align-top font-medium text-slate-800">{formatCurrencyBRL(item.menorValorUnitario)}</TableCell><TableCell className="align-top font-medium text-slate-800">{formatCurrencyBRL(item.valorMedioUnitario)}</TableCell><TableCell className="align-top font-medium text-slate-800">{formatCurrencyBRL(item.valorMedianoUnitario)}</TableCell><TableCell className="align-top font-semibold text-slate-900">{formatCurrencyBRL(item.valorSelecionadoUnitario)}</TableCell><TableCell className="align-top font-semibold text-slate-900">{formatCurrencyBRL(item.valorReferenciaTotal)}</TableCell></TableRow>)}{!detalhe.mapaComparativo.length ? <TableRow><TableCell className="py-8 text-center text-slate-500" colSpan={7}>Nenhum item disponível para o mapa comparativo.</TableCell></TableRow> : null}</TableBody></Table></div>
+            <div className="flex flex-wrap gap-3"><Button type="button" variant="outline" onClick={() => previewMapa(false)}><FileSearch className="h-4 w-4" />Pré-visualizar HTML</Button><Button type="button" onClick={() => previewMapa(true)}><Printer className="h-4 w-4" />Gerar PDF</Button><Button type="button" variant="outline" onClick={() => void persistMapa("HTML")} disabled={generateMutation.isPending}><FileSearch className="h-4 w-4" />Salvar HTML no processo</Button><Button type="button" variant="outline" onClick={() => void persistMapa("PDF")} disabled={generateMutation.isPending}><Printer className="h-4 w-4" />Salvar PDF no processo</Button></div>
+            <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white"><Table className="min-w-[920px]"><TableHead><tr><TableHeaderCell>Item</TableHeaderCell><TableHeaderCell>Qtd.</TableHeaderCell><TableHeaderCell>Menor preço</TableHeaderCell><TableHeaderCell>Média</TableHeaderCell><TableHeaderCell>Mediana</TableHeaderCell><TableHeaderCell>Selecionado</TableHeaderCell><TableHeaderCell>Total</TableHeaderCell></tr></TableHead><TableBody>{detalhe.mapaComparativo.map((item) => <TableRow key={item.itemId}><TableCell className="align-top"><div className="font-bold text-slate-950">Item {item.numeroItem}</div><div className="text-xs text-slate-500">{item.descricao}</div></TableCell><TableCell className="align-top font-medium text-slate-800">{formatNumberBR(item.quantidade, 3)} {item.unidade}</TableCell><TableCell className="align-top font-medium text-slate-800">{formatCurrencyBRL(item.menorValorUnitario)}</TableCell><TableCell className="align-top font-medium text-slate-800">{formatCurrencyBRL(item.valorMedioUnitario)}</TableCell><TableCell className="align-top font-medium text-slate-800">{formatCurrencyBRL(item.valorMedianoUnitario)}</TableCell><TableCell className="align-top font-semibold text-slate-900">{formatCurrencyBRL(item.valorSelecionadoUnitario)}</TableCell><TableCell className="align-top font-semibold text-slate-900">{formatCurrencyBRL(item.valorReferenciaTotal)}</TableCell></TableRow>)}{!detalhe.mapaComparativo.length ? <TableRow><TableCell className="py-8 text-center text-slate-500" colSpan={7}>Nenhum item disponível para o mapa comparativo.</TableCell></TableRow> : null}</TableBody></Table></div>
           </div>
         </SectionCard>
       </section>
@@ -215,7 +264,7 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
         <Breadcrumb items={[{ label: "Planejamento", href: "/planejamento" }, { label: `Cotações ${detalhe.processo.numeroSirel}` }]} />
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">Planejamento</p><h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">Cotações preliminares do processo {detalhe.processo.numeroSirel}</h1><p className="mt-2 text-sm leading-6 text-slate-600">Etapa de lançamento das referências de mercado, metodologia e mapa comparativo.</p></div>
-          <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => setLocation(`/planejamento/etp/${processoId}`)}><FileSearch className="h-4 w-4" />Voltar ao ETP</Button><Button variant="outline" onClick={() => setLocation("/planejamento")}><ArrowLeft className="h-4 w-4" />Voltar ao Planejamento</Button></div>
+          <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => setLocation(`/planejamento/etp/${processoId}`)}><FileSearch className="h-4 w-4" />Voltar ao ETP</Button><Button variant="outline" onClick={() => setLocation(`/planejamento/tr/${processoId}`)}><ClipboardList className="h-4 w-4" />Abrir TR externo</Button><Button variant="outline" onClick={() => setLocation("/planejamento")}><ArrowLeft className="h-4 w-4" />Voltar ao Planejamento</Button></div>
         </div>
       </div>
       <div className={["grid gap-6", navCollapsed ? "xl:grid-cols-[92px_1fr]" : "xl:grid-cols-[240px_1fr]"].join(" ")}>

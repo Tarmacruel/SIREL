@@ -7,7 +7,7 @@ import "./styles.css";
 const container = document.getElementById("root");
 
 if (!container) {
-  throw new Error("Root container nao encontrado");
+  throw new Error("Root container não encontrado");
 }
 
 createRoot(container).render(

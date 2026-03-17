@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+﻿import { useState, type FormEvent } from "react";
 import { LockKeyhole, LogIn, ShieldCheck } from "lucide-react";
 
 import type { AuthSession } from "@/lib/auth-session";
@@ -27,30 +27,30 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(2,132,199,0.18),_transparent_24%),linear-gradient(160deg,_#eff6ff_0%,_#dbeafe_45%,_#e2e8f0_100%)] px-4 py-10">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="flex flex-col justify-between rounded-[36px] border border-white/70 bg-slate-950 px-8 py-8 text-white shadow-2xl shadow-slate-900/20">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(2,132,199,0.18),_transparent_24%),linear-gradient(160deg,_#eff6ff_0%,_#dbeafe_45%,_#e2e8f0_100%)] px-4 py-6 md:py-10">
+      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl gap-6 lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="flex flex-col justify-between rounded-[36px] border border-white/70 bg-slate-950 px-6 py-6 text-white shadow-2xl shadow-slate-900/20 md:px-8 md:py-8">
           <div>
             <div className="inline-flex rounded-full border border-sky-300/30 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-sky-200">SIREL Beta 2.0</div>
-            <h1 className="mt-6 max-w-lg text-4xl font-black leading-tight">Gestao moderna de licitacoes, documentos e workflow.</h1>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">A homologacao agora comeca pelo mesmo ponto do uso real: autenticacao, entrada no painel e operacao por perfil.</p>
+            <h1 className="mt-6 max-w-lg text-3xl font-black leading-tight md:text-4xl">Gestão moderna de licitações, documentos e workflow.</h1>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-slate-300">A homologação agora começa pelo mesmo ponto do uso real: autenticação, entrada no painel e operação por perfil.</p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <article className="rounded-3xl border border-white/10 bg-white/5 px-5 py-5">
               <ShieldCheck className="h-5 w-5 text-sky-300" />
-              <p className="mt-3 text-sm font-semibold">Perfil com permissao real</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">O acesso agora depende de sessao assinada, sem cabecalho demo no cliente.</p>
+              <p className="mt-3 text-sm font-semibold">Perfil com permissão real</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">O acesso agora depende de sessão assinada, sem cabeçalho demo no cliente.</p>
             </article>
             <article className="rounded-3xl border border-white/10 bg-white/5 px-5 py-5">
               <LockKeyhole className="h-5 w-5 text-sky-300" />
               <p className="mt-3 text-sm font-semibold">Ambiente beta controlado</p>
-              <p className="mt-2 text-sm leading-6 text-slate-300">Cadastros basicos importados; processos e movimentacoes serao recriados diretamente na nova base.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-300">Cadastros básicos importados; processos e movimentações serão recriados diretamente na nova base.</p>
             </article>
           </div>
         </section>
 
-        <section className="flex items-center justify-center rounded-[36px] border border-white/70 bg-white/90 px-6 py-8 shadow-xl shadow-slate-200/60 backdrop-blur">
+        <section className="flex items-center justify-center rounded-[36px] border border-white/70 bg-white/90 px-5 py-6 shadow-xl shadow-slate-200/60 backdrop-blur md:px-6 md:py-8">
           <div className="w-full max-w-md space-y-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-700">Acesso</p>
@@ -59,7 +59,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <FormField label="Usuario ou e-mail">
+              <FormField label="Usuário ou e-mail">
                 <Input required autoFocus value={login} onChange={(event) => setLogin(event.target.value)} placeholder="jonatas.sousa" />
               </FormField>
 
@@ -76,8 +76,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             </form>
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 px-5 py-4 text-sm text-slate-600">
-              <p className="font-semibold text-slate-900">Credencial beta padrao</p>
-              <p className="mt-2">Usuario: <span className="font-semibold text-slate-950">jonatas.sousa</span></p>
+              <p className="font-semibold text-slate-900">Credencial beta padrão</p>
+              <p className="mt-2">Usuário: <span className="font-semibold text-slate-950">jonatas.sousa</span></p>
               <p>Senha: <span className="font-semibold text-slate-950">SirelBeta@2026</span></p>
             </div>
           </div>

@@ -38,9 +38,9 @@ function buildAuthHeaders() {
 async function parseError(response: Response) {
   try {
     const payload = (await response.json()) as { message?: string };
-    return payload.message ?? "Falha na operacao com documentos.";
+    return payload.message ?? "Falha na operação com documentos.";
   } catch {
-    return "Falha na operacao com documentos.";
+    return "Falha na operação com documentos.";
   }
 }
 

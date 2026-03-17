@@ -22,6 +22,9 @@ const PlanejamentoDfdPage = lazy(() =>
 const PlanejamentoEtpPage = lazy(() =>
   import("@/pages/planejamento-etp-page").then((module) => ({ default: module.PlanejamentoEtpPage })),
 );
+const PlanejamentoTrPage = lazy(() =>
+  import("@/pages/planejamento-tr-page").then((module) => ({ default: module.PlanejamentoTrPage })),
+);
 const PlanejamentoPage = lazy(() => import("@/pages/planejamento-page").then((module) => ({ default: module.PlanejamentoPage })));
 const ProcessosPage = lazy(() => import("@/pages/processos-page").then((module) => ({ default: module.ProcessosPage })));
 const UsuariosPage = lazy(() => import("@/pages/usuarios-page").then((module) => ({ default: module.UsuariosPage })));
@@ -80,6 +83,9 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           </Route>
           <Route path="/planejamento/cotacoes/:processoId">
             {(params) => <PlanejamentoCotacoesPage processoId={Number(params.processoId)} />}
+          </Route>
+          <Route path="/planejamento/tr/:processoId">
+            {(params) => <PlanejamentoTrPage processoId={Number(params.processoId)} />}
           </Route>
           <Route path="/planejamento" component={PlanejamentoPage} />
           <Route path="/compras">{() => <PlaceholderPage title="Módulo de Compras" />}</Route>

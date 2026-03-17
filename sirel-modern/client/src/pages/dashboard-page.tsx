@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, BriefcaseBusiness, FolderOpenDot, Landmark } from "lucide-react";
+﻿import { AlertTriangle, ArrowRight, BriefcaseBusiness, FolderOpenDot, Landmark } from "lucide-react";
 import { Link } from "wouter";
 
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -20,16 +20,20 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard title="Processos ativos" value={String(data.processosAtivos)} hint="Monitoramento em tempo real da operacao do beta." icon={<FolderOpenDot className="h-5 w-5" />} />
+        <KpiCard title="Processos ativos" value={String(data.processosAtivos)} hint="Monitoramento em tempo real da operação do beta." icon={<FolderOpenDot className="h-5 w-5" />} />
         <KpiCard title="Contratos vigentes" value={String(data.contratosVigentes)} hint="Contratos vinculados aos processos recriados na nova base." icon={<BriefcaseBusiness className="h-5 w-5" />} />
-        <KpiCard title="Alertas pendentes" value={String(data.alertasPendentes)} hint="Prazos, vencimentos e exigencias documentais futuras." icon={<AlertTriangle className="h-5 w-5" />} />
+        <KpiCard title="Alertas pendentes" value={String(data.alertasPendentes)} hint="Prazos, vencimentos e exigências documentais futuras." icon={<AlertTriangle className="h-5 w-5" />} />
         <KpiCard title="Valor global" value={currencyFormatter.format(data.valorGlobalEstimado)} hint="Soma dos valores estimados em processos cadastrados no beta." icon={<Landmark className="h-5 w-5" />} />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <SectionCard title="Pronto para teste" description="A Beta 2.0 agora opera sem dependencia continua do legado.">
+        <SectionCard title="Pronto para teste" description="A Beta 2.0 agora opera sem dependência contínua do legado.">
           <div className="grid gap-3 md:grid-cols-3">
-            {[{ label: "Secretarias", value: catalogos.data?.secretarias.length }, { label: "Modalidades", value: catalogos.data?.modalidades.length }, { label: "Pessoas", value: catalogos.data?.pessoas.length }].map((item) => (
+            {[
+              { label: "Secretarias", value: catalogos.data?.secretarias.length },
+              { label: "Modalidades", value: catalogos.data?.modalidades.length },
+              { label: "Pessoas", value: catalogos.data?.pessoas.length },
+            ].map((item) => (
               <article key={item.label} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
                 {catalogos.isLoading ? <Skeleton className="mt-3 h-10 w-20" /> : <p className="mt-2 text-2xl font-black text-slate-950">{item.value ?? 0}</p>}
@@ -38,23 +42,24 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-4 rounded-[28px] border border-slate-200 bg-white px-5 py-5">
-            <p className="text-sm font-semibold text-slate-900">Roteiro rapido de validacao</p>
+            <p className="text-sm font-semibold text-slate-900">Roteiro rápido de validação</p>
             <ol className="mt-3 space-y-3 text-sm text-slate-600">
-              <li>1. Cadastre um processo novo no modulo de Processos.</li>
-              <li>2. Inicie a DFD no modulo de Planejamento.</li>
-              <li>3. Movimente o processo no Workflow ate a etapa de Licitacao.</li>
-              <li>4. Execute a publicidade e os controles da fase no modulo de Licitacao.</li>
+              <li>1. Cadastre um processo novo no módulo de Processos.</li>
+              <li>2. Inicie a DFD no módulo de Planejamento.</li>
+              <li>3. Conclua ETP, cotações preliminares e TR.</li>
+              <li>4. Movimente o processo no Workflow até a etapa de Licitação.</li>
+              <li>5. Execute a publicidade e os controles da fase no módulo de Licitação.</li>
             </ol>
             <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/planejamento"><Button variant="outline">Ir para Planejamento<ArrowRight className="h-4 w-4" /></Button></Link>
               <Link href="/processos"><Button>Ir para Processos<ArrowRight className="h-4 w-4" /></Button></Link>
               <Link href="/workflow"><Button variant="outline">Ir para Workflow<ArrowRight className="h-4 w-4" /></Button></Link>
-              <Link href="/licitacao"><Button variant="outline">Ir para Licitacao<ArrowRight className="h-4 w-4" /></Button></Link>
+              <Link href="/licitacao"><Button variant="outline">Ir para Licitação<ArrowRight className="h-4 w-4" /></Button></Link>
             </div>
           </div>
         </SectionCard>
 
-        <SectionCard title="Distribuicao operacional" description="Carga atual por modulo do workflow e aderencia do beta a operacao real.">
+        <SectionCard title="Distribuição operacional" description="Carga atual por módulo do workflow e aderência do beta à operação real.">
           {summary.error ? (
             <Alert variant="warning">Falha ao consultar os indicadores do PostgreSQL.</Alert>
           ) : summary.isLoading ? (
@@ -69,19 +74,19 @@ export function DashboardPage() {
               ))}
             </div>
           ) : (
-            <Alert variant="info">Nenhum processo operacional ainda. O painel sera preenchido conforme os novos processos forem cadastrados.</Alert>
+            <Alert variant="info">Nenhum processo operacional ainda. O painel será preenchido conforme os novos processos forem cadastrados.</Alert>
           )}
         </SectionCard>
       </div>
 
-      <SectionCard title="Processos recentes" description="Amostra operacional da nova base para conferencia rapida.">
+      <SectionCard title="Processos recentes" description="Amostra operacional da nova base para conferência rápida.">
         <div className="overflow-hidden rounded-[28px] border border-slate-200">
           <Table>
             <TableHead>
               <tr>
                 <TableHeaderCell>Processo</TableHeaderCell>
                 <TableHeaderCell>Secretaria</TableHeaderCell>
-                <TableHeaderCell>Modulo</TableHeaderCell>
+                <TableHeaderCell>Módulo</TableHeaderCell>
                 <TableHeaderCell>Valor estimado</TableHeaderCell>
               </tr>
             </TableHead>
@@ -98,7 +103,7 @@ export function DashboardPage() {
                   <TableCell>{row.valorEstimado ? currencyFormatter.format(Number(row.valorEstimado)) : "-"}</TableCell>
                 </TableRow>
               ))}
-              {!recentProcesses.isLoading && !recentProcesses.data?.items.length ? <TableRow><TableCell colSpan={4} className="text-slate-500">Nenhum processo criado ainda. Inicie a operacao em Processos.</TableCell></TableRow> : null}
+              {!recentProcesses.isLoading && !recentProcesses.data?.items.length ? <TableRow><TableCell colSpan={4} className="text-slate-500">Nenhum processo criado ainda. Inicie a operação em Processos.</TableCell></TableRow> : null}
             </TableBody>
           </Table>
         </div>

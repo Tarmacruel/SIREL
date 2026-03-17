@@ -8,7 +8,7 @@ export function mapZodFieldErrors(error: ZodError) {
   }, {});
 }
 
-export function readErrorMessage(error: unknown, fallback = "Nao foi possivel concluir a operacao.") {
+export function readErrorMessage(error: unknown, fallback = "Não foi possível concluir a operação.") {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error.trim()) return error;
   if (error instanceof z.ZodError && error.issues[0]?.message) return error.issues[0].message;

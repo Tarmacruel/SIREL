@@ -30,7 +30,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { Textarea } from "@/components/ui/textarea";
 import { type DfdFormState, validateDfdForm } from "@/features/planejamento/form";
 import { formatDecimalInput, formatNumberBR, normalizeDecimalInput } from "@/lib/formatters";
-import { buildDfdHtml, openPrintableHtml } from "@/lib/print-documents";
+import {
+  buildDfdHtml,
+  navigatePreviewWindow,
+  openPreviewWindow,
+  openPrintableHtml,
+  renderPreviewWindowMessage,
+} from "@/lib/print-documents";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -239,6 +245,18 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
     },
   });
 
+  const generateMutation = trpc.planejamento.generateDocumento.useMutation({
+    onSuccess: async (created) => {
+      await Promise.all([utils.documentos.list.invalidate(), utils.documentos.summary.invalidate()]);
+      setMessage(`Documento persistido no processo: ${created.titulo}.`);
+      setErrorMessage(null);
+    },
+    onError: (error) => {
+      setMessage(null);
+      setErrorMessage(error.message);
+    },
+  });
+
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
@@ -377,6 +395,34 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
     });
   }
 
+  async function handlePersistDfd(formato: "HTML" | "PDF") {
+    if (!detalhe) return;
+
+    let previewWindow: Window;
+    try {
+      previewWindow = openPreviewWindow(`DFD ${detalhe.processo.numeroSirel}`);
+    } catch (error) {
+      setMessage(null);
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível abrir a pré-visualização.");
+      return;
+    }
+
+    try {
+      renderPreviewWindowMessage(previewWindow, `DFD ${detalhe.processo.numeroSirel}`, "Gerando o arquivo e preparando a visualização...");
+      const created = await generateMutation.mutateAsync({ processoId, documento: "DFD", formato });
+      if (!created.arquivoUrl) {
+        throw new Error("O documento foi gerado, mas a URL de visualização não foi retornada.");
+      }
+      navigatePreviewWindow(previewWindow, created.arquivoUrl);
+    } catch (error) {
+      renderPreviewWindowMessage(
+        previewWindow,
+        `DFD ${detalhe.processo.numeroSirel}`,
+        error instanceof Error ? error.message : "Falha ao abrir a visualização do documento gerado.",
+      );
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-3 rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
@@ -395,6 +441,12 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
             </Button>
             <Button onClick={() => handleOpenDfd(true)}>
               Gerar PDF
+            </Button>
+            <Button variant="outline" onClick={() => void handlePersistDfd("HTML")} disabled={generateMutation.isPending || !detalhe.dfd}>
+              Salvar HTML no processo
+            </Button>
+            <Button variant="outline" onClick={() => void handlePersistDfd("PDF")} disabled={generateMutation.isPending || !detalhe.dfd}>
+              Salvar PDF no processo
             </Button>
             <Button variant="outline" onClick={() => setLocation("/planejamento")}>
               <ArrowLeft className="h-4 w-4" />
@@ -676,8 +728,8 @@ export function PlanejamentoDfdPage({ processoId }: PlanejamentoDfdPageProps) {
                   {itemMessage ? <Alert variant="success">{itemMessage}</Alert> : null}
                   {itemErrorMessage ? <Alert variant="error">{itemErrorMessage}</Alert> : null}
 
-                  <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                    <Table>
+                  <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+                    <Table className="min-w-[760px]">
                       <TableHead>
                         <tr>
                           <TableHeaderCell>Item</TableHeaderCell>

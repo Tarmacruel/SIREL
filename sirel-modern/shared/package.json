@@ -37,6 +37,10 @@
     "./schemas/usuarios": {
       "types": "./dist/schemas/usuarios.d.ts",
       "import": "./dist/schemas/usuarios.js"
+    },
+    "./document-templates/planejamento": {
+      "types": "./dist/document-templates/planejamento.d.ts",
+      "import": "./dist/document-templates/planejamento.js"
     }
   },
   "scripts": {

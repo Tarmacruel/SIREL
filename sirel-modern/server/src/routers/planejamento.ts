@@ -13,8 +13,11 @@ import {
   etpCotacaoDeleteInputSchema,
   etpCotacaoSaveInputSchema,
   etpSaveInputSchema,
+  planejamentoDocumentoGenerateInputSchema,
   planejamentoListInputSchema,
+  trSaveInputSchema,
 } from "@sirel/shared/schemas/planejamento";
+import { metodologiaCotacaoLabels } from "@sirel/shared/const";
 
 import { logAuditoria } from "../db/auditoria.js";
 import { requireDb } from "../db/client.js";
@@ -31,9 +34,11 @@ import {
   pessoas,
   processos,
   secretarias,
+  tr,
   users,
   workflowProcesso,
 } from "../db/schema.js";
+import { saveGeneratedPlanejamentoDocumento } from "../lib/planejamento-documentos.js";
 import { gestorProcedure, publicProcedure, router } from "../trpc.js";
 
 function toNumber(value: number | string | null | undefined) {
@@ -54,6 +59,71 @@ function calculateMedian(values: number[]) {
   return sorted.length % 2 === 1
     ? sorted[(sorted.length - 1) / 2]
     : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+}
+
+function buildAutomaticTrDraft({
+  processo,
+  dfdRow,
+  etpRow,
+  trRow,
+  itens,
+  mapaComparativo,
+}: {
+  processo: any;
+  dfdRow: any;
+  etpRow: any;
+  trRow: any;
+  itens: any[];
+  mapaComparativo: any[];
+}) {
+  const metodologiaCodigo = (etpRow?.metodologiaCotacao ?? "MEDIA") as keyof typeof metodologiaCotacaoLabels;
+  const metodologiaNome = metodologiaCotacaoLabels[metodologiaCodigo] ?? "Média";
+  const itensComReferencia = mapaComparativo.filter((item) => item.totalCotacoes > 0);
+  const quantidadeItens = itens.length;
+  const quantidadeReferencias = itensComReferencia.length;
+  const valorEstimadoFormatado = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(toNumber(processo.valorEstimado));
+  const orcamentoSigiloso = Boolean(trRow?.orcamentoSigiloso ?? false);
+
+  return {
+    id: trRow?.id ?? null,
+    processoId: processo.id,
+    objetoTermo:
+      trRow?.objetoTermo ??
+      processo.objeto,
+    fundamentacaoContratacao:
+      trRow?.fundamentacaoContratacao ??
+      [
+        `A presente contratação decorre da demanda formalizada na DFD do processo ${processo.numeroSirel}.`,
+        dfdRow?.justificativa ?? "A motivação da contratação está registrada na DFD da fase de Planejamento.",
+        `O ETP foi tratado por anexo externo e a consolidação econômica utilizou a metodologia ${metodologiaNome.toLowerCase()}.`,
+      ].join("\n\n"),
+    descricaoSolucao:
+      trRow?.descricaoSolucao ??
+      `A solução proposta contempla ${quantidadeItens} item(ns) definidos na DFD, com ${quantidadeReferencias} item(ns) já consolidados por cotações preliminares válidas.`,
+    requisitosContratacao:
+      trRow?.requisitosContratacao ??
+      "O futuro contratado deverá atender às especificações técnicas do processo, observar os requisitos de qualidade, prazo, habilitação e execução definidos nos documentos da fase de Planejamento.",
+    modeloExecucao:
+      trRow?.modeloExecucao ??
+      "A execução observará as condições estabelecidas no processo administrativo, no ETP externo anexado e nos documentos complementares do Planejamento.",
+    criteriosMedicaoPagamento:
+      trRow?.criteriosMedicaoPagamento ??
+      "A medição e o pagamento deverão observar a efetiva entrega do objeto, a conferência administrativa e as condições de liquidação definidas no processo.",
+    adequacaoOrcamentaria:
+      trRow?.adequacaoOrcamentaria ??
+      (orcamentoSigiloso
+        ? "O orçamento estimado da contratação possui caráter sigiloso nesta fase, permanecendo resguardado até o momento processual adequado, sem prejuízo da correspondente adequação orçamentária."
+        : `O valor estimado consolidado nesta etapa é de ${valorEstimadoFormatado}, sujeito à confirmação da reserva e da adequação orçamentária no fluxo subsequente.`),
+    orcamentoSigiloso,
+    observacoes: trRow?.observacoes ?? null,
+    concluido: trRow?.concluido ?? false,
+    criadoEm: trRow?.criadoEm ?? null,
+    atualizadoEm: trRow?.atualizadoEm ?? null,
+    geradoAutomaticamente: !trRow,
+  };
 }
 
 async function resolveSecretariaAdministracaoId() {
@@ -183,6 +253,198 @@ async function syncProcessoEstimativasFromEtp(processoId: number) {
     .where(eq(processos.id, processoId));
 }
 
+async function loadPlanejamentoDetail(processoId: number) {
+  const db = requireDb();
+  const [processo] = await db
+    .select({
+      id: processos.id,
+      numeroSirel: processos.numeroSirel,
+      numeroAdministrativo: processos.numeroAdministrativo,
+      objeto: processos.objeto,
+      secretariaId: secretarias.id,
+      secretaria: secretarias.nome,
+      etapaAtual: workflowProcesso.etapaAtual,
+      situacao: workflowProcesso.situacao,
+      autoridadeCompetenteId: processos.autoridadeCompetenteId,
+      valorEstimado: processos.valorEstimado,
+    })
+    .from(processos)
+    .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
+    .leftJoin(workflowProcesso, eq(workflowProcesso.processoId, processos.id))
+    .where(eq(processos.id, processoId))
+    .limit(1);
+
+  if (!processo) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
+  }
+
+  const [dfdRow, etpRow, trRow] = await Promise.all([
+    db.select().from(dfd).where(eq(dfd.processoId, processoId)).limit(1).then((rows) => rows[0] ?? null),
+    db.select().from(etp).where(eq(etp.processoId, processoId)).limit(1).then((rows) => rows[0] ?? null),
+    db.select().from(tr).where(eq(tr.processoId, processoId)).limit(1).then((rows) => rows[0] ?? null),
+  ]);
+
+  const [solicitante, secretariaResponsavel, responsaveis, secretariasParticipantes, itens, cotacoesPreliminares] = await Promise.all([
+    dfdRow?.solicitanteUserId
+      ? db
+          .select({ id: users.id, name: users.name, username: users.username, email: users.email })
+          .from(users)
+          .where(eq(users.id, dfdRow.solicitanteUserId))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
+    dfdRow?.secretariaResponsavelId
+      ? db
+          .select({ id: secretarias.id, nome: secretarias.nome, sigla: secretarias.sigla })
+          .from(secretarias)
+          .where(eq(secretarias.id, dfdRow.secretariaResponsavelId))
+          .limit(1)
+          .then((rows) => rows[0] ?? null)
+      : Promise.resolve(null),
+    dfdRow
+      ? db
+          .select({ id: pessoas.id, nome: pessoas.nome, cargo: pessoas.cargo, secretariaId: pessoas.secretariaId })
+          .from(dfdResponsaveis)
+          .innerJoin(pessoas, eq(pessoas.id, dfdResponsaveis.pessoaId))
+          .where(eq(dfdResponsaveis.dfdId, dfdRow.id))
+          .orderBy(asc(pessoas.nome))
+      : Promise.resolve([]),
+    dfdRow
+      ? db
+          .select({ id: secretarias.id, nome: secretarias.nome, sigla: secretarias.sigla })
+          .from(dfdSecretariasParticipantes)
+          .innerJoin(secretarias, eq(secretarias.id, dfdSecretariasParticipantes.secretariaId))
+          .where(eq(dfdSecretariasParticipantes.dfdId, dfdRow.id))
+          .orderBy(asc(secretarias.nome))
+      : Promise.resolve([]),
+    db
+      .select({
+        id: itensProcesso.id,
+        numeroItem: itensProcesso.numeroItem,
+        descricao: itensProcesso.descricao,
+        quantidade: itensProcesso.quantidade,
+        unidade: itensProcesso.unidade,
+        valorUnitarioEstimado: itensProcesso.valorUnitarioEstimado,
+        valorTotalEstimado: itensProcesso.valorTotalEstimado,
+      })
+      .from(itensProcesso)
+      .where(eq(itensProcesso.processoId, processoId))
+      .orderBy(asc(itensProcesso.numeroItem)),
+    etpRow
+      ? db
+          .select({
+            id: etpCotacoesPreliminares.id,
+            itemId: etpCotacoesPreliminares.itemId,
+            numeroItem: itensProcesso.numeroItem,
+            itemDescricao: itensProcesso.descricao,
+            itemQuantidade: itensProcesso.quantidade,
+            itemUnidade: itensProcesso.unidade,
+            fonte: etpCotacoesPreliminares.fonte,
+            fornecedorNome: etpCotacoesPreliminares.fornecedorNome,
+            documento: etpCotacoesPreliminares.documento,
+            dataCotacao: etpCotacoesPreliminares.dataCotacao,
+            quantidadeConsiderada: etpCotacoesPreliminares.quantidadeConsiderada,
+            valorUnitario: etpCotacoesPreliminares.valorUnitario,
+            valorTotal: etpCotacoesPreliminares.valorTotal,
+            considerada: etpCotacoesPreliminares.considerada,
+            motivoDesconsideracao: etpCotacoesPreliminares.motivoDesconsideracao,
+            justificativaDesconsideracao: etpCotacoesPreliminares.justificativaDesconsideracao,
+            observacao: etpCotacoesPreliminares.observacao,
+            atualizadoEm: etpCotacoesPreliminares.atualizadoEm,
+          })
+          .from(etpCotacoesPreliminares)
+          .innerJoin(itensProcesso, eq(itensProcesso.id, etpCotacoesPreliminares.itemId))
+          .where(eq(etpCotacoesPreliminares.etpId, etpRow.id))
+          .orderBy(asc(itensProcesso.numeroItem), asc(etpCotacoesPreliminares.fornecedorNome), desc(etpCotacoesPreliminares.atualizadoEm))
+      : Promise.resolve([]),
+  ]);
+
+  const cotacoesComAnalise = cotacoesPreliminares.map((cotacao) => {
+    const cotacoesDoItem = cotacoesPreliminares.filter((entry) => entry.itemId === cotacao.itemId);
+    const mediaItem =
+      cotacoesDoItem.reduce((acc, entry) => acc + toNumber(entry.valorUnitario), 0) / (cotacoesDoItem.length || 1);
+    return {
+      ...cotacao,
+      analiseFaixa: classifyQuoteAgainstAverage(toNumber(cotacao.valorUnitario), mediaItem),
+    };
+  });
+
+  const mapaComparativo = itens.map((item) => {
+    const cotacoesDoItem = cotacoesComAnalise.filter((cotacao) => cotacao.itemId === item.id && cotacao.considerada);
+    if (!cotacoesDoItem.length) {
+      return {
+        itemId: item.id,
+        numeroItem: item.numeroItem,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        totalCotacoes: 0,
+        metodologiaCotacao: etpRow?.metodologiaCotacao ?? "MEDIA",
+        menorValorUnitario: null,
+        maiorValorUnitario: null,
+        valorMedioUnitario: null,
+        valorMedianoUnitario: null,
+        valorSelecionadoUnitario: null,
+        valorReferenciaTotal: null,
+      };
+    }
+
+    const valores = cotacoesDoItem.map((cotacao) => toNumber(cotacao.valorUnitario)).sort((left, right) => left - right);
+    const media = valores.reduce((acc, current) => acc + current, 0) / valores.length;
+    const mediana = calculateMedian(valores);
+    const quantidade = toNumber(item.quantidade);
+    const valorSelecionado =
+      (etpRow?.metodologiaCotacao ?? "MEDIA") === "MENOR_PRECO"
+        ? valores[0]
+        : (etpRow?.metodologiaCotacao ?? "MEDIA") === "MEDIANA"
+          ? mediana
+          : media;
+
+    return {
+      itemId: item.id,
+      numeroItem: item.numeroItem,
+      descricao: item.descricao,
+      quantidade: item.quantidade,
+      unidade: item.unidade,
+      totalCotacoes: cotacoesDoItem.length,
+      metodologiaCotacao: etpRow?.metodologiaCotacao ?? "MEDIA",
+      menorValorUnitario: valores[0].toFixed(2),
+      maiorValorUnitario: valores[valores.length - 1].toFixed(2),
+      valorMedioUnitario: media.toFixed(2),
+      valorMedianoUnitario: mediana.toFixed(2),
+      valorSelecionadoUnitario: valorSelecionado.toFixed(2),
+      valorReferenciaTotal: (valorSelecionado * quantidade).toFixed(2),
+    };
+  });
+
+  const trDraft = buildAutomaticTrDraft({
+    processo,
+    dfdRow,
+    etpRow,
+    trRow,
+    itens,
+    mapaComparativo,
+  });
+
+  return {
+    processo,
+    dfd: dfdRow
+      ? {
+          ...dfdRow,
+          solicitante,
+          secretariaResponsavel,
+          responsaveis,
+          secretariasParticipantes,
+        }
+      : null,
+    etp: etpRow,
+    tr: trDraft,
+    itens,
+    cotacoesPreliminares: cotacoesComAnalise,
+    mapaComparativo,
+  };
+}
+
 export const planejamentoRouter = router({
   list: publicProcedure.input(planejamentoListInputSchema.optional()).query(async ({ input }) => {
     const db = requireDb();
@@ -213,6 +475,8 @@ export const planejamentoRouter = router({
         dfdConcluido: dfd.concluido,
         etpId: etp.id,
         etpConcluido: etp.concluido,
+        trId: tr.id,
+        trConcluido: tr.concluido,
         atualizadoEm: workflowProcesso.atualizadoEm,
         grauPrioridade: dfd.grauPrioridade,
         demandaSistemica: dfd.demandaSistemica,
@@ -222,6 +486,7 @@ export const planejamentoRouter = router({
       .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
       .leftJoin(dfd, eq(dfd.processoId, processos.id))
       .leftJoin(etp, eq(etp.processoId, processos.id))
+      .leftJoin(tr, eq(tr.processoId, processos.id))
       .where(and(...filters))
       .orderBy(asc(processos.numeroSirel));
 
@@ -253,184 +518,7 @@ export const planejamentoRouter = router({
   }),
 
   detail: publicProcedure.input(z.object({ processoId: z.number().int().positive() })).query(async ({ input }) => {
-    const db = requireDb();
-    const [processo] = await db
-      .select({
-        id: processos.id,
-        numeroSirel: processos.numeroSirel,
-        numeroAdministrativo: processos.numeroAdministrativo,
-        objeto: processos.objeto,
-        secretariaId: secretarias.id,
-        secretaria: secretarias.nome,
-        etapaAtual: workflowProcesso.etapaAtual,
-        situacao: workflowProcesso.situacao,
-        autoridadeCompetenteId: processos.autoridadeCompetenteId,
-        valorEstimado: processos.valorEstimado,
-      })
-      .from(processos)
-      .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
-      .leftJoin(workflowProcesso, eq(workflowProcesso.processoId, processos.id))
-      .where(eq(processos.id, input.processoId))
-      .limit(1);
-
-    if (!processo) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
-    }
-
-    const [dfdRow, etpRow] = await Promise.all([
-      db.select().from(dfd).where(eq(dfd.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
-      db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
-    ]);
-
-    const [solicitante, secretariaResponsavel, responsaveis, secretariasParticipantes, itens, cotacoesPreliminares] = await Promise.all([
-      dfdRow?.solicitanteUserId
-        ? db
-            .select({ id: users.id, name: users.name, username: users.username, email: users.email })
-            .from(users)
-            .where(eq(users.id, dfdRow.solicitanteUserId))
-            .limit(1)
-            .then((rows) => rows[0] ?? null)
-        : Promise.resolve(null),
-      dfdRow?.secretariaResponsavelId
-        ? db
-            .select({ id: secretarias.id, nome: secretarias.nome, sigla: secretarias.sigla })
-            .from(secretarias)
-            .where(eq(secretarias.id, dfdRow.secretariaResponsavelId))
-            .limit(1)
-            .then((rows) => rows[0] ?? null)
-        : Promise.resolve(null),
-      dfdRow
-        ? db
-            .select({ id: pessoas.id, nome: pessoas.nome, cargo: pessoas.cargo, secretariaId: pessoas.secretariaId })
-            .from(dfdResponsaveis)
-            .innerJoin(pessoas, eq(pessoas.id, dfdResponsaveis.pessoaId))
-            .where(eq(dfdResponsaveis.dfdId, dfdRow.id))
-            .orderBy(asc(pessoas.nome))
-        : Promise.resolve([]),
-      dfdRow
-        ? db
-            .select({ id: secretarias.id, nome: secretarias.nome, sigla: secretarias.sigla })
-            .from(dfdSecretariasParticipantes)
-            .innerJoin(secretarias, eq(secretarias.id, dfdSecretariasParticipantes.secretariaId))
-            .where(eq(dfdSecretariasParticipantes.dfdId, dfdRow.id))
-            .orderBy(asc(secretarias.nome))
-        : Promise.resolve([]),
-      db
-        .select({
-          id: itensProcesso.id,
-          numeroItem: itensProcesso.numeroItem,
-          descricao: itensProcesso.descricao,
-          quantidade: itensProcesso.quantidade,
-          unidade: itensProcesso.unidade,
-          valorUnitarioEstimado: itensProcesso.valorUnitarioEstimado,
-          valorTotalEstimado: itensProcesso.valorTotalEstimado,
-        })
-        .from(itensProcesso)
-        .where(eq(itensProcesso.processoId, input.processoId))
-        .orderBy(asc(itensProcesso.numeroItem)),
-      etpRow
-        ? db
-            .select({
-              id: etpCotacoesPreliminares.id,
-              itemId: etpCotacoesPreliminares.itemId,
-              numeroItem: itensProcesso.numeroItem,
-              itemDescricao: itensProcesso.descricao,
-              itemQuantidade: itensProcesso.quantidade,
-              itemUnidade: itensProcesso.unidade,
-              fonte: etpCotacoesPreliminares.fonte,
-              fornecedorNome: etpCotacoesPreliminares.fornecedorNome,
-              documento: etpCotacoesPreliminares.documento,
-              dataCotacao: etpCotacoesPreliminares.dataCotacao,
-              quantidadeConsiderada: etpCotacoesPreliminares.quantidadeConsiderada,
-              valorUnitario: etpCotacoesPreliminares.valorUnitario,
-              valorTotal: etpCotacoesPreliminares.valorTotal,
-              considerada: etpCotacoesPreliminares.considerada,
-              motivoDesconsideracao: etpCotacoesPreliminares.motivoDesconsideracao,
-              justificativaDesconsideracao: etpCotacoesPreliminares.justificativaDesconsideracao,
-              observacao: etpCotacoesPreliminares.observacao,
-              atualizadoEm: etpCotacoesPreliminares.atualizadoEm,
-            })
-            .from(etpCotacoesPreliminares)
-            .innerJoin(itensProcesso, eq(itensProcesso.id, etpCotacoesPreliminares.itemId))
-            .where(eq(etpCotacoesPreliminares.etpId, etpRow.id))
-            .orderBy(asc(itensProcesso.numeroItem), asc(etpCotacoesPreliminares.fornecedorNome), desc(etpCotacoesPreliminares.atualizadoEm))
-        : Promise.resolve([]),
-    ]);
-
-    const cotacoesComAnalise = cotacoesPreliminares.map((cotacao) => {
-      const cotacoesDoItem = cotacoesPreliminares.filter((entry) => entry.itemId === cotacao.itemId);
-      const mediaItem =
-        cotacoesDoItem.reduce((acc, entry) => acc + toNumber(entry.valorUnitario), 0) / (cotacoesDoItem.length || 1);
-      return {
-        ...cotacao,
-        analiseFaixa: classifyQuoteAgainstAverage(toNumber(cotacao.valorUnitario), mediaItem),
-      };
-    });
-
-    const mapaComparativo = itens.map((item) => {
-      const cotacoesDoItem = cotacoesComAnalise.filter((cotacao) => cotacao.itemId === item.id && cotacao.considerada);
-      if (!cotacoesDoItem.length) {
-        return {
-          itemId: item.id,
-          numeroItem: item.numeroItem,
-          descricao: item.descricao,
-          quantidade: item.quantidade,
-          unidade: item.unidade,
-          totalCotacoes: 0,
-          metodologiaCotacao: etpRow?.metodologiaCotacao ?? "MEDIA",
-          menorValorUnitario: null,
-          maiorValorUnitario: null,
-          valorMedioUnitario: null,
-          valorMedianoUnitario: null,
-          valorSelecionadoUnitario: null,
-          valorReferenciaTotal: null,
-        };
-      }
-
-      const valores = cotacoesDoItem.map((cotacao) => toNumber(cotacao.valorUnitario)).sort((left, right) => left - right);
-      const media = valores.reduce((acc, current) => acc + current, 0) / valores.length;
-      const mediana = calculateMedian(valores);
-      const quantidade = toNumber(item.quantidade);
-      const valorSelecionado =
-        (etpRow?.metodologiaCotacao ?? "MEDIA") === "MENOR_PRECO"
-          ? valores[0]
-          : (etpRow?.metodologiaCotacao ?? "MEDIA") === "MEDIANA"
-            ? mediana
-            : media;
-
-      return {
-        itemId: item.id,
-        numeroItem: item.numeroItem,
-        descricao: item.descricao,
-        quantidade: item.quantidade,
-        unidade: item.unidade,
-        totalCotacoes: cotacoesDoItem.length,
-        metodologiaCotacao: etpRow?.metodologiaCotacao ?? "MEDIA",
-        menorValorUnitario: valores[0].toFixed(2),
-        maiorValorUnitario: valores[valores.length - 1].toFixed(2),
-        valorMedioUnitario: media.toFixed(2),
-        valorMedianoUnitario: mediana.toFixed(2),
-        valorSelecionadoUnitario: valorSelecionado.toFixed(2),
-        valorReferenciaTotal: (valorSelecionado * quantidade).toFixed(2),
-      };
-    });
-
-    return {
-      processo,
-      dfd: dfdRow
-        ? {
-            ...dfdRow,
-            solicitante,
-            secretariaResponsavel,
-            responsaveis,
-            secretariasParticipantes,
-          }
-        : null,
-      etp: etpRow,
-      itens,
-      cotacoesPreliminares: cotacoesComAnalise,
-      mapaComparativo,
-    };
+    return loadPlanejamentoDetail(input.processoId);
   }),
 
   saveDfd: gestorProcedure.input(dfdSaveInputSchema).mutation(async ({ ctx, input }) => {
@@ -667,15 +755,19 @@ export const planejamentoRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "DFD nao encontrada para este processo." });
     }
 
-    const [processo, existingEtp] = await Promise.all([
+    const [processo, existingEtp, existingTr] = await Promise.all([
       db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
       db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(tr).where(eq(tr.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
     ]);
     const itensRemovidos = await db.select().from(itensProcesso).where(eq(itensProcesso.processoId, input.processoId));
 
     await db.delete(itensProcesso).where(eq(itensProcesso.processoId, input.processoId));
     if (existingEtp) {
       await db.delete(etp).where(eq(etp.id, existingEtp.id));
+    }
+    if (existingTr) {
+      await db.delete(tr).where(eq(tr.id, existingTr.id));
     }
     await db.delete(dfd).where(eq(dfd.id, existingDfd.id));
     await db.update(processos).set({ valorEstimado: null, atualizadoEm: new Date() }).where(eq(processos.id, input.processoId));
@@ -703,7 +795,7 @@ export const planejamentoRouter = router({
       tabela: "dfd",
       registroId: existingDfd.id,
       acao: "DELETE",
-      dadosAnteriores: { ...existingDfd, etp: existingEtp, itensRemovidos },
+      dadosAnteriores: { ...existingDfd, etp: existingEtp, tr: existingTr, itensRemovidos },
       descricao: `DFD do processo ${processo?.numeroSirel ?? input.processoId} excluida`,
     });
 
@@ -936,6 +1028,137 @@ export const planejamentoRouter = router({
     });
 
     return { success: true };
+  }),
+
+  saveTr: gestorProcedure.input(trSaveInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [processo, dfdRow, etpRow, existingTr, trDocumentoRow] = await Promise.all([
+      db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(dfd).where(eq(dfd.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(etp).where(eq(etp.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db.select().from(tr).where(eq(tr.processoId, input.processoId)).limit(1).then((rows) => rows[0] ?? null),
+      db
+        .select({ id: documentos.id })
+        .from(documentos)
+        .where(and(eq(documentos.processoId, input.processoId), eq(documentos.categoria, "TR_EXTERNO")))
+        .limit(1)
+        .then((rows) => rows[0] ?? null),
+    ]);
+
+    if (!processo) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
+    }
+    if (!dfdRow?.concluido) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Conclua a DFD antes de registrar o TR." });
+    }
+    if (!etpRow?.concluido) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Conclua o ETP antes de registrar o TR." });
+    }
+
+    const detail = await loadPlanejamentoDetail(input.processoId);
+    const itensComReferencia = detail.mapaComparativo.filter((item) => item.totalCotacoes > 0);
+    if (input.concluir && !trDocumentoRow) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Anexe o documento principal do TR antes de concluir esta etapa.",
+      });
+    }
+    if (input.concluir && !itensComReferencia.length) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Registre cotações preliminares válidas antes de concluir o TR.",
+      });
+    }
+
+    const trBase = detail.tr;
+    const payload = {
+      objetoTermo: trBase.objetoTermo,
+      fundamentacaoContratacao: trBase.fundamentacaoContratacao,
+      descricaoSolucao: trBase.descricaoSolucao,
+      requisitosContratacao: trBase.requisitosContratacao,
+      modeloExecucao: trBase.modeloExecucao?.trim() || null,
+      criteriosMedicaoPagamento: trBase.criteriosMedicaoPagamento?.trim() || null,
+      adequacaoOrcamentaria: trBase.adequacaoOrcamentaria?.trim() || null,
+      orcamentoSigiloso: input.orcamentoSigiloso,
+      observacoes: input.observacoes?.trim() || null,
+      concluido: input.concluir,
+      atualizadoEm: new Date(),
+    };
+
+    const [saved] = existingTr
+      ? await db.update(tr).set(payload).where(eq(tr.id, existingTr.id)).returning()
+      : await db
+          .insert(tr)
+          .values({
+            processoId: input.processoId,
+            criadoEm: new Date(),
+            ...payload,
+          })
+          .returning();
+
+    await db
+      .update(workflowProcesso)
+      .set({
+        etapaAtual: input.concluir ? "TR externo anexado" : "TR externo em elaboração",
+        situacao: "EM_ANDAMENTO",
+        atualizadoEm: new Date(),
+      })
+      .where(eq(workflowProcesso.processoId, input.processoId));
+
+    await db.insert(movimentacoesWorkflow).values({
+      processoId: input.processoId,
+      moduloOrigem: "PLANEJAMENTO",
+      moduloDestino: "PLANEJAMENTO",
+      descricao: existingTr ? "Configuração do TR atualizada" : "TR externo iniciado no Planejamento",
+      observacao: input.concluir
+        ? "Documento principal do TR anexado e etapa marcada como concluída."
+        : "Etapa do TR externo salva em elaboração.",
+      usuarioId: ctx.user?.id ?? null,
+      criadoEm: new Date(),
+    });
+
+    await logAuditoria(ctx, {
+      tabela: "tr",
+      registroId: saved.id,
+      acao: existingTr ? "UPDATE" : "CREATE",
+      dadosAnteriores: existingTr ?? null,
+      dadosNovos: saved,
+      descricao: `TR do processo ${processo.numeroSirel} ${existingTr ? "atualizado" : "criado"} como etapa com anexo externo`,
+    });
+
+    return saved;
+  }),
+
+  generateDocumento: gestorProcedure.input(planejamentoDocumentoGenerateInputSchema).mutation(async ({ ctx, input }) => {
+    const detail = await loadPlanejamentoDetail(input.processoId);
+
+    if (input.documento === "DFD" && !detail.dfd) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Registre a DFD antes de gerar o documento." });
+    }
+    if (input.documento === "MAPA_COMPARATIVO" && !detail.etp) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Registre o ETP e as cotacoes preliminares antes de gerar o mapa." });
+    }
+    if (input.documento === "TR" && (!detail.dfd || !detail.etp)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Conclua DFD e ETP antes de gerar o documento-base do TR." });
+    }
+
+    const created = await saveGeneratedPlanejamentoDocumento({
+      ctx,
+      processoId: input.processoId,
+      documento: input.documento,
+      formato: input.formato,
+      detail,
+    });
+
+    await logAuditoria(ctx, {
+      tabela: "documentos",
+      registroId: created.id,
+      acao: "CREATE",
+      dadosNovos: created,
+      descricao: `${input.documento} em ${input.formato} gerado e persistido no acervo do processo ${detail.processo.numeroSirel}`,
+    });
+
+    return created;
   }),
 
   catalogList: publicProcedure.input(catalogoItemListInputSchema.optional()).query(async ({ input }) => {

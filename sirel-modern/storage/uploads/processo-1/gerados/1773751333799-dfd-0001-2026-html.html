@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DFD 0001/2026</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #0f172a;
+        --muted: #475569;
+        --line: #cbd5e1;
+        --soft: #e2e8f0;
+        --panel: #f8fafc;
+        --brand: #0f766e;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: #eef2ff; color: var(--ink); font: 14px/1.6 "Segoe UI", Tahoma, sans-serif; }
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 12mm auto;
+        background: #fff;
+        border: 1px solid var(--soft);
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+        padding: 18mm 16mm 18mm;
+      }
+      .header { border-bottom: 3px solid var(--brand); padding-bottom: 12px; margin-bottom: 18px; }
+      .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--brand); }
+      h1 { margin: 8px 0 0; font-size: 28px; line-height: 1.15; }
+      h2 { margin: 22px 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.12em; }
+      p { margin: 0 0 10px; text-align: justify; }
+      .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 16px 0; }
+      .card { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--panel); }
+      .label { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+      .value { margin-top: 4px; font-size: 14px; font-weight: 600; color: var(--ink); }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th, td { border: 1px solid var(--line); padding: 9px 10px; vertical-align: top; }
+      th { background: var(--panel); text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; }
+      td { font-size: 13px; }
+      .muted { color: var(--muted); }
+      .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+      @page { size: A4; margin: 12mm; }
+      @media print {
+        body { background: #fff; }
+        .page { margin: 0; border: 0; box-shadow: none; width: auto; min-height: auto; padding: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+    <header class="header">
+      <div class="eyebrow">Planejamento · Documento de Formalização da Demanda</div>
+      <h1>DFD 0001/2026</h1>
+      <p class="muted">Processo administrativo 100/2026</p>
+    </header>
+
+    <section class="grid">
+      <article class="card">
+        <div class="label">Secretaria demandante</div>
+        <div class="value">SECRETARIA DE ADMINISTRAÇÃO</div>
+      </article>
+      <article class="card">
+        <div class="label">Solicitante</div>
+        <div class="value">Jonatas Sousa</div>
+      </article>
+      <article class="card">
+        <div class="label">Prioridade</div>
+        <div class="value">MEDIA</div>
+      </article>
+      <article class="card">
+        <div class="label">Secretaria responsável</div>
+        <div class="value">SECRETARIA DE ADMINISTRAÇÃO</div>
+      </article>
+      <article class="card">
+        <div class="label">Data da necessidade</div>
+        <div class="value">15/03/2026</div>
+      </article>
+      <article class="card">
+        <div class="label">Previsão de conclusão</div>
+        <div class="value">02/04/2026</div>
+      </article>
+    </section>
+
+    <h2>Objeto</h2>
+    <p>Contratação de empresa especializada no fornecimento de materiais para implementação de PADARIA ESCOLA, a fim de atender as necessidades da Secretaria de Promoção Social.</p>
+
+    <h2>Justificativa</h2>
+    <p>Essa iniciativa surge como resposta direta aos desafios identificados nos dados socioeconômicos da região, que<br/>evidenciam a necessidade de ações estratégicas para enfrentar a fome e o desemprego. Como se trata de um<br/>programa inovador dentro da rede de assistência social do município, sua inclusão no planejamento<br/>orçamentário depende de um processo de viabilização financeira e captação de recursos.</p>
+
+    <h2>Responsáveis</h2>
+    <p>ANA CARLA CAIRES DA SILVA GUERRA - CHEFE DA DIVISÃO DE PLANEJAMENTO</p>
+
+    <h2>Secretarias participantes</h2>
+    <p>CONTROLADORIA GERAL DO MUNICÍPIO<br/>PROCURADORIA GERAL DO MUNICÍPIO<br/>SECRETARIA DE AGRICULTURA PECUÁRIA E ABASTECIMENTO</p>
+
+    <h2>Itens da DFD</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Descrição</th>
+          <th>Quantidade</th>
+          <th>Unidade</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+              <tr>
+                <td>1</td>
+                <td>Farinha de Trigo, Tipo 1, Pacote com 500g em papel.</td>
+                <td>6.000</td>
+                <td>PCT</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>Melhorador de farinha, pacote de 30g</td>
+                <td>1.000</td>
+                <td>PCT</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>Ovo, tipo branco, tamanho médio, cartela de 30.</td>
+                <td>700</td>
+                <td>CART</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>Sal marinho refinado, pacote de 1kg</td>
+                <td>200</td>
+                <td>kg</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td>Cacau em pó 70%</td>
+                <td>100</td>
+                <td>KG</td>
+              </tr>
+      </tbody>
+    </table>
+
+    
+
+    <div class="footer">Documento gerado pelo SIREL Beta 2.0 em 17/03/2026.</div>
+  </main>
+  </body>
+</html>

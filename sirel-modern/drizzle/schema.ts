@@ -182,6 +182,23 @@ export const etp = pgTable("etp", {
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const tr = pgTable("tr", {
+  id: serial("id").primaryKey(),
+  processoId: integer("processo_id").notNull().unique().references(() => processos.id, { onDelete: "cascade" }),
+  objetoTermo: text("objeto_termo").notNull(),
+  fundamentacaoContratacao: text("fundamentacao_contratacao").notNull(),
+  descricaoSolucao: text("descricao_solucao").notNull(),
+  requisitosContratacao: text("requisitos_contratacao").notNull(),
+  modeloExecucao: text("modelo_execucao"),
+  criteriosMedicaoPagamento: text("criterios_medicao_pagamento"),
+  adequacaoOrcamentaria: text("adequacao_orcamentaria"),
+  orcamentoSigiloso: boolean("orcamento_sigiloso").notNull().default(false),
+  observacoes: text("observacoes"),
+  concluido: boolean("concluido").notNull().default(false),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const catalogoItens = pgTable("catalogo_itens", {
   id: serial("id").primaryKey(),
   descricao: text("descricao").notNull(),

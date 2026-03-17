@@ -66,7 +66,7 @@ export function PlanejamentoPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
               <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Fila do Planejamento</p>
                 <p className="mt-2 text-2xl font-black text-slate-950">{rows.length}</p>
@@ -80,18 +80,23 @@ export function PlanejamentoPage() {
                 <p className="mt-2 text-2xl font-black text-slate-950">{rows.filter((item) => item.etpConcluido).length}</p>
               </article>
               <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">TRs concluídos</p>
+                <p className="mt-2 text-2xl font-black text-slate-950">{rows.filter((item) => item.trConcluido).length}</p>
+              </article>
+              <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Cotações registradas</p>
                 <p className="mt-2 text-2xl font-black text-slate-950">{rows.reduce((acc, item) => acc + item.cotacoesCount, 0)}</p>
               </article>
             </div>
 
-            <div className="mt-4 overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-              <Table>
+            <div className="mt-4 overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+              <Table className="min-w-[760px]">
                 <TableHead>
                   <tr>
                     <TableHeaderCell>Processo</TableHeaderCell>
                     <TableHeaderCell>DFD</TableHeaderCell>
                     <TableHeaderCell>ETP</TableHeaderCell>
+                    <TableHeaderCell>TR</TableHeaderCell>
                     <TableHeaderCell>Cotações</TableHeaderCell>
                     <TableHeaderCell className="text-right">Ações</TableHeaderCell>
                   </tr>
@@ -113,6 +118,11 @@ export function PlanejamentoPage() {
                       <TableCell className="align-top">
                         <span className={["inline-flex rounded-full px-3 py-1 text-xs font-bold", etapaStatusClass(item.etpId, item.etpConcluido)].join(" ")}>
                           {etapaStatusLabel(item.etpId, item.etpConcluido)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <span className={["inline-flex rounded-full px-3 py-1 text-xs font-bold", etapaStatusClass(item.trId, item.trConcluido)].join(" ")}>
+                          {etapaStatusLabel(item.trId, item.trConcluido)}
                         </span>
                       </TableCell>
                       <TableCell className="align-top">
@@ -140,13 +150,19 @@ export function PlanejamentoPage() {
                             Cotações
                             <ArrowRight className="h-3.5 w-3.5" />
                           </Link>
+                          <Link
+                            href={`/planejamento/tr/${item.processoId}`}
+                            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
+                          >
+                            TR externo
+                          </Link>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
                   {!rows.length ? (
                     <TableRow>
-                      <TableCell className="py-8 text-center text-slate-500" colSpan={5}>
+                      <TableCell className="py-8 text-center text-slate-500" colSpan={6}>
                         Nenhum processo em Planejamento. Crie um processo no fluxo regular para iniciar a DFD.
                       </TableCell>
                     </TableRow>
@@ -157,7 +173,7 @@ export function PlanejamentoPage() {
 
             <div className="mt-4">
               <Alert variant="info" title="Fluxo da fase">
-                O Planejamento agora opera em três telas dedicadas: DFD para estrutura da demanda, ETP para análise técnica e cotações preliminares para consolidação do valor estimado.
+                O Planejamento agora opera em quatro telas dedicadas: DFD para estrutura da demanda, ETP para anexos externos, cotações preliminares para consolidação do valor estimado e TR externo para o fechamento documental da fase.
               </Alert>
             </div>
           </>

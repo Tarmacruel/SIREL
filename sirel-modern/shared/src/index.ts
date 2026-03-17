@@ -5,3 +5,4 @@ export * from "./schemas/dashboard.js";
 export * from "./schemas/planejamento.js";
 export * from "./schemas/workflow.js";
 export * from "./schemas/usuarios.js";
+export * from "./document-templates/planejamento.js";

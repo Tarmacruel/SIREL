@@ -180,9 +180,20 @@ app.get("/api/planejamento/documentos/:documentoId/download", async (req, res) =
     }
 
     const absolutePath = join(uploadsRoot, documento.arquivoChave);
+    if (!existsSync(absolutePath)) {
+      res.status(404).json({ message: "Arquivo fisico nao encontrado." });
+      return;
+    }
+
     const extension = extname(documento.arquivoChave || "") || extname(absolutePath);
     const downloadName = `${slugifyFileName(documento.titulo || "documento") || "documento"}${extension}`;
-    res.download(absolutePath, downloadName);
+    const forceDownload = String(req.query.download ?? "").trim() === "1";
+    const mimeType = documento.mimeType?.trim() || "application/octet-stream";
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `${forceDownload ? "attachment" : "inline"}; filename=\"${downloadName}\"`);
+    res.sendFile(absolutePath);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Falha ao disponibilizar o documento." });

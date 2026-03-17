@@ -334,8 +334,8 @@ export function UsuariosPage() {
                     </FormField>
                   </div>
 
-                  <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                    <Table>
+                  <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+                    <Table className="min-w-[720px]">
                       <TableHead>
                         <tr>
                           <TableHeaderCell>Usuário</TableHeaderCell>
