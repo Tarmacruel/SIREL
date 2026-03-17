@@ -1,0 +1,204 @@
+﻿{% extends 'workflow/base.html' %}
+
+{% block extra_head %}
+<style>
+  .aviso-shell{display:grid;grid-template-columns:minmax(0,700px) minmax(380px,1fr);gap:20px;align-items:start}
+  .aviso-shell.preview-hidden .preview-wrap{display:none}
+  .aviso-form{display:grid;gap:16px}
+  .aviso-card{border:1px solid var(--border);background:linear-gradient(180deg,var(--surface-elevated) 0%,var(--surface) 100%);border-radius:18px;padding:16px;box-shadow:var(--shadow-sm)}
+  .aviso-card h3{margin:0 0 12px;font-size:18px;line-height:1.2}
+  .aviso-hero{background:linear-gradient(140deg,#0f3256,#1b5a91 58%,#2e7dc3);color:#fff;border-radius:22px;padding:20px;box-shadow:0 18px 40px rgba(16,58,99,.18)}
+  .aviso-hero strong{display:block;font-size:30px;line-height:1.04;letter-spacing:-.02em}
+  .aviso-hero small{display:block;margin-top:8px;opacity:.88;font-size:13px}
+  .hero-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.hero-pills span{display:inline-flex;padding:6px 11px;border-radius:999px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);font-size:12px;font-weight:700}
+  .anchor-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.anchor-row a{text-decoration:none;color:var(--text);border:1px solid var(--border);background:var(--surface-soft);padding:8px 12px;border-radius:999px;font-size:12px;font-weight:700}
+  .anchor-row .btn-secondary{width:auto}
+  #toggle-preview-mobile{display:none}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .field{display:grid;gap:6px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+  .field textarea{min-height:110px;resize:vertical}
+  .check-row{display:flex;gap:14px;flex-wrap:wrap}.check-row label{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+  .prazo-card{border:1px solid #cfe0f4;background:linear-gradient(180deg,#f5f9ff,#eef5fd);border-radius:16px;padding:14px}.prazo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}.prazo-grid div{border:1px solid #d8e5f6;background:#fff;border-radius:12px;padding:10px;text-align:center}.prazo-grid strong{display:block;font-size:18px;color:#153153;margin-top:4px}.prazo-grid span{display:block;font-size:11px;color:#637591;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+  .prazo-status{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}.prazo-badge{display:inline-flex;padding:7px 12px;border-radius:999px;font-size:12px;font-weight:800}.prazo-badge.ok{background:#e7f7ec;color:#19683e;border:1px solid #acd4b8}.prazo-badge.warn{background:#fff4e6;color:#915316;border:1px solid #ebc48d}.prazo-track{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.prazo-day{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:#fff;display:grid;place-items:center;font-size:11px;font-weight:700;color:#5b6c87}.prazo-day.pub{background:#173f72;color:#fff;border-color:#173f72}.prazo-day.work{background:#e7f2ff;color:#173f72;border-color:#c6d8f3}.prazo-day.end{background:#dff4e7;color:#19683e;border-color:#acd4b8}.prazo-day.off{background:#f3f4f7;color:#8a92a0}
+  .publicidade-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}.publicidade-card{border:1px solid var(--border);border-radius:14px;background:var(--surface-soft);padding:12px;display:grid;gap:10px}.publicidade-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.publicidade-card-head strong{display:block;font-size:13px;color:#153153}.publicidade-status{display:inline-flex;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800}.publicidade-status.ok{background:#e7f7ec;color:#19683e;border:1px solid #acd4b8}.publicidade-status.pending{background:#fff4e6;color:#915316;border:1px solid #ebc48d}.publicidade-meta{font-size:12px;color:var(--muted);line-height:1.45;overflow-wrap:anywhere}.publicidade-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.publicidade-actions input[type=file]{max-width:100%}.publicidade-summary{margin-top:10px;font-size:12px;color:var(--muted)}
+  .rich-editor{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}.rich-toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border-bottom:1px solid var(--border);background:var(--surface-soft)}.btn-mini{padding:5px 8px;border-radius:8px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--surface);cursor:pointer}.rich-content{min-height:220px;padding:12px;outline:none;line-height:1.55}.rich-content p{margin:0 0 8px}.rich-content ul,.rich-content ol{margin:4px 0 8px 22px}#id_corpo,#id_corpo_editor{display:none!important}
+  .sign-picker{border:1px solid var(--border);border-radius:14px;background:var(--surface-soft);padding:10px;display:grid;gap:10px}.sign-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sign-panel{border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:8px}.sign-panel h4{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin:0 0 6px}.table-wrap{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:10px}.sign-picker table{width:100%;border-collapse:collapse}.sign-picker th,.sign-picker td{font-size:12px;padding:7px;border-bottom:1px solid var(--border);vertical-align:top}.sign-picker thead th{position:sticky;top:0;z-index:1;background:var(--surface-soft);text-align:left}.sign-empty{text-align:center;color:var(--muted)}
+  .doc-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.doc-actions>*{width:100%;text-align:center}
+  .preview-wrap{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow:auto;border:1px solid var(--border);border-radius:18px;background:linear-gradient(180deg,#f7f9fc,#eef3f9);padding:10px;box-shadow:var(--shadow-sm)}.doc-preview{background:#fff;color:#1b2b40;border:1px solid #d6e0ef;border-radius:16px;overflow:hidden}.doc-preview-head{padding:14px;border-bottom:2px solid #1c4d86;background:linear-gradient(90deg,#184783,#2a68ae);color:#fff}.doc-preview-head-line{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center}.doc-logo{width:52px;height:52px;border-radius:10px;object-fit:contain;background:#fff;border:1px solid #d6e0ef}.doc-orgao-nome{font-size:20px;font-weight:800;line-height:1.1}.doc-orgao-sub{margin-top:4px;font-size:12px;opacity:.92;line-height:1.35;overflow-wrap:anywhere}.preview-body{padding:18px;display:grid;gap:16px}.preview-kicker{text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:#5d6f8a;font-weight:800;text-align:center}.preview-title{text-align:center}.preview-title strong{display:block;font-size:28px;color:#123a67;line-height:1.12}.preview-title span{display:block;margin-top:6px;font-size:13px;color:#51657f;overflow-wrap:anywhere}.preview-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.preview-meta div{border:1px solid #d6e0ef;border-radius:12px;padding:10px;background:#f7fbff;overflow-wrap:anywhere}.preview-meta small{display:block;text-transform:uppercase;letter-spacing:.05em;color:#6b7c96;font-size:10px;font-weight:700;margin-bottom:4px}.preview-section{border-top:1px solid #e2e8f1;padding-top:14px}.preview-section h4{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#5d6f8a}.preview-object{font-family:Georgia,'Times New Roman',serif;font-size:16px;line-height:1.5;color:#21364f;overflow-wrap:anywhere}.preview-list{display:grid;gap:8px}.preview-row{display:grid;grid-template-columns:minmax(116px,140px) minmax(0,1fr);gap:10px;font-size:13px;line-height:1.45}.preview-row strong{color:#153153}.preview-row div{overflow-wrap:anywhere}.preview-signatures{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}.preview-sign{text-align:center;font-size:13px}.preview-sign-line{border-top:1px solid #74859a;margin-bottom:6px}.preview-sign-cargo{display:block;margin-top:4px;font-size:12px;color:#5d6f8a;font-weight:600}.doc-preview-foot{border-top:1px solid #d6e0ef;background:#f7f9fd;color:#5d6f8a;font-size:11px;padding:8px 12px;overflow-wrap:anywhere}
+  @media (max-width:1180px){.aviso-shell{grid-template-columns:1fr}.preview-wrap{position:static;max-height:none}#toggle-preview-mobile{display:inline-flex;justify-content:center}.aviso-shell.preview-hidden .preview-wrap{display:none}}@media (max-width:900px){.sign-grid,.preview-meta,.preview-row,.doc-actions{grid-template-columns:1fr}}@media (max-width:760px){.grid2,.prazo-grid,.publicidade-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.aviso-hero strong{font-size:24px}}
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>{{ titulo_pagina|default:'Gerador de Aviso' }}</h2>
+<p class="muted">Processo {{ processo.numero_processo_principal }}{% if ci_documento_label %} | {{ ci_documento_label }}{% endif %}{% if ci_fase %} | {{ ci_fase }}{% endif %}</p>
+
+<div class="aviso-shell">
+  <form method="post" id="doc-form" class="aviso-form" enctype="multipart/form-data">
+    {% csrf_token %}
+    <textarea id="id_corpo" name="corpo">{{ corpo }}</textarea>
+    <textarea id="id_corpo_editor" name="corpo_editor">{{ corpo_editor }}</textarea>
+
+    <section class="aviso-hero">
+      <strong id="hero-aviso-numero">{{ modalidade_nome }} n. {{ numero_documento }}</strong>
+      <small id="hero-aviso-sub">Sequencial por modalidade · {{ modalidade_nome }} · exercicio {{ processo.ano_referencia }}</small>
+      <div class="hero-pills">
+        <span>{{ aviso_tipo_label }}</span><span>Processo {{ processo.numero_processo_principal }}</span><span id="hero-aviso-prazo">{{ prazo_dias_uteis }} dias uteis</span><span id="hero-aviso-sigilo">{% if valor_sigiloso %}Orcamento sigiloso{% else %}Orcamento aberto{% endif %}</span><span>{{ publicidade_anexados }}/{{ publicidade_total }} comprovantes</span>
+      </div>
+    </section>
+
+    <section class="aviso-card"><div class="anchor-row"><a href="#sec-identificacao">Identificacao</a><a href="#sec-prazo">Prazos</a><a href="#sec-publicacao">Publicacao</a><a href="#sec-complemento">Complementos</a><button type="button" class="btn-secondary" id="toggle-preview-mobile">Ocultar pre-visualizacao</button></div></section>
+
+    <section class="aviso-card" id="sec-identificacao">
+      <h3 style="margin:0 0 10px;">Configuracao do aviso</h3>
+      <div class="grid2">
+        <div class="field"><label for="id_modalidade_nome">Modalidade</label><input id="id_modalidade_nome" type="text" name="modalidade_nome" value="{{ modalidade_nome }}"></div>
+        <div class="field"><label for="id_numero_documento">Numero do aviso</label><input id="id_numero_documento" type="text" name="numero_documento" value="{{ numero_documento }}"></div>
+        <div class="field"><label for="id_localidade">Localidade</label><input id="id_localidade" type="text" name="localidade" value="{{ localidade }}"></div>
+        <div class="field"><label for="id_setor_responsavel">Setor responsavel</label><input id="id_setor_responsavel" type="text" name="setor_responsavel" value="{{ setor_responsavel }}"></div>
+        <div class="field full"><label for="id_assunto">Assunto</label><input id="id_assunto" type="text" name="assunto" value="{{ assunto }}"></div>
+        <div class="field full"><label for="id_referencia">Referencia</label><input id="id_referencia" type="text" name="referencia" value="{{ referencia }}"></div>
+        <div class="field full"><label for="id_objeto_resumido">Objeto resumido</label><input id="id_objeto_resumido" type="text" name="objeto_resumido" value="{{ objeto_resumido }}"></div>
+        <div class="field full"><label for="id_objeto_detalhado">Objeto detalhado</label><textarea id="id_objeto_detalhado" name="objeto_detalhado" rows="4">{{ objeto_detalhado }}</textarea></div>
+        <div class="field"><label for="id_criterio_julgamento">Criterio de julgamento</label><input id="id_criterio_julgamento" type="text" name="criterio_julgamento" value="{{ criterio_julgamento }}"></div>
+        <div class="field"><label for="id_modo_disputa">Modo de disputa</label><input id="id_modo_disputa" type="text" name="modo_disputa" value="{{ modo_disputa }}"></div>
+        <div class="field full"><div class="check-row"><label><input id="id_srp" type="checkbox" name="srp" value="1" {% if srp %}checked{% endif %}> Usar SRP</label><label><input id="id_valor_sigiloso" type="checkbox" name="valor_sigiloso" value="1" {% if valor_sigiloso %}checked{% endif %}> Orcamento sigiloso</label></div></div>
+      </div>
+    </section>
+
+    <section class="aviso-card" id="sec-prazo">
+      <h3 style="margin:0 0 10px;">Prazos, contagem e sessao</h3>
+      <div class="grid2">
+        <div class="field"><label for="id_data_publicacao">Data de publicacao</label><input id="id_data_publicacao" type="date" name="data_publicacao" value="{{ data_publicacao_iso }}"></div>
+        <div class="field"><label for="id_data_abertura">Data da abertura</label><input id="id_data_abertura" type="date" name="data_abertura" value="{{ data_abertura_iso }}"></div>
+        <div class="field"><label for="id_hora_abertura">Horario da abertura</label><input id="id_hora_abertura" type="time" name="hora_abertura" value="{{ hora_abertura_iso }}"></div>
+        <div class="field"><label for="id_data_inicio_propostas">Inicio das propostas</label><input id="id_data_inicio_propostas" type="date" name="data_inicio_propostas" value="{{ data_inicio_propostas_iso }}"></div>
+        <div class="field"><label for="id_hora_inicio_propostas">Hora inicial</label><input id="id_hora_inicio_propostas" type="time" name="hora_inicio_propostas" value="{{ hora_inicio_propostas_iso }}"></div>
+        <div class="field"><label for="id_data_fim_propostas">Fim das propostas</label><input id="id_data_fim_propostas" type="date" name="data_fim_propostas" value="{{ data_fim_propostas_iso }}"></div>
+        <div class="field"><label for="id_hora_fim_propostas">Hora final</label><input id="id_hora_fim_propostas" type="time" name="hora_fim_propostas" value="{{ hora_fim_propostas_iso }}"></div>
+      </div>
+      <div class="prazo-card" style="margin-top:14px;"><div class="prazo-grid"><div><span>Publicacao</span><strong id="prazo-publicacao">-</strong></div><div><span>Dias uteis</span><strong id="prazo-dias">-</strong></div><div><span>Abertura</span><strong id="prazo-abertura">-</strong></div><div><span>Recebimento</span><strong id="prazo-recebimento">-</strong></div></div><div class="prazo-status"><div id="prazo-status-badge" class="prazo-badge {% if prazo_minimo_ok %}ok{% else %}warn{% endif %}">{% if prazo_minimo_ok %}Prazo minimo atendido{% else %}Revisar prazo minimo{% endif %}</div><div class="muted" id="prazo-status-text">Minimo sugerido: 8 dias uteis entre publicacao e abertura.</div></div><div class="prazo-track" id="prazo-track"></div></div>
+    </section>
+
+    <section class="aviso-card" id="sec-publicacao">
+      <h3 style="margin:0 0 10px;">Publicacao, acessos e contato</h3>
+      <div class="grid2">
+        <div class="field"><label for="id_plataforma_nome">Plataforma</label><input id="id_plataforma_nome" type="text" name="plataforma_nome" value="{{ plataforma_nome }}"></div>
+        <div class="field"><label for="id_plataforma_link">Link da plataforma</label><input id="id_plataforma_link" type="url" name="plataforma_link" value="{{ plataforma_link }}"></div>
+        <div class="field"><label for="id_pncp_link">Link PNCP</label><input id="id_pncp_link" type="url" name="pncp_link" value="{{ pncp_link }}"></div>
+        <div class="field"><label for="id_portal_link">Link portal publico</label><input id="id_portal_link" type="url" name="portal_link" value="{{ portal_link }}"></div>
+        <div class="field"><label for="id_contato_setor">Setor para esclarecimentos</label><input id="id_contato_setor" type="text" name="contato_setor" value="{{ contato_setor }}"></div>
+        <div class="field"><label for="id_contato_email">E-mail</label><input id="id_contato_email" type="email" name="contato_email" value="{{ contato_email }}"></div>
+        <div class="field"><label for="id_contato_telefone">Telefone</label><input id="id_contato_telefone" type="text" name="contato_telefone" value="{{ contato_telefone }}"></div>
+        <div class="field full"><label for="id_contato_endereco">Endereco de atendimento</label><input id="id_contato_endereco" type="text" name="contato_endereco" value="{{ contato_endereco }}"></div>
+      </div>
+      <div class="publicidade-grid">
+        {% for row in publicidade_docs %}
+        <section class="publicidade-card">
+          <div class="publicidade-card-head">
+            <div>
+              <strong>{{ row.label }}</strong>
+              <div class="publicidade-meta">
+                {% if row.documento %}
+                  Ultima atualizacao em {{ row.criado_em_exibicao }}
+                {% else %}
+                  Nenhum comprovante anexado ainda.
+                {% endif %}
+              </div>
+            </div>
+            <span class="publicidade-status {% if row.documento %}ok{% else %}pending{% endif %}">{{ row.status }}</span>
+          </div>
+          <div class="publicidade-actions">
+            <input type="file" name="comprovante_{{ row.key }}" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">
+          </div>
+          <div class="publicidade-meta">
+            {% if row.documento %}
+              <strong>Arquivo atual:</strong>
+              <a href="{{ row.arquivo_url }}" target="_blank" rel="noopener">{{ row.arquivo_nome }}</a>
+            {% else %}
+              O comprovante anexado aqui sera incorporado ao processo consolidado e ao pacote e-TCM.
+            {% endif %}
+          </div>
+        </section>
+        {% endfor %}
+      </div>
+      <div class="publicidade-summary">
+        {{ publicidade_anexados }} de {{ publicidade_total }} canais com comprovacao anexada.
+      </div>
+      <div class="doc-actions">
+        <button type="submit" class="btn-secondary" name="action" value="save_publicidade">Salvar comprovantes e publicidade</button>
+      </div>
+    </section>
+    <section class="aviso-card" id="sec-complemento">
+      <h3 style="margin:0 0 10px;">Complementos, responsavel e assinaturas</h3>
+      <div class="grid2">
+        <div class="field full"><label for="aviso-corpo-editor">Informacoes complementares</label><div class="rich-editor"><div class="rich-toolbar" id="aviso-corpo-toolbar"><button type="button" class="btn-mini" data-cmd="bold"><strong>N</strong></button><button type="button" class="btn-mini" data-cmd="italic"><em>I</em></button><button type="button" class="btn-mini" data-cmd="underline"><u>S</u></button><button type="button" class="btn-mini" data-cmd="justifyLeft">Esq</button><button type="button" class="btn-mini" data-cmd="justifyCenter">Centro</button><button type="button" class="btn-mini" data-cmd="justifyRight">Dir</button><button type="button" class="btn-mini" data-cmd="justifyFull">Justif.</button><button type="button" class="btn-mini" data-cmd="insertUnorderedList">Lista *</button><button type="button" class="btn-mini" data-cmd="insertOrderedList">Lista 1.</button><button type="button" class="btn-mini" data-cmd="removeFormat">Limpar</button></div><div id="aviso-corpo-editor" class="rich-content" contenteditable="true"></div></div></div>
+        <div class="field"><label for="id_responsavel_nome">Responsavel</label><input id="id_responsavel_nome" type="text" name="responsavel_nome" value="{{ responsavel_nome }}"></div>
+        <div class="field"><label for="id_responsavel_cargo">Cargo / funcao</label><input id="id_responsavel_cargo" type="text" name="responsavel_cargo" value="{{ responsavel_cargo }}"></div>
+      </div>
+      <div class="field" style="margin-top:10px;"><label for="doc-sign-search">Signatarios</label><div class="sign-picker"><input id="doc-sign-search" type="text" placeholder="Buscar signatario por nome, cargo ou secretaria"><div class="sign-grid"><section class="sign-panel"><h4>Disponiveis</h4><div class="table-wrap"><table><thead><tr><th>Nome / cargo</th><th style="width:86px;">Acao</th></tr></thead><tbody id="doc-sign-results-body"><tr><td colspan="2" class="sign-empty">Carregando...</td></tr></tbody></table></div></section><section class="sign-panel"><h4>Selecionados</h4><div class="table-wrap"><table><thead><tr><th>Nome / cargo</th><th style="width:96px;">Acao</th></tr></thead><tbody id="doc-sign-cart-body"><tr><td colspan="2" class="sign-empty">Nenhum signatario selecionado.</td></tr></tbody></table></div></section></div><div id="doc-sign-hidden-inputs"></div></div></div>
+      <div class="doc-actions"><button type="submit" name="action" value="preview_pdf">Gerar PDF</button><button type="submit" class="btn-secondary" name="action" value="download_docx">Gerar DOCX</button><button type="button" class="btn-secondary" onclick="window.print()">Imprimir rascunho</button>{% if voltar_url %}<a class="btn" href="{{ voltar_url }}">{{ voltar_label|default:'Voltar' }}</a>{% else %}<a class="btn" href="{% url 'workflow:processo_resumo' processo.id %}">{{ voltar_label|default:'Voltar' }}</a>{% endif %}</div>
+    </section>
+  </form>
+
+  <div class="preview-wrap" id="preview-wrap">
+    <article class="doc-preview">
+      <header class="doc-preview-head"><div class="doc-preview-head-line">{% if orgao and orgao.logo %}<img class="doc-logo" src="{{ orgao.logo.url }}" alt="Logo do orgao">{% endif %}<div><div class="doc-orgao-nome">{% if orgao %}{{ orgao.nome_fantasia|default:orgao.razao_social }}{% else %}Orgao nao cadastrado{% endif %}</div><div class="doc-orgao-sub">{% if orgao and orgao.razao_social %}{{ orgao.razao_social }}<br>{% endif %}{% if orgao and orgao.cnpj %}CNPJ {{ orgao.cnpj }}{% endif %}{% if orgao and orgao.endereco_completo %}<br>{{ orgao.endereco_completo }}{% endif %}</div></div></div></header>
+      <section class="preview-body">
+        <div class="preview-kicker">{{ aviso_tipo_label }}</div>
+        <div class="preview-title"><strong id="preview-numero">{{ modalidade_nome }} n. {{ numero_documento }}</strong><span id="preview-assunto">{{ assunto }}</span></div>
+        <div class="preview-meta"><div><small>Processo</small><div>{{ processo.numero_processo_principal }}</div></div><div><small>Referencia</small><div id="preview-referencia">{{ referencia }}</div></div><div><small>Setor responsavel</small><div id="preview-setor">{{ setor_responsavel }}</div></div><div><small>Localidade</small><div id="preview-localidade">{{ localidade }}, {{ data_documento_extenso }}</div></div></div>
+        <div class="preview-section"><h4>Objeto</h4><div class="preview-object" id="preview-objeto">{{ objeto_detalhado }}</div></div>
+        <div class="preview-section"><h4>Agenda do aviso</h4><div class="preview-list"><div class="preview-row"><strong>Publicacao</strong><div id="preview-publicacao">{{ data_publicacao_iso }}</div></div><div class="preview-row"><strong>Inicio das propostas</strong><div id="preview-inicio">{{ data_inicio_propostas_iso }} {{ hora_inicio_propostas_iso }}</div></div><div class="preview-row"><strong>Fim das propostas</strong><div id="preview-fim">{{ data_fim_propostas_iso }} {{ hora_fim_propostas_iso }}</div></div><div class="preview-row"><strong>Abertura / sessao</strong><div id="preview-abertura">{{ data_abertura_iso }} {{ hora_abertura_iso }}</div></div><div class="preview-row"><strong>Configuracao</strong><div><span id="preview-criterio">{{ criterio_julgamento }}</span> · <span id="preview-modo">{{ modo_disputa }}</span></div></div></div></div>
+        <div class="preview-section"><h4>Publicacao e acessos</h4><div class="preview-list"><div class="preview-row"><strong>Plataforma</strong><div id="preview-plataforma">{{ plataforma_nome }}</div></div><div class="preview-row"><strong>Link da disputa</strong><div id="preview-plataforma-link">{{ plataforma_link|default:'-' }}</div></div><div class="preview-row"><strong>PNCP</strong><div id="preview-pncp">{{ pncp_link|default:'-' }}</div></div><div class="preview-row"><strong>Portal publico</strong><div id="preview-portal">{{ portal_link|default:'-' }}</div></div><div class="preview-row"><strong>Comprovantes</strong><div>{{ publicidade_anexados }}/{{ publicidade_total }} canais anexados</div></div><div class="preview-row"><strong>Contato</strong><div id="preview-contato">{{ contato_setor }}{% if contato_email %} | {{ contato_email }}{% endif %}{% if contato_telefone %} | {{ contato_telefone }}{% endif %}</div></div><div class="preview-row"><strong>Endereco</strong><div id="preview-endereco">{{ contato_endereco }}</div></div></div></div>
+        <div class="preview-section"><h4>Complementos</h4><div id="preview-complemento">{% if corpo_editor %}{{ corpo_editor|safe }}{% else %}<span class="muted">Sem complemento textual.</span>{% endif %}</div></div>
+        <div class="preview-section"><h4>Assinaturas</h4><div class="preview-signatures" id="doc-preview-signatarios">{% if signatarios_selecionados %}{% for sig in signatarios_selecionados %}<div class="preview-sign"><div class="preview-sign-line"></div>{{ sig.nome }}{% if sig.cargo %}<span class="preview-sign-cargo">{{ sig.cargo }}</span>{% endif %}</div>{% endfor %}{% else %}<div class="preview-sign"><div class="preview-sign-line"></div><span id="doc-preview-responsavel">{{ responsavel_nome|default:'-' }}</span>{% if responsavel_cargo %}<span id="doc-preview-cargo" class="preview-sign-cargo">{{ responsavel_cargo }}</span>{% endif %}</div>{% endif %}</div></div>
+      </section>
+      <footer class="doc-preview-foot"><strong>Documento gerado pelo SIREL Modular</strong><br>{{ rodape_documento|default:'Documento gerado automaticamente.' }}</footer>
+    </article>
+  </div>
+</div>
+
+{{ signatarios_catalogo|json_script:"doc-signatarios-catalogo" }}
+{{ signatarios_selecionados|json_script:"doc-signatarios-selecionados" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    const $=id=>document.getElementById(id), form=$('doc-form'), hiddenBody=$('id_corpo'), hiddenEditor=$('id_corpo_editor'), editor=$('aviso-corpo-editor'), toolbar=$('aviso-corpo-toolbar'), shell=document.querySelector('.aviso-shell'), previewToggle=$('toggle-preview-mobile');
+    const f={numero:$('id_numero_documento'),modalidade:$('id_modalidade_nome'),localidade:$('id_localidade'),setor:$('id_setor_responsavel'),assunto:$('id_assunto'),referencia:$('id_referencia'),objRes:$('id_objeto_resumido'),objDet:$('id_objeto_detalhado'),criterio:$('id_criterio_julgamento'),modo:$('id_modo_disputa'),srp:$('id_srp'),sigilo:$('id_valor_sigiloso'),pub:$('id_data_publicacao'),abertura:$('id_data_abertura'),horaAbertura:$('id_hora_abertura'),inicio:$('id_data_inicio_propostas'),horaInicio:$('id_hora_inicio_propostas'),fim:$('id_data_fim_propostas'),horaFim:$('id_hora_fim_propostas'),plat:$('id_plataforma_nome'),platLink:$('id_plataforma_link'),pncp:$('id_pncp_link'),portal:$('id_portal_link'),contatoSetor:$('id_contato_setor'),contatoEmail:$('id_contato_email'),contatoTel:$('id_contato_telefone'),contatoEnd:$('id_contato_endereco'),resp:$('id_responsavel_nome'),cargo:$('id_responsavel_cargo')};
+    const signSearch=$('doc-sign-search'), signResultsBody=$('doc-sign-results-body'), signCartBody=$('doc-sign-cart-body'), signHiddenInputs=$('doc-sign-hidden-inputs'), previewSignatarios=$('doc-preview-signatarios');
+    const esc=t=>String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const parseJson=(id,fb)=>{const n=$(id); if(!n) return fb; try{return JSON.parse(n.textContent||'')}catch(e){return fb}};
+    function sanitizeRichHtml(html){const allow=new Set(['B','STRONG','I','EM','U','BR','P','DIV','UL','OL','LI']);const box=document.createElement('div');box.innerHTML=String(html||'');(function clean(node){Array.from(node.children||[]).forEach(child=>{const tag=(child.tagName||'').toUpperCase();if(!allow.has(tag)){child.replaceWith(document.createTextNode(child.textContent||''));return;}Array.from(child.attributes||[]).forEach(attr=>{const name=(attr.name||'').toLowerCase();if(name!=='style'){child.removeAttribute(attr.name);return;}const value=String(attr.value||'').toLowerCase();const align=value.match(/text-align\s*:\s*(left|right|center|justify)/);if(align){child.setAttribute('style','text-align:'+align[1])}else{child.removeAttribute('style')}});clean(child)})})(box);return box.innerHTML.trim();}
+    const getEditorHtml=()=>sanitizeRichHtml(editor?editor.innerHTML:'');
+    const setEditorHtml=v=>{if(editor) editor.innerHTML=sanitizeRichHtml(v||'')||'<p></p>';};
+    const syncEditor=()=>{if(hiddenEditor) hiddenEditor.value=getEditorHtml();};
+    const fmtDate=v=>{if(!v) return '-'; const p=String(v).split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:v;};
+    const fmtLong=v=>{if(!v) return '-'; const p=String(v).split('-'); if(p.length!==3) return v; const m=['janeiro','fevereiro','marco','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']; return `${parseInt(p[2],10)} de ${m[parseInt(p[1],10)-1]||''} de ${p[0]}`;};
+    const parseDate=v=>{if(!v) return null; const p=String(v).split('-'); if(p.length!==3) return null; const d=new Date(Number(p[0]),Number(p[1])-1,Number(p[2])); return Number.isNaN(d.getTime())?null:d;};
+    function businessDayCount(a,b){const s=parseDate(a), e=parseDate(b); if(!s||!e) return 0; const start=s<=e?s:e, end=s<=e?e:s; let c=0, cur=new Date(start.getTime()); while(cur<=end){const w=cur.getDay(); if(w!==0&&w!==6&&cur.getTime()!==start.getTime()) c+=1; cur.setDate(cur.getDate()+1);} return c;}
+    function buildTrack(a,b){const wrap=$('prazo-track'), s=parseDate(a), e=parseDate(b); if(!wrap) return; if(!s||!e){wrap.innerHTML='<span class="muted">Informe publicacao e abertura para calcular o prazo.</span>'; return;} const start=s<=e?s:e, end=s<=e?e:s, out=[], cur=new Date(start.getTime()); while(cur<=end){const iso=cur.toISOString().slice(0,10); let cls='off'; const w=cur.getDay(); if(w!==0&&w!==6) cls='work'; if(iso===a) cls='pub'; if(iso===b) cls='end'; out.push(`<span class="prazo-day ${cls}" title="${fmtDate(iso)}">${String(cur.getDate()).padStart(2,'0')}</span>`); cur.setDate(cur.getDate()+1);} wrap.innerHTML=out.join('');}
+    const signCatalog=parseJson('doc-signatarios-catalogo',[]), signSelected=parseJson('doc-signatarios-selecionados',[]), signById=new Map(signCatalog.map(r=>[String(r.id),r])), selectedMap=new Map();
+    (signSelected||[]).forEach(row=>{const sid=String(row.id||''); if(!sid) return; const full=signById.get(sid)||row; selectedMap.set(sid,{id:sid,nome:String(full.nome||''),cargo:String(full.cargo||''),secretaria:String(full.secretaria||'')});});
+    function renderSignResults(){if(!signResultsBody) return; const q=String((signSearch&&signSearch.value)||'').trim().toLowerCase(), rows=[]; signCatalog.forEach(row=>{const sid=String(row.id||''); if(!sid||selectedMap.has(sid)) return; const nome=String(row.nome||''), cargo=String(row.cargo||''), sec=String(row.secretaria||''), hay=(nome+' '+cargo+' '+sec).toLowerCase(); if(q&&!hay.includes(q)) return; const sub=[cargo,sec].filter(Boolean).join(' | '); rows.push('<tr><td><strong>'+esc(nome)+'</strong>'+(sub?'<br><span class="muted">'+esc(sub)+'</span>':'')+'</td><td><button type="button" class="btn-mini" data-sign-add="'+esc(sid)+'">Adicionar</button></td></tr>');}); signResultsBody.innerHTML=rows.length?rows.join(''):'<tr><td colspan="2" class="sign-empty">Nenhum signatario disponivel.</td></tr>';}
+    function syncHiddenInputs(){if(signHiddenInputs) signHiddenInputs.innerHTML=Array.from(selectedMap.values()).map(row=>'<input type="hidden" name="signatarios" value="'+esc(row.id)+'">').join('');}
+    function renderSignPreview(){if(!previewSignatarios) return; const rows=Array.from(selectedMap.values()); if(!rows.length){const nome=f.resp&&f.resp.value?f.resp.value:'-', cargo=f.cargo&&f.cargo.value?f.cargo.value:''; previewSignatarios.innerHTML='<div class="preview-sign"><div class="preview-sign-line"></div>'+esc(nome)+(cargo?'<span class="preview-sign-cargo">'+esc(cargo)+'</span>':'')+'</div>'; return;} previewSignatarios.innerHTML=rows.map(row=>'<div class="preview-sign"><div class="preview-sign-line"></div>'+esc(row.nome)+(row.cargo?'<span class="preview-sign-cargo">'+esc(row.cargo)+'</span>':'')+'</div>').join('');}
+    function renderSignCart(){if(!signCartBody) return; const rows=Array.from(selectedMap.values()).map(row=>{const sub=[row.cargo,row.secretaria].filter(Boolean).join(' | '); return '<tr><td><strong>'+esc(row.nome)+'</strong>'+(sub?'<br><span class="muted">'+esc(sub)+'</span>':'')+'</td><td><button type="button" class="btn-mini" data-sign-remove="'+esc(row.id)+'">Remover</button></td></tr>';}); signCartBody.innerHTML=rows.length?rows.join(''):'<tr><td colspan="2" class="sign-empty">Nenhum signatario selecionado.</td></tr>'; syncHiddenInputs(); renderSignPreview(); renderSignResults();}
+    function composeBodyHtml(){const intro='O {{ orgao_nome_exibicao|default:"Orgao/Entidade"|escapejs }}, por meio da '+(f.setor.value||'setor responsavel')+', torna publico que realizara {{ aviso_tipo_label|escapejs }} na modalidade '+(f.modalidade.value||'-')+', sob o numero '+(f.numero.value||'-')+', referente ao processo {{ processo.numero_processo_principal|escapejs }}.'; const parts=['<p>'+esc(intro)+'</p>','<p><b>Objeto resumido:</b> '+esc(f.objRes.value||f.objDet.value||'-')+'</p>','<p><b>Objeto detalhado:</b> '+esc(f.objDet.value||f.objRes.value||'-')+'</p>','<p><b>Publicacao prevista:</b> '+esc(fmtDate(f.pub.value))+'</p>','<p><b>Recebimento de propostas:</b> inicio em '+esc(fmtDate(f.inicio.value))+' as '+esc(f.horaInicio.value||'-')+' e encerramento em '+esc(fmtDate(f.fim.value))+' as '+esc(f.horaFim.value||'-')+'.</p>','<p><b>Abertura / sessao:</b> '+esc(fmtDate(f.abertura.value))+' as '+esc(f.horaAbertura.value||'-')+'.</p>','<p><b>Criterio de julgamento:</b> '+esc(f.criterio.value||'-')+'. <b>Modo de disputa:</b> '+esc(f.modo.value||'-')+'.</p>']; if(f.srp.checked) parts.push('<p><b>SRP:</b> Sistema de Registro de Precos habilitado para este aviso.</p>'); if(f.sigilo.checked) parts.push('<p><b>Orcamento sigiloso:</b> o valor estimado nao sera divulgado nesta publicacao.</p>'); if(f.plat.value||f.platLink.value) parts.push('<p><b>Plataforma:</b> '+esc(f.plat.value||'-')+(f.platLink.value?' - '+esc(f.platLink.value):'')+'</p>'); const links=[f.platLink.value,f.pncp.value,f.portal.value].filter(Boolean); if(links.length) parts.push('<p><b>Locais de acesso:</b> '+esc(links.join(' | '))+'</p>'); const contatos=[f.contatoSetor.value,f.contatoEmail.value,f.contatoTel.value,f.contatoEnd.value].filter(Boolean); if(contatos.length) parts.push('<p><b>Esclarecimentos e contato:</b> '+esc(contatos.join(' | '))+'</p>'); const extra=getEditorHtml(); if(extra) parts.push(extra); return parts.join('');}
+    function updatePrazoCard(){const dias=businessDayCount(f.pub.value,f.abertura.value), ok=dias>=8; $('prazo-publicacao').textContent=fmtDate(f.pub.value); $('prazo-dias').textContent=dias?String(dias):'0'; $('prazo-abertura').textContent=fmtDate(f.abertura.value)+' '+(f.horaAbertura.value||''); $('prazo-recebimento').textContent=fmtDate(f.fim.value)+' '+(f.horaFim.value||''); const badge=$('prazo-status-badge'), text=$('prazo-status-text'); badge.className='prazo-badge '+(ok?'ok':'warn'); badge.textContent=ok?'Prazo minimo atendido':'Revisar prazo minimo'; text.textContent=ok?('Abertura prevista com '+dias+' dias uteis de publicidade.'):('Abertura prevista com '+dias+' dias uteis. Ajuste para no minimo 8.'); buildTrack(f.pub.value,f.abertura.value); if($('hero-aviso-prazo')) $('hero-aviso-prazo').textContent=dias+' dias uteis';}
+    function updatePreview(){syncEditor(); if(hiddenBody) hiddenBody.value=composeBodyHtml(); $('hero-aviso-numero').textContent=(f.modalidade.value||'-')+' n. '+(f.numero.value||'-'); $('hero-aviso-sub').textContent='Sequencial por modalidade · '+(f.modalidade.value||'-')+' · exercicio {{ processo.ano_referencia }}'; $('hero-aviso-sigilo').textContent=f.sigilo.checked?'Orcamento sigiloso':'Orcamento aberto'; $('preview-numero').textContent=(f.modalidade.value||'-')+' n. '+(f.numero.value||'-'); $('preview-assunto').textContent=f.assunto.value||'-'; $('preview-referencia').textContent=f.referencia.value||'-'; $('preview-setor').textContent=f.setor.value||'-'; $('preview-localidade').textContent=(f.localidade.value||'-')+', '+fmtLong(f.pub.value); $('preview-objeto').textContent=f.objDet.value||f.objRes.value||'-'; $('preview-publicacao').textContent=fmtDate(f.pub.value); $('preview-inicio').textContent=fmtDate(f.inicio.value)+' '+(f.horaInicio.value||''); $('preview-fim').textContent=fmtDate(f.fim.value)+' '+(f.horaFim.value||''); $('preview-abertura').textContent=fmtDate(f.abertura.value)+' '+(f.horaAbertura.value||''); $('preview-criterio').textContent=f.criterio.value||'-'; $('preview-modo').textContent=f.modo.value||'-'; $('preview-plataforma').textContent=f.plat.value||'-'; $('preview-plataforma-link').textContent=f.platLink.value||'-'; $('preview-pncp').textContent=f.pncp.value||'-'; $('preview-portal').textContent=f.portal.value||'-'; const contato=[f.contatoSetor.value,f.contatoEmail.value,f.contatoTel.value].filter(Boolean); $('preview-contato').textContent=contato.length?contato.join(' | '):'-'; $('preview-endereco').textContent=f.contatoEnd.value||'-'; $('preview-complemento').innerHTML=getEditorHtml()||'<span class="muted">Sem complemento textual.</span>'; updatePrazoCard(); renderSignPreview();}
+    if(previewToggle&&shell){previewToggle.addEventListener('click',()=>{const hidden=shell.classList.toggle('preview-hidden'); previewToggle.textContent=hidden?'Mostrar pre-visualizacao':'Ocultar pre-visualizacao';});}
+    if(toolbar&&editor){toolbar.addEventListener('click',e=>{const btn=e.target.closest('[data-cmd]'); if(!btn) return; editor.focus(); document.execCommand(btn.getAttribute('data-cmd'),false,null); syncEditor(); updatePreview();}); editor.addEventListener('input',()=>{syncEditor(); updatePreview();}); setEditorHtml(hiddenEditor&&hiddenEditor.value?hiddenEditor.value:''); syncEditor();}
+    if(signResultsBody){signResultsBody.addEventListener('click',e=>{const btn=e.target.closest('[data-sign-add]'); if(!btn) return; const sid=String(btn.getAttribute('data-sign-add')||''), row=signById.get(sid); if(!row) return; selectedMap.set(sid,{id:sid,nome:String(row.nome||''),cargo:String(row.cargo||''),secretaria:String(row.secretaria||'')}); renderSignCart();});}
+    if(signCartBody){signCartBody.addEventListener('click',e=>{const btn=e.target.closest('[data-sign-remove]'); if(!btn) return; selectedMap.delete(String(btn.getAttribute('data-sign-remove')||'')); renderSignCart();});}
+    if(signSearch) signSearch.addEventListener('input',renderSignResults);
+    [f.numero,f.modalidade,f.localidade,f.setor,f.assunto,f.referencia,f.objRes,f.objDet,f.criterio,f.modo,f.srp,f.sigilo,f.pub,f.abertura,f.horaAbertura,f.inicio,f.horaInicio,f.fim,f.horaFim,f.plat,f.platLink,f.pncp,f.portal,f.contatoSetor,f.contatoEmail,f.contatoTel,f.contatoEnd,f.resp,f.cargo].forEach(el=>{if(!el) return; el.addEventListener('change',updatePreview); el.addEventListener('input',updatePreview);});
+    if(form){form.addEventListener('submit',()=>{syncEditor(); if(hiddenBody) hiddenBody.value=composeBodyHtml(); syncHiddenInputs();});}
+    renderSignCart(); renderSignResults(); updatePreview();
+  })();
+</script>
+{% endblock %}

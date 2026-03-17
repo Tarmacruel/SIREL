@@ -5,6 +5,51 @@
 <p class="muted">Acompanhamento integral com filtros globais, agenda operacional, calendario de processos, visao por condutor, itens, valores, homologacao e pendencias administrativas.</p>
 
 <style>
+  .section-shell {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .section-head h3 {
+    margin: 0;
+  }
+  .section-head .muted {
+    font-size: 13px;
+  }
+  .section-toggle {
+    width: auto;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    background: var(--surface-soft);
+  }
+  .section-body[hidden] {
+    display: none !important;
+  }
+  .table-scroll {
+    overflow: auto;
+    border-radius: 14px;
+  }
+  .table-scroll table {
+    min-width: 1040px;
+  }
+  .table-note {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
   .event-chip {
     display: inline-flex;
     align-items: center;
@@ -40,11 +85,8 @@
     min-height: 132px;
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 10px;
     background: var(--surface-elevated);
-    display: grid;
-    gap: 8px;
-    align-content: start;
+    overflow: hidden;
   }
   .calendar-day.is-outside {
     opacity: .48;
@@ -53,6 +95,20 @@
   .calendar-day.is-today {
     border-color: var(--primary-3);
     box-shadow: 0 0 0 2px rgba(43, 104, 174, 0.12);
+  }
+  .calendar-day.is-selected {
+    border-color: #173f72;
+    box-shadow: 0 0 0 2px rgba(23, 63, 114, 0.18);
+    background: linear-gradient(180deg, rgba(43, 104, 174, 0.08), rgba(255,255,255,0));
+  }
+  .calendar-day-link {
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    min-height: 132px;
+    padding: 10px;
+    color: inherit;
+    text-decoration: none;
   }
   .calendar-daynum {
     display: flex;
@@ -74,9 +130,30 @@
     padding-left: 8px;
     border-left: 3px solid var(--primary-3);
   }
+  .calendar-event strong {
+    display: block;
+    font-size: 12px;
+  }
   .calendar-event small {
     display: block;
     color: var(--muted);
+  }
+  .event-mini-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .event-mini {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    color: var(--text);
   }
   .ops-list {
     display: grid;
@@ -92,10 +169,125 @@
     display: block;
     margin-bottom: 2px;
   }
+  .ops-item-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: start;
+  }
+  .ops-item-title a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .ops-item-title a:hover {
+    text-decoration: underline;
+  }
+  .ops-event-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .agenda-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+  .agenda-modal[hidden] {
+    display: none !important;
+  }
+  .agenda-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 24, 44, 0.56);
+    backdrop-filter: blur(5px);
+  }
+  .agenda-modal-dialog {
+    position: relative;
+    width: min(920px, calc(100vw - 24px));
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    background: linear-gradient(180deg, var(--surface-elevated) 0%, var(--surface) 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-lg);
+    padding: 18px;
+    display: grid;
+    gap: 14px;
+  }
+  .agenda-modal-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .agenda-modal-head h3 {
+    margin: 4px 0 0;
+  }
+  .agenda-modal-body {
+    display: grid;
+    gap: 10px;
+  }
+  .agenda-empty {
+    border: 1px dashed var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    color: var(--muted);
+    background: var(--surface-soft);
+  }
+  .agenda-modal-item {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px;
+    background: var(--surface-soft);
+    display: grid;
+    gap: 8px;
+  }
+  .agenda-modal-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .agenda-modal-link {
+    font-weight: 800;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .agenda-modal-link:hover {
+    text-decoration: underline;
+  }
+  @media (max-width:760px) {
+    .section-head,
+    .agenda-modal-head,
+    .table-note {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .section-toggle {
+      width: 100%;
+    }
+    .table-scroll table {
+      min-width: 880px;
+    }
+    .agenda-modal {
+      padding: 10px;
+    }
+    .agenda-modal-dialog {
+      width: calc(100vw - 20px);
+      max-height: calc(100vh - 20px);
+      padding: 14px;
+    }
+  }
 </style>
 
 <div class="card" style="margin-bottom:16px;">
   <form method="get" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;">
+    <input type="hidden" name="agenda_data" value="{{ agenda_data_selecionada_iso }}">
     <div>
       <label>Busca geral</label>
       <input type="text" name="q" value="{{ filtros.q }}" placeholder="numero, protocolo, objeto...">
@@ -195,6 +387,14 @@
       </select>
     </div>
     <div>
+      <label>Processos na grade</label>
+      <select name="limite_grade">
+        {% for opt in limite_grade_opts %}
+          <option value="{{ opt }}" {% if rows_grade_limit == opt %}selected{% endif %}>{{ opt }} processos</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
       <label>Calendario - mes</label>
       <select name="agenda_mes">
         {% for opt in agenda_mes_opts %}
@@ -225,14 +425,31 @@
   <div class="card"><div class="muted">Sem agenda critica</div><div class="kpi">{{ total_sem_agenda }}</div></div>
 </div>
 
-<div class="two" style="margin-top:16px;">
+<section class="section-shell" id="dashboard-operacao" data-section>
+  <div class="section-head">
+    <div>
+      <h3>Operacao do dia</h3>
+      <div class="muted">Eventos imediatos e proximos marcos operacionais dos processos filtrados.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Ocultar</button>
+  </div>
+  <div class="section-body">
+<div class="two">
   <div class="card">
     <h3>Operacao do dia</h3>
     <div class="ops-list">
       {% for ev in agenda_eventos_hoje %}
         <div class="ops-item">
-          <strong>{{ ev.processo.numero_processo_principal }} - {{ ev.label }}</strong>
+          <div class="ops-item-title">
+            <strong><a href="{% url 'workflow:processo_resumo' ev.processo.id %}">{{ ev.processo.numero_processo_principal }}</a></strong>
+            <span class="muted">{{ ev.count }} marco{{ ev.count|pluralize:"s" }}</span>
+          </div>
           <div class="muted">{{ ev.exibicao }}</div>
+          <div class="ops-event-row">
+            {% for label in ev.labels %}
+              <span class="event-chip" data-tone="{{ ev.tone }}">{{ label }}</span>
+            {% endfor %}
+          </div>
           <div>{{ ev.processo.objeto|truncatechars:110 }}</div>
           <div class="muted">
             {% if ev.processo.secretaria %}{{ ev.processo.secretaria.sigla }}{% else %}-{% endif %}
@@ -253,8 +470,12 @@
         {% for ev in agenda_proximos_eventos %}
           <tr>
             <td>{{ ev.exibicao }}</td>
-            <td><span class="event-chip" data-tone="{{ ev.tone }}">{{ ev.label }}</span></td>
-            <td>{{ ev.processo.numero_processo_principal }}</td>
+            <td>
+              {% for label in ev.labels %}
+                <span class="event-chip" data-tone="{{ ev.tone }}">{{ label }}</span>
+              {% endfor %}
+            </td>
+            <td><a href="{% url 'workflow:processo_resumo' ev.processo.id %}">{{ ev.processo.numero_processo_principal }}</a></td>
             <td>{% if ev.condutor %}{{ ev.condutor.nome }}{% else %}-{% endif %}</td>
           </tr>
         {% empty %}
@@ -264,8 +485,19 @@
     </table>
   </div>
 </div>
+  </div>
+</section>
 
-<div class="two" style="margin-top:16px;">
+<section class="section-shell" id="dashboard-calendario" data-section>
+  <div class="section-head">
+    <div>
+      <h3>Calendario de processos</h3>
+      <div class="muted">{{ agenda_mes_nome }} / {{ agenda_ano }}. Clique em um dia para abrir a agenda em pop-up.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Ocultar</button>
+  </div>
+  <div class="section-body">
+<div class="two">
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
       <div>
@@ -286,23 +518,30 @@
     <div class="calendar-grid">
       {% for week in agenda_calendar_weeks %}
         {% for day in week %}
-          <div class="calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %}">
-            <div class="calendar-daynum">
-              <span>{{ day.day }}</span>
-              {% if day.count %}<span class="calendar-count">{{ day.count }} evento{{ day.count|pluralize }}</span>{% endif %}
-            </div>
-            <div class="calendar-events">
-              {% for ev in day.events %}
-                <div class="calendar-event">
-                  {{ ev.label }}
-                  <small>{{ ev.processo.numero_processo_principal }}</small>
-                </div>
-              {% empty %}
-                {% if day.in_month %}
-                  <div class="muted" style="font-size:12px;">Sem agenda</div>
-                {% endif %}
-              {% endfor %}
-            </div>
+          <div class="calendar-day {% if not day.in_month %}is-outside{% endif %} {% if day.is_today %}is-today{% endif %} {% if day.is_selected %}is-selected{% endif %}">
+            <a class="calendar-day-link" href="{{ day.url }}" data-agenda-date="{{ day.date|date:'Y-m-d' }}" data-agenda-label="{{ day.date|date:'d/m/Y' }}">
+              <div class="calendar-daynum">
+                <span>{{ day.day }}</span>
+                {% if day.count %}<span class="calendar-count">{{ day.count }} processo{{ day.count|pluralize:"s" }}</span>{% endif %}
+              </div>
+              <div class="calendar-events">
+                {% for ev in day.events %}
+                  <div class="calendar-event">
+                    <strong>{{ ev.processo.numero_processo_principal }}</strong>
+                    <div class="event-mini-row">
+                      {% for label in ev.labels|slice:":2" %}
+                        <span class="event-mini">{{ label }}</span>
+                      {% endfor %}
+                    </div>
+                    {% if ev.count > 2 %}<small>+ {{ ev.count|add:"-2" }} marco{{ ev.count|add:"-2"|pluralize:"s" }}</small>{% endif %}
+                  </div>
+                {% empty %}
+                  {% if day.in_month %}
+                    <div class="muted" style="font-size:12px;">Sem agenda</div>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </a>
           </div>
         {% endfor %}
       {% endfor %}
@@ -310,6 +549,9 @@
   </div>
 
   <div class="card">
+    <h3>Agenda diaria em pop-up</h3>
+    <div class="muted" style="margin-bottom:14px;">Selecione qualquer dia do calendario para abrir a agenda do dia selecionado em uma janela modal, sem recarregar a dashboard.</div>
+
     <h3>Pendencias operacionais</h3>
     <table style="margin-bottom:12px;">
       <thead><tr><th>Tipo</th><th>Total</th></tr></thead>
@@ -327,8 +569,12 @@
         {% for ev in agenda_atrasados %}
           <tr>
             <td>{{ ev.exibicao }}</td>
-            <td>{{ ev.label }}</td>
-            <td>{{ ev.processo.numero_processo_principal }}</td>
+            <td>
+              {% for label in ev.labels %}
+                <span class="event-chip" data-tone="{{ ev.tone }}">{{ label }}</span>
+              {% endfor %}
+            </td>
+            <td><a href="{% url 'workflow:processo_resumo' ev.processo.id %}">{{ ev.processo.numero_processo_principal }}</a></td>
           </tr>
         {% empty %}
           <tr><td colspan="3">Nenhum evento atrasado nos filtros atuais.</td></tr>
@@ -360,8 +606,19 @@
     </table>
   </div>
 </div>
+  </div>
+</section>
 
-<div class="two" style="margin-top:16px;">
+<section class="section-shell" id="dashboard-rankings" data-section data-default-collapsed="1">
+  <div class="section-head">
+    <div>
+      <h3>Rankings operacionais</h3>
+      <div class="muted">Visao resumida por condutor e distribuicao dos processos com proximo evento definido.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Exibir</button>
+  </div>
+  <div class="section-body" hidden>
+<div class="two">
   <div class="card">
     <h3>Ranking por pregoeiro / condutor</h3>
     <table>
@@ -391,7 +648,7 @@
           <tr>
             <td>{{ r.processo.numero_processo_principal }}</td>
             <td>{% if r.condutor %}{{ r.condutor.nome }}{% else %}-{% endif %}</td>
-            <td>{% if r.proximo_evento %}{{ r.proximo_evento.label }}{% else %}-{% endif %}</td>
+            <td>{% if r.proximo_evento %}{{ r.proximo_evento.labels_texto }}{% else %}-{% endif %}</td>
             <td>{% if r.proximo_evento %}{{ r.proximo_evento.exibicao }}{% else %}-{% endif %}</td>
           </tr>
         {% empty %}
@@ -401,8 +658,24 @@
     </table>
   </div>
 </div>
+  </div>
+</section>
 
-<h3>Monitoramento integral dos processos</h3>
+<section class="section-shell" id="dashboard-processos" data-section>
+  <div class="section-head">
+    <div>
+      <h3>Monitoramento integral dos processos</h3>
+      <div class="muted">Mostrando {{ rows_grade|length }} de {{ rows_total }} processos na grade principal.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Ocultar</button>
+  </div>
+  <div class="section-body">
+<div class="card">
+  <div class="table-note">
+    <span>Limite atual da grade: {{ rows_grade_limit }} processos</span>
+    <span>Use o filtro "Processos na grade" para aumentar ou reduzir a listagem.</span>
+  </div>
+  <div class="table-scroll">
 <table>
   <thead>
     <tr>
@@ -425,7 +698,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for r in rows %}
+    {% for r in rows_grade %}
       <tr {% if r.is_parado %}style="background:var(--warn-bg);"{% elif r.is_homologado %}style="background:var(--success-bg);"{% endif %}>
         <td>
           <span class="process-num">
@@ -450,7 +723,7 @@
         <td>
           {% if r.proximo_evento %}
             <span class="process-num">
-              <span class="process-num-main">{{ r.proximo_evento.label }}</span>
+              <span class="process-num-main">{{ r.proximo_evento.labels_texto }}</span>
               <span class="process-num-ref">{{ r.proximo_evento.exibicao }}</span>
             </span>
           {% else %}
@@ -481,8 +754,21 @@
     {% endfor %}
   </tbody>
 </table>
+  </div>
+</div>
+  </div>
+</section>
 
-<div class="two" style="margin-top:16px;">
+<section class="section-shell" id="dashboard-distribuicao" data-section data-default-collapsed="1">
+  <div class="section-head">
+    <div>
+      <h3>Distribuicao administrativa</h3>
+      <div class="muted">Quebra por secretaria, modulo atual e status consolidado.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Exibir</button>
+  </div>
+  <div class="section-body" hidden>
+<div class="two">
   <div class="card">
     <h3>Ranking por secretaria</h3>
     <table>
@@ -528,8 +814,19 @@
     </table>
   </div>
 </div>
+  </div>
+</section>
 
-<div class="two" style="margin-top:16px;">
+<section class="section-shell" id="dashboard-destaques" data-section data-default-collapsed="1">
+  <div class="section-head">
+    <div>
+      <h3>Destaques de valor e controle</h3>
+      <div class="muted">Top processos por valor, processos parados e homologados consolidados.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Exibir</button>
+  </div>
+  <div class="section-body" hidden>
+<div class="two">
   <div class="card">
     <h3>Top processos por valor estimado</h3>
     <table>
@@ -605,8 +902,19 @@
     </table>
   </div>
 </div>
+  </div>
+</section>
 
-<div class="two" style="margin-top:16px;">
+<section class="section-shell" id="dashboard-itens" data-section data-default-collapsed="1">
+  <div class="section-head">
+    <div>
+      <h3>Consolidado de itens</h3>
+      <div class="muted">Visao agregada dos itens dos processos e dos itens DFD.</div>
+    </div>
+    <button type="button" class="section-toggle" data-section-toggle>Exibir</button>
+  </div>
+  <div class="section-body" hidden>
+<div class="two">
   <div class="card">
     <h3>Itens consolidados (itens de processo)</h3>
     <table>
@@ -646,4 +954,142 @@
     </table>
   </div>
 </div>
+  </div>
+</section>
+
+<div class="agenda-modal" id="agenda-day-modal" hidden>
+  <div class="agenda-modal-backdrop" data-agenda-close></div>
+  <div class="agenda-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="agenda-day-title">
+    <div class="agenda-modal-head">
+      <div>
+        <div class="muted">Agenda do dia selecionado</div>
+        <h3 id="agenda-day-title">{{ agenda_data_selecionada_label }}</h3>
+      </div>
+      <button type="button" class="section-toggle" data-agenda-close>Fechar</button>
+    </div>
+    <div class="agenda-modal-body" id="agenda-day-body">
+      {% for ev in agenda_eventos_selecionados %}
+        <div class="agenda-modal-item">
+          <div class="ops-item-title">
+            <a class="agenda-modal-link" href="{% url 'workflow:processo_resumo' ev.processo.id %}">{{ ev.processo.numero_processo_principal }}</a>
+            <span class="muted">{{ ev.exibicao }}</span>
+          </div>
+          <div class="ops-event-row">
+            {% for label in ev.labels %}
+              <span class="event-chip" data-tone="{{ ev.tone }}">{{ label }}</span>
+            {% endfor %}
+          </div>
+          <div>{{ ev.processo.objeto|truncatechars:120 }}</div>
+          <div class="agenda-modal-meta">
+            <span>Secretaria: {% if ev.processo.secretaria %}{{ ev.processo.secretaria.sigla }}{% else %}-{% endif %}</span>
+            <span>Condutor: {% if ev.condutor %}{{ ev.condutor.nome }}{% else %}-{% endif %}</span>
+            <span>Modulo: {% if ev.row.workflow %}{{ ev.row.workflow.get_modulo_atual_display }}{% else %}-{% endif %}</span>
+          </div>
+        </div>
+      {% empty %}
+        <div class="agenda-empty">Nenhum processo agendado para a data selecionada.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{{ agenda_eventos_modal_map|json_script:"agenda-eventos-modal-map" }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    function parseJson(id, fallback){
+      const node = document.getElementById(id);
+      if(!node) return fallback;
+      try { return JSON.parse(node.textContent || ''); } catch (err) { return fallback; }
+    }
+
+    const sectionStorageKey = 'sirel-dashboard-sections';
+    let sectionState = {};
+    try {
+      sectionState = JSON.parse(localStorage.getItem(sectionStorageKey) || '{}');
+    } catch (err) {
+      sectionState = {};
+    }
+
+    function applySectionState(section, collapsed){
+      const body = section.querySelector('.section-body');
+      const button = section.querySelector('[data-section-toggle]');
+      if(!body || !button) return;
+      body.hidden = collapsed;
+      button.textContent = collapsed ? 'Exibir' : 'Ocultar';
+      section.dataset.collapsed = collapsed ? '1' : '0';
+    }
+
+    document.querySelectorAll('[data-section]').forEach(section => {
+      const sectionId = section.id || ('section-' + Math.random().toString(36).slice(2));
+      const defaultCollapsed = section.dataset.defaultCollapsed === '1';
+      const collapsed = Object.prototype.hasOwnProperty.call(sectionState, sectionId) ? !!sectionState[sectionId] : defaultCollapsed;
+      applySectionState(section, collapsed);
+      const button = section.querySelector('[data-section-toggle]');
+      if(!button) return;
+      button.addEventListener('click', () => {
+        const nextCollapsed = section.dataset.collapsed !== '1';
+        applySectionState(section, nextCollapsed);
+        sectionState[sectionId] = nextCollapsed;
+        try { localStorage.setItem(sectionStorageKey, JSON.stringify(sectionState)); } catch (err) {}
+      });
+    });
+
+    const agendaMap = parseJson('agenda-eventos-modal-map', {});
+    const modal = document.getElementById('agenda-day-modal');
+    const modalTitle = document.getElementById('agenda-day-title');
+    const modalBody = document.getElementById('agenda-day-body');
+    if(modal && modalTitle && modalBody){
+      const esc = value => String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+      const renderEvent = event => {
+        const labels = (event.labels || []).map(label => '<span class=\"event-chip\" data-tone=\"'+esc(event.tone || 'pub')+'\">'+esc(label)+'</span>').join('');
+        return ''
+          + '<div class=\"agenda-modal-item\">'
+          +   '<div class=\"ops-item-title\">'
+          +     '<a class=\"agenda-modal-link\" href=\"'+esc(event.processo_url || '#')+'\">'+esc(event.processo_numero || '-')+'</a>'
+          +     '<span class=\"muted\">'+esc(event.exibicao || '-')+'</span>'
+          +   '</div>'
+          +   '<div class=\"ops-event-row\">'+labels+'</div>'
+          +   '<div>'+esc(event.objeto || '-')+'</div>'
+          +   '<div class=\"agenda-modal-meta\">'
+          +     '<span>Secretaria: '+esc(event.secretaria || '-')+'</span>'
+          +     '<span>Condutor: '+esc(event.condutor || '-')+'</span>'
+          +     '<span>Modulo: '+esc(event.modulo || '-')+'</span>'
+          +   '</div>'
+          + '</div>';
+      };
+      const openModal = (isoDate, label) => {
+        const rows = Array.isArray(agendaMap[isoDate]) ? agendaMap[isoDate] : [];
+        modalTitle.textContent = label || isoDate || '-';
+        modalBody.innerHTML = rows.length
+          ? rows.map(renderEvent).join('')
+          : '<div class=\"agenda-empty\">Nenhum processo agendado para a data selecionada.</div>';
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+      };
+      const closeModal = () => {
+        modal.hidden = true;
+        document.body.style.overflow = '';
+      };
+      document.querySelectorAll('[data-agenda-date]').forEach(link => {
+        link.addEventListener('click', event => {
+          const isoDate = link.getAttribute('data-agenda-date') || '';
+          if(!isoDate){
+            return;
+          }
+          event.preventDefault();
+          openModal(isoDate, link.getAttribute('data-agenda-label') || isoDate);
+        });
+      });
+      modal.querySelectorAll('[data-agenda-close]').forEach(node => node.addEventListener('click', closeModal));
+      document.addEventListener('keydown', event => {
+        if(event.key === 'Escape' && !modal.hidden){
+          closeModal();
+        }
+      });
+    }
+  })();
+</script>
 {% endblock %}

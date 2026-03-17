@@ -28,3 +28,14 @@ firefox.html
 firefox.css
 
 *.log
+
+node_modules/
+.pnpm-store/
+.turbo/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local

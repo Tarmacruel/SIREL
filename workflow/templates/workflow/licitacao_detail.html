@@ -78,7 +78,7 @@
 {% block content %}
 <div class="head">
   <div>
-    <h2>MÃ³dulo LicitaÃ§Ã£o</h2>
+    <h2>Módulo Licitação</h2>
     <p class="muted">
       Processo
       <span class="process-num">
@@ -94,7 +94,7 @@
     <a class="btn" href="{% url 'workflow:processo_resumo' processo.id %}">Voltar ao resumo</a>
     <a class="btn" href="{% url 'workflow:licitacao_novo_externo' %}">Novo processo externo</a>
     <a class="btn" href="{% url 'workflow:licitacao_edital_generator' processo.id %}">Gerador de Minuta de Edital</a>
-    <a class="btn" href="{% url 'workflow:licitacao_relatorio_pendencias' processo.id %}" target="_blank" rel="noopener">RelatÃ³rio de pendÃªncias</a>
+    <a class="btn" href="{% url 'workflow:licitacao_relatorio_pendencias' processo.id %}" target="_blank" rel="noopener">Relatório de pendências</a>
     <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino=PROCURADORIA">Gerar C.I. e encaminhar para Procuradoria</a>
     <a class="btn" href="{% url 'workflow:processo_comunicacao_interna' processo.id %}?destino=COMPRAS&acao=devolver">Devolver para Compras</a>
   </div>
@@ -115,7 +115,7 @@
   </div>
   {% if pendencias %}
     <div class="warn-card">
-      <strong>PendÃªncias atuais ({{ pendencias|length }})</strong><br>
+      <strong>Pendências atuais ({{ pendencias|length }})</strong><br>
       {{ pendencias|join:', ' }}
     </div>
   {% else %}
@@ -126,7 +126,7 @@
 </section>
 
 <section class="card section">
-  <h3>Anexo rÃ¡pido de documento</h3>
+  <h3>Anexo rápido de documento</h3>
   <form method="post" enctype="multipart/form-data" action="{% url 'workflow:licitacao_upload_documento' processo.id %}">
     {% csrf_token %}
     <div class="grid" style="grid-template-columns:2fr 3fr 1fr;align-items:end;">
@@ -152,7 +152,7 @@
       <thead>
         <tr>
           <th style="width:29%;">Documento</th>
-          <th style="width:13%;">SituaÃ§Ã£o</th>
+          <th style="width:13%;">Situação</th>
           <th style="width:26%;">Arquivo anexado</th>
           <th style="width:16%;">Gerar no SIREL</th>
           <th style="width:16%;">Atualizar anexo</th>
@@ -206,7 +206,7 @@
 
 {% if docs_extras %}
   <section class="card section">
-    <h3>Outros documentos do mÃ³dulo LicitaÃ§Ã£o</h3>
+    <h3>Outros documentos do módulo Licitação</h3>
     <table>
       <thead>
         <tr><th>Tipo</th><th>Arquivo</th><th>Data</th></tr>

@@ -1,7 +1,7 @@
 ﻿import json
 import unicodedata
 import mimetypes
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
 from html import unescape as html_unescape
@@ -12,6 +12,7 @@ from uuid import uuid4
 import calendar
 import re
 import zipfile
+from urllib.parse import urlencode
 from xml.sax.saxutils import escape
 
 from PIL import Image as PILImage, ImageSequence
@@ -313,7 +314,13 @@ DOC_ASSINADO_PREFIX = 'ASSINADO::'
 COMPRAS_COMPROVANTE_TIPO = 'COMPRAS_COMPROVANTE_PESQUISA'
 COMPRAS_SD_GERADA_DESCRICAO = 'SD gerada no módulo Compras.'
 LICITACAO_DOC_PREFIX = 'LICITACAO_DOC::'
+AVISO_PUBLICIDADE_PREFIX = 'LICITACAO_AVISO_PUBLICIDADE::'
 LICITACAO_ETAPA_FASE_INTERNA = 'LICITACAO - FASE INTERNA'
+AVISO_PUBLICIDADE_CONFIG = {
+    'pncp': {'label': 'Comprovante PNCP'},
+    'dom': {'label': 'Comprovante Diário Oficial'},
+    'portal': {'label': 'Comprovante Portal Público'},
+}
 
 LICITACAO_CHECKLIST = [
     {
@@ -412,6 +419,7 @@ LICITACAO_CHECKLIST = [
         'label': 'Minuta do aviso',
         'fase': 'FASE INTERNA NA LICITAÇÃO',
         'gerar_doc_names': ('docs:aviso_licitacao_docx', 'aviso_licitacao_docx'),
+        'gerar_ci_html': True,
     },
     {
         'codigo': 'ci_pgm_parecer',
@@ -430,6 +438,7 @@ LICITACAO_CHECKLIST = [
         'label': 'Aviso de Licitação de Dispensa',
         'fase': 'FASE INTERNA NA LICITAÇÃO',
         'gerar_doc_names': ('docs:aviso_licitacao_docx', 'aviso_licitacao_docx'),
+        'gerar_ci_html': True,
     },
     {
         'codigo': 'termo_autuacao_agente',
@@ -578,6 +587,79 @@ def _licitacao_codigo_documento(tipo_documento: str) -> str:
     if not tipo.startswith(LICITACAO_DOC_PREFIX):
         return ''
     return tipo.replace(LICITACAO_DOC_PREFIX, '', 1)
+
+
+def _aviso_publicidade_tipo_documento(canal: str) -> str:
+    return f'{AVISO_PUBLICIDADE_PREFIX}{str(canal or "").strip().lower()}'
+
+
+def _aviso_publicidade_canal(tipo_documento: str) -> str:
+    tipo = str(tipo_documento or '').strip()
+    if not tipo.startswith(AVISO_PUBLICIDADE_PREFIX):
+        return ''
+    return tipo.replace(AVISO_PUBLICIDADE_PREFIX, '', 1)
+
+
+def _listar_aviso_publicidade_documentos(processo: Processo) -> list[dict]:
+    docs_qs = (
+        DocumentoProcessoWorkflow.objects
+        .filter(processo=processo, tipo_documento__startswith=AVISO_PUBLICIDADE_PREFIX)
+        .order_by('-criado_em', '-id')
+    )
+    docs_por_canal = {}
+    for doc in docs_qs:
+        canal = _aviso_publicidade_canal(doc.tipo_documento)
+        if canal and canal not in docs_por_canal:
+            docs_por_canal[canal] = doc
+
+    saida = []
+    for canal, conf in AVISO_PUBLICIDADE_CONFIG.items():
+        doc = docs_por_canal.get(canal)
+        arquivo_nome = Path(str(getattr(getattr(doc, 'arquivo', None), 'name', '') or '')).name if doc else ''
+        saida.append(
+            {
+                'key': canal,
+                'label': str(conf.get('label') or canal),
+                'documento': doc,
+                'status': 'Anexado' if doc else 'Pendente',
+                'arquivo_nome': arquivo_nome,
+                'arquivo_url': getattr(getattr(doc, 'arquivo', None), 'url', '') if doc else '',
+                'criado_em': getattr(doc, 'criado_em', None),
+                'criado_em_exibicao': _format_datetime_br(getattr(doc, 'criado_em', None)) if doc else '',
+            }
+        )
+    return saida
+
+
+def _upsert_aviso_publicidade_documento(processo: Processo, canal: str, arquivo):
+    tipo = _aviso_publicidade_tipo_documento(canal)
+    ordem = (
+        DocumentoProcessoWorkflow.objects.filter(processo=processo)
+        .aggregate(maior=Max('ordem_cronologica'))
+        .get('maior')
+        or 0
+    ) + 1
+    existente = (
+        DocumentoProcessoWorkflow.objects
+        .filter(processo=processo, tipo_documento=tipo)
+        .order_by('-id')
+        .first()
+    )
+    if existente:
+        existente.modulo = ModuloSistema.LICITACAO
+        existente.arquivo = arquivo
+        existente.ordem_cronologica = ordem
+        existente.gerar_no_etcm = True
+        existente.save(update_fields=['modulo', 'arquivo', 'ordem_cronologica', 'gerar_no_etcm'])
+        return existente
+    return DocumentoProcessoWorkflow.objects.create(
+        processo=processo,
+        modulo=ModuloSistema.LICITACAO,
+        tipo_documento=tipo,
+        arquivo=arquivo,
+        ordem_cronologica=ordem,
+        gerar_no_etcm=True,
+    )
 
 
 def _build_licitacao_checklist(processo: Processo):
@@ -751,6 +833,165 @@ def _format_datetime_br(valor) -> str:
     return dt.strftime('%d/%m/%Y %H:%M')
 
 
+def _parse_iso_date_or_default(raw_value, default_value: date) -> date:
+    raw = str(raw_value or '').strip()
+    if not raw:
+        return default_value
+    try:
+        return datetime.fromisoformat(raw).date()
+    except Exception:
+        return default_value
+
+
+def _parse_iso_time_or_default(raw_value, default_value: time) -> time:
+    raw = str(raw_value or '').strip()
+    if not raw:
+        return default_value
+    try:
+        return time.fromisoformat(raw[:5] if len(raw) >= 5 else raw)
+    except Exception:
+        return default_value
+
+
+def _iter_business_days(data_inicio: date, data_fim: date) -> list[date]:
+    if not data_inicio or not data_fim:
+        return []
+    if data_fim < data_inicio:
+        data_inicio, data_fim = data_fim, data_inicio
+    dias = []
+    cursor = data_inicio
+    while cursor <= data_fim:
+        if cursor.weekday() < 5:
+            dias.append(cursor)
+        cursor += timedelta(days=1)
+    return dias
+
+
+def _extract_numero_sequencial(texto: str, ano_referencia: int) -> int:
+    raw = str(texto or '').strip()
+    if not raw:
+        return 0
+    match = re.search(r'(\d+)\s*[/-]\s*(\d{4})', raw)
+    if not match:
+        return 0
+    try:
+        sequencial = int(match.group(1))
+        ano = int(match.group(2))
+    except Exception:
+        return 0
+    if ano != int(ano_referencia):
+        return 0
+    return sequencial
+
+
+def _proximo_numero_aviso(processo: Processo, ano_exercicio: int) -> str:
+    if str(processo.numero_edital or '').strip():
+        return str(processo.numero_edital).strip()
+    qs = Processo.objects.filter(ano_referencia=ano_exercicio).exclude(numero_edital='')
+    if getattr(processo, 'modalidade_id', None):
+        qs = qs.filter(modalidade_id=processo.modalidade_id)
+    maior_seq = 0
+    for numero in qs.values_list('numero_edital', flat=True)[:2000]:
+        seq = _extract_numero_sequencial(numero, ano_exercicio)
+        if seq > maior_seq:
+            maior_seq = seq
+    return f'{maior_seq + 1:04d}/{ano_exercicio}'
+
+
+def _processo_modalidade_nome(processo: Processo, *, fallback: str = 'Licitacao') -> str:
+    nome = str(getattr(getattr(processo, 'modalidade', None), 'nome', '') or '').strip()
+    return nome or fallback
+
+
+def _build_aviso_documento_html(aviso_ctx: dict) -> str:
+    processo = aviso_ctx['processo']
+    orgao = aviso_ctx.get('orgao')
+    modalidade_nome = str(aviso_ctx.get('modalidade_nome') or 'Licitacao').strip()
+    numero_documento = str(aviso_ctx.get('numero_documento') or '-').strip()
+    tipo_label = str(aviso_ctx.get('aviso_tipo_label') or 'Aviso de Licitacao').strip()
+    orgao_nome = (
+        str(getattr(orgao, 'nome_fantasia', '') or getattr(orgao, 'razao_social', '') or '').strip()
+        or 'Orgao/Entidade'
+    )
+    setor_responsavel = str(aviso_ctx.get('setor_responsavel') or 'Setor responsavel').strip()
+    criterio = str(aviso_ctx.get('criterio_julgamento') or '-').strip()
+    modo = str(aviso_ctx.get('modo_disputa') or '-').strip()
+    objeto_resumido = str(aviso_ctx.get('objeto_resumido') or '').strip()
+    objeto_detalhado = str(aviso_ctx.get('objeto_detalhado') or '').strip()
+    plataforma_nome = str(aviso_ctx.get('plataforma_nome') or '').strip()
+    plataforma_link = str(aviso_ctx.get('plataforma_link') or '').strip()
+    pncp_link = str(aviso_ctx.get('pncp_link') or '').strip()
+    portal_link = str(aviso_ctx.get('portal_link') or '').strip()
+    contato_setor = str(aviso_ctx.get('contato_setor') or '').strip()
+    contato_email = str(aviso_ctx.get('contato_email') or '').strip()
+    contato_telefone = str(aviso_ctx.get('contato_telefone') or '').strip()
+    contato_endereco = str(aviso_ctx.get('contato_endereco') or '').strip()
+    corpo_complementar = str(aviso_ctx.get('corpo_editor') or '').strip()
+    data_publicacao = aviso_ctx.get('data_publicacao')
+    data_abertura = aviso_ctx.get('data_abertura')
+    hora_abertura = aviso_ctx.get('hora_abertura')
+    data_inicio_propostas = aviso_ctx.get('data_inicio_propostas')
+    hora_inicio_propostas = aviso_ctx.get('hora_inicio_propostas')
+    data_fim_propostas = aviso_ctx.get('data_fim_propostas')
+    hora_fim_propostas = aviso_ctx.get('hora_fim_propostas')
+    processo_ref = str(processo.numero_processo_principal or '-').strip()
+
+    def _fmt_data(data_ref):
+        return data_ref.strftime('%d/%m/%Y') if isinstance(data_ref, date) else '-'
+
+    def _fmt_hora(hora_ref):
+        return hora_ref.strftime('%H:%M') if isinstance(hora_ref, time) else '-'
+
+    intro = (
+        f'O {orgao_nome}, por meio da {setor_responsavel}, torna publico aos interessados '
+        f'que realizara {tipo_label.lower()} na modalidade {modalidade_nome}, '
+        f'sob o numero {numero_documento}, referente ao processo {processo_ref}.'
+    )
+    if str(aviso_ctx.get('documento_submodo') or '') == 'dispensa':
+        intro = (
+            f'O {orgao_nome}, por meio da {setor_responsavel}, torna publico que recebera '
+            f'propostas para contratacao direta/dispensa sob o numero {numero_documento}, '
+            f'referente ao processo {processo_ref}.'
+        )
+
+    links = [x for x in [plataforma_link, pncp_link, portal_link] if x]
+    contato_partes = [x for x in [contato_setor, contato_email, contato_telefone, contato_endereco] if x]
+
+    partes = [
+        f'<p>{escape(intro)}</p>',
+        f'<p><b>Objeto resumido:</b> {escape(objeto_resumido or objeto_detalhado or "-")}</p>',
+        f'<p><b>Objeto detalhado:</b> {escape(objeto_detalhado or objeto_resumido or "-")}</p>',
+        f'<p><b>Publicacao prevista:</b> {escape(_fmt_data(data_publicacao))}</p>',
+        (
+            f'<p><b>Recebimento de propostas:</b> inicio em {escape(_fmt_data(data_inicio_propostas))} '
+            f'as {escape(_fmt_hora(hora_inicio_propostas))} e encerramento em '
+            f'{escape(_fmt_data(data_fim_propostas))} as {escape(_fmt_hora(hora_fim_propostas))}.</p>'
+        ),
+        (
+            f'<p><b>Abertura / sessao publica:</b> {escape(_fmt_data(data_abertura))} '
+            f'as {escape(_fmt_hora(hora_abertura))}.</p>'
+        ),
+        f'<p><b>Criterio de julgamento:</b> {escape(criterio)}. <b>Modo de disputa:</b> {escape(modo)}.</p>',
+    ]
+    if aviso_ctx.get('srp'):
+        partes.append('<p><b>SRP:</b> Sistema de Registro de Precos habilitado para este aviso.</p>')
+    if aviso_ctx.get('valor_sigiloso'):
+        partes.append('<p><b>Orcamento sigiloso:</b> o valor estimado nao sera divulgado nesta publicacao.</p>')
+    if plataforma_nome or plataforma_link:
+        partes.append(
+            f'<p><b>Plataforma:</b> {escape(plataforma_nome or "-")}'
+            + (f' - {escape(plataforma_link)}' if plataforma_link else '')
+            + '</p>'
+        )
+    if links:
+        partes.append(f'<p><b>Locais de acesso:</b> {escape(" | ".join(links))}</p>')
+    if contato_partes:
+        partes.append(f'<p><b>Esclarecimentos e contato:</b> {escape(" | ".join(contato_partes))}</p>')
+    if corpo_complementar:
+        partes.append(corpo_complementar)
+    return ''.join(partes)
+
+
 def _label_tipo_documento_workflow(tipo_documento: str) -> str:
     tipo = str(tipo_documento or '').strip()
     if not tipo:
@@ -763,6 +1004,10 @@ def _label_tipo_documento_workflow(tipo_documento: str) -> str:
         key = tipo.replace(DOC_ASSINADO_PREFIX, '', 1)
         conf = DOC_ASSINADO_CONFIG.get(key, {})
         return str(conf.get('label') or f'Documento assinado ({key or "N/D"})')
+    if tipo.startswith(AVISO_PUBLICIDADE_PREFIX):
+        key = _aviso_publicidade_canal(tipo)
+        conf = AVISO_PUBLICIDADE_CONFIG.get(key, {})
+        return str(conf.get('label') or f'Comprovante de publicidade ({key or "N/D"})')
     if tipo == COMPRAS_COMPROVANTE_TIPO:
         return 'Comprovante de pesquisa de preços'
     return tipo
@@ -2216,10 +2461,254 @@ def _rich_html_to_pdf_markup(valor: str) -> str:
     return texto.replace('\n', '<br/>')
 
 
+def _licitacao_signatarios_payload(processo: Processo, *, selected_ids=None):
+    pessoa_opts = list(Pessoa.objects.select_related('secretaria').order_by('nome')[:800])
+    signatarios_catalogo = [
+        {
+            'id': p.id,
+            'nome': p.nome,
+            'cargo': str(getattr(p, 'cargo', '') or '').strip(),
+            'secretaria': str(getattr(getattr(p, 'secretaria', None), 'sigla', '') or '').strip(),
+        }
+        for p in pessoa_opts
+    ]
+
+    default_ids = []
+    for pessoa in [getattr(processo, 'condutor_processo', None), getattr(processo, 'autoridade_competente', None)]:
+        if pessoa and pessoa.id and str(pessoa.id) not in default_ids:
+            default_ids.append(str(pessoa.id))
+
+    signatarios_ids = [str(x).strip() for x in (selected_ids or default_ids) if str(x).strip()]
+    pessoas_sel = []
+    if signatarios_ids:
+        pessoas_sel = list(
+            Pessoa.objects
+            .filter(id__in=[int(x) for x in signatarios_ids if x.isdigit()])
+            .select_related('secretaria')
+            .order_by('nome')
+        )
+    by_id = {str(p.id): p for p in pessoas_sel}
+    signatarios_selecionados = []
+    for sid in signatarios_ids:
+        pessoa = by_id.get(str(sid))
+        if not pessoa:
+            continue
+        signatarios_selecionados.append(
+            {
+                'id': pessoa.id,
+                'nome': pessoa.nome,
+                'cargo': str(getattr(pessoa, 'cargo', '') or '').strip(),
+                'secretaria': str(getattr(getattr(pessoa, 'secretaria', None), 'sigla', '') or '').strip(),
+            }
+        )
+    return signatarios_catalogo, signatarios_ids, signatarios_selecionados
+
+
+def _licitacao_aviso_context(processo: Processo, item: dict, codigo: str, *, form_data=None, usuario=None):
+    hoje = timezone.localdate()
+    ano_ref = int(getattr(processo, 'ano_referencia', 0) or hoje.year)
+    orgao = _orgao_ativo()
+    modalidade_nome_default = _processo_modalidade_nome(
+        processo,
+        fallback='Dispensa de Licitacao' if codigo == 'aviso_licitacao_dispensa' else 'Pregao Eletronico',
+    )
+    numero_default = _proximo_numero_aviso(processo, ano_ref)
+    localidade_default = _localidade_orgao_padrao()
+    objeto_default = str(processo.objeto or '').strip() or 'Objeto nao informado'
+    objeto_resumido_default = objeto_default[:180]
+    criterio_default = str(processo.get_criterio_julgamento_display() or '').strip() or 'Menor preco'
+    modo_default = str(processo.get_modo_disputa_display() or '').strip() or 'Aberto'
+    setor_default = str(getattr(getattr(processo, 'secretaria', None), 'nome', '') or '').strip() or 'Assessoria de Licitacao'
+    contato_setor_default = 'Assessoria de Licitacao'
+    contato_endereco_default = str(getattr(orgao, 'endereco_completo', '') or '').strip() or '-'
+    orgao_nome_exibicao = (
+        str(getattr(orgao, 'nome_fantasia', '') or getattr(orgao, 'razao_social', '') or '').strip()
+        or 'Orgao/Entidade'
+    )
+    plataforma_nome_default = 'BLL - Bolsa de Licitacoes e Leiloes' if str(processo.link_bll or '').strip() else 'Portal eletronico'
+    plataforma_link_default = str(processo.link_bll or '').strip()
+    responsavel_nome = (
+        str(getattr(getattr(processo, 'condutor_processo', None), 'nome', '') or '').strip()
+        or ((usuario.get_full_name() or '').strip() if getattr(usuario, 'is_authenticated', False) else '')
+        or (usuario.get_username() if getattr(usuario, 'is_authenticated', False) else '')
+        or 'Responsavel pelo aviso'
+    )
+    responsavel_cargo = (
+        str(getattr(getattr(processo, 'condutor_processo', None), 'cargo', '') or '').strip()
+        or 'Pregoeiro / Agente de contratacao'
+    )
+
+    data_publicacao_default = getattr(processo, 'data_publicacao', None) or hoje
+    abertura_dt = getattr(processo, 'data_hora_abertura', None)
+    abertura_local = timezone.localtime(abertura_dt) if abertura_dt and timezone.is_aware(abertura_dt) else abertura_dt
+    data_abertura_default = abertura_local.date() if abertura_local else (data_publicacao_default + timedelta(days=10))
+    hora_abertura_default = abertura_local.time().replace(second=0, microsecond=0) if abertura_local else time(9, 0)
+
+    inicio_dt = getattr(processo, 'inicio_recolhimento_propostas', None)
+    inicio_local = timezone.localtime(inicio_dt) if inicio_dt and timezone.is_aware(inicio_dt) else inicio_dt
+    data_inicio_default = inicio_local.date() if inicio_local else data_publicacao_default
+    hora_inicio_default = inicio_local.time().replace(second=0, microsecond=0) if inicio_local else time(8, 0)
+
+    fim_dt = getattr(processo, 'fim_recolhimento_propostas', None)
+    fim_local = timezone.localtime(fim_dt) if fim_dt and timezone.is_aware(fim_dt) else fim_dt
+    data_fim_default = fim_local.date() if fim_local else data_abertura_default
+    hora_fim_default = fim_local.time().replace(second=0, microsecond=0) if fim_local else hora_abertura_default
+
+    signatarios_ids = None
+    if form_data:
+        signatarios_ids = [str(x).strip() for x in form_data.getlist('signatarios') if str(x).strip()]
+    signatarios_catalogo, signatarios_ids, signatarios_selecionados = _licitacao_signatarios_payload(
+        processo,
+        selected_ids=signatarios_ids,
+    )
+    publicidade_docs = _listar_aviso_publicidade_documentos(processo)
+    publicidade_anexados = sum(1 for row in publicidade_docs if row['documento'])
+
+    ctx = {
+        'processo': processo,
+        'orgao': orgao,
+        'orgao_nome_exibicao': orgao_nome_exibicao,
+        'ci_documento_label': item['label'],
+        'ci_fase': item['fase'],
+        'titulo_pagina': f'Gerador de Aviso - {item["label"]}',
+        'voltar_label': 'Voltar para Licitacao',
+        'documento_modo': 'aviso',
+        'documento_submodo': 'dispensa' if codigo == 'aviso_licitacao_dispensa' else 'licitacao',
+        'modelo_tipo': 'AVISO',
+        'modelo_titulo': 'Aviso de Licitacao',
+        'numero_prefixo': f'{modalidade_nome_default} n.',
+        'numero_documento': numero_default,
+        'modalidade_nome': modalidade_nome_default,
+        'aviso_tipo_label': 'Aviso de Dispensa de Licitacao' if codigo == 'aviso_licitacao_dispensa' else 'Aviso de Licitacao',
+        'localidade': localidade_default,
+        'data_documento': data_publicacao_default,
+        'data_documento_iso': data_publicacao_default.isoformat(),
+        'data_documento_extenso': _data_extenso_pt_br(data_publicacao_default),
+        'de_origem': setor_default,
+        'para_destino': '',
+        'assunto': f'{modalidade_nome_default} - {objeto_resumido_default[:90]}',
+        'referencia': f'{processo.numero_processo_principal} - {objeto_resumido_default[:110]}',
+        'objeto_resumido': objeto_resumido_default,
+        'objeto_detalhado': objeto_default,
+        'setor_responsavel': setor_default,
+        'criterio_julgamento': criterio_default,
+        'modo_disputa': modo_default,
+        'srp': processo.tipo_contratacao == Processo.TipoContratacao.REGISTRO_PRECO,
+        'valor_sigiloso': False,
+        'data_publicacao': data_publicacao_default,
+        'data_publicacao_iso': data_publicacao_default.isoformat(),
+        'data_abertura': data_abertura_default,
+        'data_abertura_iso': data_abertura_default.isoformat(),
+        'hora_abertura': hora_abertura_default,
+        'hora_abertura_iso': hora_abertura_default.strftime('%H:%M'),
+        'data_inicio_propostas': data_inicio_default,
+        'data_inicio_propostas_iso': data_inicio_default.isoformat(),
+        'hora_inicio_propostas': hora_inicio_default,
+        'hora_inicio_propostas_iso': hora_inicio_default.strftime('%H:%M'),
+        'data_fim_propostas': data_fim_default,
+        'data_fim_propostas_iso': data_fim_default.isoformat(),
+        'hora_fim_propostas': hora_fim_default,
+        'hora_fim_propostas_iso': hora_fim_default.strftime('%H:%M'),
+        'plataforma_nome': plataforma_nome_default,
+        'plataforma_link': plataforma_link_default,
+        'pncp_link': '',
+        'portal_link': '',
+        'contato_setor': contato_setor_default,
+        'contato_email': '',
+        'contato_telefone': '',
+        'contato_endereco': contato_endereco_default,
+        'corpo_editor': '',
+        'responsavel_nome': responsavel_nome,
+        'responsavel_cargo': responsavel_cargo,
+        'signatarios_ids': signatarios_ids,
+        'signatarios_catalogo': signatarios_catalogo,
+        'signatarios_selecionados': signatarios_selecionados,
+        'publicidade_docs': publicidade_docs,
+        'publicidade_total': len(publicidade_docs),
+        'publicidade_anexados': publicidade_anexados,
+        'publicidade_pendentes': max(0, len(publicidade_docs) - publicidade_anexados),
+        'rodape_documento': 'Documento gerado pelo SIREL Modular.',
+    }
+
+    if form_data:
+        ctx['numero_documento'] = str(form_data.get('numero_documento') or ctx['numero_documento']).strip() or ctx['numero_documento']
+        ctx['modalidade_nome'] = str(form_data.get('modalidade_nome') or ctx['modalidade_nome']).strip() or ctx['modalidade_nome']
+        ctx['numero_prefixo'] = f'{ctx["modalidade_nome"]} n.'
+        ctx['localidade'] = str(form_data.get('localidade') or ctx['localidade']).strip() or ctx['localidade']
+        ctx['setor_responsavel'] = str(form_data.get('setor_responsavel') or ctx['setor_responsavel']).strip() or ctx['setor_responsavel']
+        ctx['de_origem'] = ctx['setor_responsavel']
+        ctx['assunto'] = str(form_data.get('assunto') or ctx['assunto']).strip() or ctx['assunto']
+        ctx['referencia'] = str(form_data.get('referencia') or ctx['referencia']).strip() or ctx['referencia']
+        ctx['objeto_resumido'] = str(form_data.get('objeto_resumido') or ctx['objeto_resumido']).strip() or ctx['objeto_resumido']
+        ctx['objeto_detalhado'] = str(form_data.get('objeto_detalhado') or ctx['objeto_detalhado']).strip() or ctx['objeto_detalhado']
+        ctx['criterio_julgamento'] = str(form_data.get('criterio_julgamento') or ctx['criterio_julgamento']).strip() or ctx['criterio_julgamento']
+        ctx['modo_disputa'] = str(form_data.get('modo_disputa') or ctx['modo_disputa']).strip() or ctx['modo_disputa']
+        ctx['plataforma_nome'] = str(form_data.get('plataforma_nome') or ctx['plataforma_nome']).strip() or ctx['plataforma_nome']
+        ctx['plataforma_link'] = str(form_data.get('plataforma_link') or '').strip()
+        ctx['pncp_link'] = str(form_data.get('pncp_link') or '').strip()
+        ctx['portal_link'] = str(form_data.get('portal_link') or '').strip()
+        ctx['contato_setor'] = str(form_data.get('contato_setor') or ctx['contato_setor']).strip() or ctx['contato_setor']
+        ctx['contato_email'] = str(form_data.get('contato_email') or '').strip()
+        ctx['contato_telefone'] = str(form_data.get('contato_telefone') or '').strip()
+        ctx['contato_endereco'] = str(form_data.get('contato_endereco') or ctx['contato_endereco']).strip() or ctx['contato_endereco']
+        ctx['corpo_editor'] = str(form_data.get('corpo_editor') or '').strip()
+        ctx['responsavel_nome'] = str(form_data.get('responsavel_nome') or ctx['responsavel_nome']).strip() or ctx['responsavel_nome']
+        ctx['responsavel_cargo'] = str(form_data.get('responsavel_cargo') or ctx['responsavel_cargo']).strip() or ctx['responsavel_cargo']
+        ctx['srp'] = _post_bool(form_data, 'srp', default=ctx['srp'])
+        ctx['valor_sigiloso'] = _post_bool(form_data, 'valor_sigiloso', default=ctx['valor_sigiloso'])
+
+        ctx['data_publicacao'] = _parse_iso_date_or_default(form_data.get('data_publicacao'), ctx['data_publicacao'])
+        ctx['data_publicacao_iso'] = ctx['data_publicacao'].isoformat()
+        ctx['data_documento'] = ctx['data_publicacao']
+        ctx['data_documento_iso'] = ctx['data_publicacao_iso']
+        ctx['data_documento_extenso'] = _data_extenso_pt_br(ctx['data_publicacao'])
+
+        ctx['data_abertura'] = _parse_iso_date_or_default(form_data.get('data_abertura'), ctx['data_abertura'])
+        ctx['data_abertura_iso'] = ctx['data_abertura'].isoformat()
+        ctx['hora_abertura'] = _parse_iso_time_or_default(form_data.get('hora_abertura'), ctx['hora_abertura'])
+        ctx['hora_abertura_iso'] = ctx['hora_abertura'].strftime('%H:%M')
+
+        ctx['data_inicio_propostas'] = _parse_iso_date_or_default(
+            form_data.get('data_inicio_propostas'),
+            ctx['data_inicio_propostas'],
+        )
+        ctx['data_inicio_propostas_iso'] = ctx['data_inicio_propostas'].isoformat()
+        ctx['hora_inicio_propostas'] = _parse_iso_time_or_default(
+            form_data.get('hora_inicio_propostas'),
+            ctx['hora_inicio_propostas'],
+        )
+        ctx['hora_inicio_propostas_iso'] = ctx['hora_inicio_propostas'].strftime('%H:%M')
+
+        ctx['data_fim_propostas'] = _parse_iso_date_or_default(
+            form_data.get('data_fim_propostas'),
+            ctx['data_fim_propostas'],
+        )
+        ctx['data_fim_propostas_iso'] = ctx['data_fim_propostas'].isoformat()
+        ctx['hora_fim_propostas'] = _parse_iso_time_or_default(
+            form_data.get('hora_fim_propostas'),
+            ctx['hora_fim_propostas'],
+        )
+        ctx['hora_fim_propostas_iso'] = ctx['hora_fim_propostas'].strftime('%H:%M')
+
+    business_days = _iter_business_days(ctx['data_publicacao'], ctx['data_abertura'])
+    ctx['prazo_dias_uteis'] = max(0, len(business_days) - 1)
+    ctx['prazo_minimo_ok'] = ctx['prazo_dias_uteis'] >= 8
+    ctx['corpo'] = _build_aviso_documento_html(ctx)
+    return ctx
+
+
 def _licitacao_ci_context(processo: Processo, codigo: str, *, form_data=None, usuario=None):
     item = LICITACAO_CHECKLIST_MAP.get(codigo)
     if not item or not item.get('gerar_ci_html'):
         return None
+    if codigo in {'minuta_aviso', 'aviso_licitacao_dispensa'}:
+        return _licitacao_aviso_context(
+            processo,
+            item,
+            codigo,
+            form_data=form_data,
+            usuario=usuario,
+        )
 
     hoje = timezone.localdate()
     ano_ref = int(hoje.year)
@@ -2337,21 +2826,6 @@ def _licitacao_ci_context(processo: Processo, codigo: str, *, form_data=None, us
     if not modelo:
         return None
 
-    pessoa_opts = list(Pessoa.objects.select_related('secretaria').order_by('nome')[:800])
-    signatarios_catalogo = [
-        {
-            'id': p.id,
-            'nome': p.nome,
-            'cargo': str(getattr(p, 'cargo', '') or '').strip(),
-            'secretaria': str(getattr(getattr(p, 'secretaria', None), 'sigla', '') or '').strip(),
-        }
-        for p in pessoa_opts
-    ]
-    signatarios_ids_default = []
-    for pessoa in [getattr(processo, 'condutor_processo', None), getattr(processo, 'autoridade_competente', None)]:
-        if pessoa and pessoa.id and str(pessoa.id) not in signatarios_ids_default:
-            signatarios_ids_default.append(str(pessoa.id))
-
     data_documento = hoje
     if form_data:
         data_raw = str(form_data.get('data_documento') or '').strip()
@@ -2361,32 +2835,13 @@ def _licitacao_ci_context(processo: Processo, codigo: str, *, form_data=None, us
             except Exception:
                 data_documento = hoje
 
-    signatarios_ids = signatarios_ids_default
+    signatarios_ids = None
     if form_data:
         signatarios_ids = [str(x).strip() for x in form_data.getlist('signatarios') if str(x).strip()]
-
-    pessoas_sel = []
-    if signatarios_ids:
-        pessoas_sel = list(
-            Pessoa.objects
-            .filter(id__in=[int(x) for x in signatarios_ids if x.isdigit()])
-            .select_related('secretaria')
-            .order_by('nome')
-        )
-    by_id = {str(p.id): p for p in pessoas_sel}
-    signatarios_selecionados = []
-    for sid in signatarios_ids:
-        pessoa = by_id.get(str(sid))
-        if not pessoa:
-            continue
-        signatarios_selecionados.append(
-            {
-                'id': pessoa.id,
-                'nome': pessoa.nome,
-                'cargo': str(getattr(pessoa, 'cargo', '') or '').strip(),
-                'secretaria': str(getattr(getattr(pessoa, 'secretaria', None), 'sigla', '') or '').strip(),
-            }
-        )
+    signatarios_catalogo, signatarios_ids, signatarios_selecionados = _licitacao_signatarios_payload(
+        processo,
+        selected_ids=signatarios_ids,
+    )
 
     numero_documento = modelo['numero_default']
     localidade = _localidade_orgao_padrao()
@@ -2416,6 +2871,7 @@ def _licitacao_ci_context(processo: Processo, codigo: str, *, form_data=None, us
         'ci_fase': item['fase'],
         'titulo_pagina': f'Gerador de Documento - {item["label"]}',
         'voltar_label': 'Voltar para Licitação',
+        'documento_modo': 'documento',
         'modelo_tipo': modelo['tipo'],
         'modelo_titulo': modelo['titulo'],
         'numero_prefixo': modelo['numero_prefixo'],
@@ -5443,13 +5899,32 @@ def licitacao_ci_documento(request, processo_id: int, codigo: str):
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip().lower()
+        if action == 'save_publicidade' and ci_ctx.get('documento_modo') == 'aviso':
+            salvos = []
+            for canal, conf in AVISO_PUBLICIDADE_CONFIG.items():
+                arquivo = request.FILES.get(f'comprovante_{canal}')
+                if not arquivo:
+                    continue
+                _upsert_aviso_publicidade_documento(processo, canal, arquivo)
+                salvos.append(str(conf.get('label') or canal))
+            if salvos:
+                messages.success(request, f'Comprovantes atualizados: {", ".join(salvos)}.')
+            else:
+                messages.warning(request, 'Nenhum arquivo foi informado para comprovacao de publicidade.')
+            ci_ctx = _licitacao_ci_context(
+                processo,
+                codigo,
+                form_data=request.POST,
+                usuario=request.user,
+            )
         if action == 'preview_pdf':
             return _export_licitacao_documento_pdf(processo=processo, doc_ctx=ci_ctx)
         if action == 'download_docx':
             return _export_licitacao_documento_docx(processo=processo, doc_ctx=ci_ctx)
 
     ci_ctx['voltar_url'] = reverse('workflow:licitacao_detail', args=[processo.id])
-    return render(request, 'workflow/licitacao_ci_documento.html', ci_ctx)
+    template_name = 'workflow/licitacao_aviso_documento.html' if ci_ctx.get('documento_modo') == 'aviso' else 'workflow/licitacao_ci_documento.html'
+    return render(request, template_name, ci_ctx)
 
 
 def licitacao_relatorio_pendencias(request, processo_id: int):
@@ -5727,7 +6202,72 @@ def _dashboard_eventos_processo(processo: Processo, *, hoje: date) -> list[dict]
     return eventos
 
 
-def _dashboard_calendar_weeks(ano: int, mes: int, eventos_por_dia: dict[date, list[dict]], hoje: date) -> list[list[dict]]:
+def _dashboard_group_eventos_processo(eventos: list[dict], *, hoje: date) -> list[dict]:
+    tone_weight = {'open': 5, 'deadline': 4, 'warn': 3, 'start': 2, 'pub': 1}
+    grouped = {}
+    for evento in eventos:
+        key = evento['data']
+        bucket = grouped.setdefault(
+            key,
+            {
+                'data': evento['data'],
+                'situacao': evento['situacao'],
+                'eventos': [],
+            }
+        )
+        bucket['eventos'].append(evento)
+
+    saida = []
+    for data_ref, bucket in grouped.items():
+        itens = sorted(bucket['eventos'], key=lambda e: (e['hora'] or time(0, 0), e['ordem']))
+        labels = []
+        horas = []
+        tone = 'pub'
+        for item in itens:
+            if item['label'] not in labels:
+                labels.append(item['label'])
+            if item['hora']:
+                horas.append(item['hora'].strftime('%H:%M'))
+            if tone_weight.get(item['tone'], 0) > tone_weight.get(tone, 0):
+                tone = item['tone']
+        exibicao = _format_date_br(data_ref)
+        if horas:
+            exibicao = f'{exibicao} - {" / ".join(horas)}'
+        saida.append(
+            {
+                'data': data_ref,
+                'hora': itens[0]['hora'] if itens else None,
+                'situacao': 'atrasado' if data_ref < hoje else ('hoje' if data_ref == hoje else 'proximo'),
+                'tone': tone,
+                'labels': labels,
+                'labels_texto': ' + '.join(labels),
+                'horas_texto': ' / '.join(horas),
+                'exibicao': exibicao,
+                'count': len(itens),
+                'eventos': itens,
+            }
+        )
+    saida.sort(key=lambda e: (e['data'], e['hora'] or time(0, 0), e['labels_texto']))
+    return saida
+
+
+def _dashboard_day_querystring(base_params, *, data_ref: date) -> str:
+    params = dict(base_params or {})
+    params['agenda_data'] = data_ref.isoformat()
+    params['agenda_mes'] = data_ref.month
+    params['agenda_ano'] = data_ref.year
+    return urlencode(params)
+
+
+def _dashboard_calendar_weeks(
+    ano: int,
+    mes: int,
+    eventos_por_dia: dict[date, list[dict]],
+    hoje: date,
+    *,
+    selected_date: date | None = None,
+    base_query_params=None,
+) -> list[list[dict]]:
     semanas = []
     cal = calendar.Calendar(firstweekday=0)
     for semana in cal.monthdatescalendar(ano, mes):
@@ -5740,8 +6280,10 @@ def _dashboard_calendar_weeks(ano: int, mes: int, eventos_por_dia: dict[date, li
                     'day': dia_ref.day,
                     'in_month': dia_ref.month == mes,
                     'is_today': dia_ref == hoje,
+                    'is_selected': dia_ref == selected_date if selected_date else False,
                     'events': eventos[:3],
                     'count': len(eventos),
+                    'url': f'{reverse("workflow:dashboards_geral")}?{_dashboard_day_querystring(base_query_params, data_ref=dia_ref)}',
                 }
             )
         semanas.append(linha)
@@ -5762,9 +6304,17 @@ def dashboards_geral(request):
         'parados_dias': (request.GET.get('parados_dias') or '15').strip(),
         'somente_parados': (request.GET.get('somente_parados') or '').strip(),
         'ordem': (request.GET.get('ordem') or 'atualizado_desc').strip(),
+        'limite_grade': (request.GET.get('limite_grade') or '50').strip(),
         'agenda_mes': (request.GET.get('agenda_mes') or '').strip(),
         'agenda_ano': (request.GET.get('agenda_ano') or '').strip(),
+        'agenda_data': (request.GET.get('agenda_data') or '').strip(),
     }
+    limite_grade_opts = [25, 50, 100, 250, 500]
+    try:
+        limite_grade = max(1, min(500, int(filtros['limite_grade'])))
+    except Exception:
+        limite_grade = 50
+    filtros['limite_grade'] = str(limite_grade)
 
     try:
         parados_dias = max(1, int(filtros['parados_dias']))
@@ -5878,7 +6428,8 @@ def dashboards_geral(request):
     rows = []
     for p in processos:
         wf = workflows_map.get(p.id)
-        eventos_agenda = _dashboard_eventos_processo(p, hoje=hoje)
+        eventos_agenda_raw = _dashboard_eventos_processo(p, hoje=hoje)
+        eventos_agenda = _dashboard_group_eventos_processo(eventos_agenda_raw, hoje=hoje)
         proximos = [ev for ev in eventos_agenda if ev['data'] >= hoje]
         proximo_evento = proximos[0] if proximos else (eventos_agenda[-1] if eventos_agenda else None)
         row_core = itens_core_map.get(p.id, {})
@@ -5923,6 +6474,7 @@ def dashboards_geral(request):
             'is_parado': is_parado,
             'dias_sem_atualizacao': dias_sem_atualizacao,
             'ultima_atualizacao': referencia_atualizacao,
+            'agenda_eventos_raw': eventos_agenda_raw,
             'agenda_eventos': eventos_agenda,
             'proximo_evento': proximo_evento,
             'sem_condutor': getattr(p, 'condutor_processo_id', None) is None,
@@ -5982,13 +6534,16 @@ def dashboards_geral(request):
             payload = {
                 'processo': processo,
                 'row': r,
-                'label': evento['label'],
+                'label': evento['labels_texto'],
+                'labels': evento['labels'],
                 'tone': evento['tone'],
                 'data': evento['data'],
                 'hora': evento['hora'],
                 'exibicao': evento['exibicao'],
                 'situacao': evento['situacao'],
                 'condutor': condutor,
+                'count': evento['count'],
+                'subeventos': evento['eventos'],
             }
             eventos_por_dia.setdefault(evento['data'], []).append(payload)
             if evento['situacao'] == 'hoje':
@@ -5997,7 +6552,11 @@ def dashboards_geral(request):
                     ranking_condutores_map[condutor.nome]['eventos_hoje'] += 1
             elif evento['situacao'] == 'proximo':
                 agenda_proximos_eventos.append(payload)
-            elif evento['situacao'] == 'atrasado' and evento['field'] != 'data_publicacao' and not r['is_homologado']:
+            elif (
+                evento['situacao'] == 'atrasado'
+                and not all(sub.get('field') == 'data_publicacao' for sub in evento.get('eventos', []))
+                and not r['is_homologado']
+            ):
                 agenda_atrasados.append(payload)
 
     for lista in (agenda_eventos_hoje, agenda_proximos_eventos, agenda_atrasados):
@@ -6008,6 +6567,46 @@ def dashboards_geral(request):
             key=lambda e: (e['hora'] or time(0, 0), e['label'], e['processo'].numero_processo_principal),
         )
 
+    agenda_data_selecionada = None
+    if filtros['agenda_data']:
+        try:
+            agenda_data_selecionada = datetime.fromisoformat(filtros['agenda_data']).date()
+        except Exception:
+            agenda_data_selecionada = None
+    if agenda_data_selecionada is None:
+        if agenda_mes == hoje.month and agenda_ano == hoje.year:
+            agenda_data_selecionada = hoje
+        else:
+            dias_com_evento = sorted(
+                d for d in eventos_por_dia.keys()
+                if d.month == agenda_mes and d.year == agenda_ano
+            )
+            agenda_data_selecionada = dias_com_evento[0] if dias_com_evento else date(agenda_ano, agenda_mes, 1)
+
+    agenda_eventos_selecionados = list(eventos_por_dia.get(agenda_data_selecionada, []))
+    agenda_eventos_modal_map = {}
+    for data_ref, lista in eventos_por_dia.items():
+        agenda_eventos_modal_map[data_ref.isoformat()] = [
+            {
+                'processo_numero': ev['processo'].numero_processo_principal,
+                'processo_url': reverse('workflow:processo_resumo', args=[ev['processo'].id]),
+                'objeto': str(ev['processo'].objeto or ''),
+                'secretaria': str(getattr(getattr(ev['processo'], 'secretaria', None), 'sigla', '') or '-'),
+                'condutor': str(getattr(ev['condutor'], 'nome', '') or '-'),
+                'modulo': (
+                    ev['row']['workflow'].get_modulo_atual_display()
+                    if ev['row'].get('workflow')
+                    else '-'
+                ),
+                'exibicao': ev['exibicao'],
+                'labels': list(ev['labels']),
+                'tone': ev['tone'],
+                'count': ev['count'],
+            }
+            for ev in lista
+        ]
+    calendar_query_params = {k: v for k, v in filtros.items() if k != 'agenda_data' and str(v or '').strip()}
+
     ranking_condutores = sorted(
         ranking_condutores_map.values(),
         key=lambda x: (x['processos'], x['eventos_hoje'], x['aberturas'], x['nome']),
@@ -6015,7 +6614,14 @@ def dashboards_geral(request):
     )[:15]
     processos_sem_condutor = [r for r in rows if r['sem_condutor'] and not r['is_homologado']][:20]
     processos_sem_agenda = [r for r in rows if r['sem_data_critica'] and not r['is_homologado']][:20]
-    agenda_calendar_weeks = _dashboard_calendar_weeks(agenda_ano, agenda_mes, eventos_por_dia, hoje)
+    agenda_calendar_weeks = _dashboard_calendar_weeks(
+        agenda_ano,
+        agenda_mes,
+        eventos_por_dia,
+        hoje,
+        selected_date=agenda_data_selecionada,
+        base_query_params=calendar_query_params,
+    )
 
     ranking_secretarias_map = {}
     ranking_status_map = {}
@@ -6098,7 +6704,10 @@ def dashboards_geral(request):
 
     context = {
         'rows': rows[:500],
+        'rows_grade': rows[:limite_grade],
         'rows_total': total_processos,
+        'rows_grade_limit': limite_grade,
+        'limite_grade_opts': limite_grade_opts,
         'filtros': filtros,
         'parados_dias': parados_dias,
         'somente_parados': somente_parados,
@@ -6123,6 +6732,11 @@ def dashboards_geral(request):
         'processos_sem_condutor': processos_sem_condutor,
         'processos_sem_agenda': processos_sem_agenda,
         'agenda_calendar_weeks': agenda_calendar_weeks,
+        'agenda_data_selecionada': agenda_data_selecionada,
+        'agenda_data_selecionada_iso': agenda_data_selecionada.isoformat() if agenda_data_selecionada else '',
+        'agenda_data_selecionada_label': _format_date_br(agenda_data_selecionada) if agenda_data_selecionada else '-',
+        'agenda_eventos_selecionados': agenda_eventos_selecionados,
+        'agenda_eventos_modal_map': agenda_eventos_modal_map,
         'agenda_mes': agenda_mes,
         'agenda_ano': agenda_ano,
         'agenda_mes_nome': str(MESES_PT_BR[agenda_mes - 1]).title(),

@@ -345,6 +345,187 @@ class SmokeDashboardsGeraisTest(TestCase):
         self.assertContains(resp, 'Jonatas Sousa')
         self.assertContains(resp, '0099/2026')
 
+    def test_dashboard_agrupar_marcos_do_mesmo_processo_no_mesmo_dia(self):
+        secretaria = Secretaria.objects.create(sigla='SEFIN', nome='Secretaria da Fazenda')
+        modalidade = Modalidade.objects.create(nome='Pregao Eletronico')
+        status = StatusProcesso.objects.create(nome='Em andamento')
+        condutor = Pessoa.objects.create(nome='Maria Lima', cargo='Pregoeira', secretaria=secretaria)
+        base_dt = timezone.now() + timedelta(days=2)
+        abertura = base_dt.replace(hour=10, minute=0, second=0, microsecond=0)
+        fim = base_dt.replace(hour=9, minute=0, second=0, microsecond=0)
+        processo = Processo.objects.create(
+            numero_processo_sirel='0100/2026',
+            numero_processo_adm='ADM-0100',
+            ano_referencia=2026,
+            objeto='Processo smoke para agrupamento de agenda',
+            secretaria=secretaria,
+            modalidade=modalidade,
+            status=status,
+            condutor_processo=condutor,
+            fim_recolhimento_propostas=fim,
+            data_hora_abertura=abertura,
+        )
+        ProcessoWorkflow.objects.create(
+            processo=processo,
+            modulo_atual=ModuloSistema.LICITACAO,
+            etapa_atual='LICITACAO - FASE EXTERNA',
+            situacao='EM_ANDAMENTO',
+        )
+
+        data_ref = abertura.date().isoformat()
+        resp = self.client.get('/sirel/dashboards/', {
+            'agenda_mes': abertura.month,
+            'agenda_ano': abertura.year,
+            'agenda_data': data_ref,
+        })
+        self.assertEqual(resp.status_code, 200)
+        ctx = resp.context[-1] if isinstance(resp.context, list) else resp.context
+        self.assertEqual(ctx['agenda_data_selecionada_iso'], data_ref)
+        self.assertEqual(len(ctx['agenda_eventos_selecionados']), 1)
+        self.assertEqual(
+            ctx['agenda_eventos_selecionados'][0]['labels'],
+            ['Fim de propostas', 'Abertura / sessao'],
+        )
+        self.assertContains(resp, 'Agenda do dia selecionado')
+        self.assertContains(resp, '0100/2026')
+
+    def test_dashboard_nao_quebra_com_evento_atrasado_agrupado(self):
+        secretaria = Secretaria.objects.create(sigla='SAU', nome='Secretaria de Saude')
+        modalidade = Modalidade.objects.create(nome='Pregao Eletronico')
+        status = StatusProcesso.objects.create(nome='Em andamento')
+        condutor = Pessoa.objects.create(nome='Ana Costa', cargo='Pregoeira', secretaria=secretaria)
+        ontem = timezone.now() - timedelta(days=1)
+        processo = Processo.objects.create(
+            numero_processo_sirel='0102/2026',
+            numero_processo_adm='ADM-0102',
+            ano_referencia=2026,
+            objeto='Processo com marcos atrasados agrupados',
+            secretaria=secretaria,
+            modalidade=modalidade,
+            status=status,
+            condutor_processo=condutor,
+            fim_recolhimento_propostas=ontem.replace(hour=8, minute=0, second=0, microsecond=0),
+            data_hora_abertura=ontem.replace(hour=9, minute=0, second=0, microsecond=0),
+        )
+        ProcessoWorkflow.objects.create(
+            processo=processo,
+            modulo_atual=ModuloSistema.LICITACAO,
+            etapa_atual='LICITACAO - FASE EXTERNA',
+            situacao='EM_ANDAMENTO',
+        )
+
+        resp = self.client.get('/sirel/dashboards/')
+        self.assertEqual(resp.status_code, 200)
+        ctx = resp.context[-1] if isinstance(resp.context, list) else resp.context
+        atrasados = [row for row in ctx['agenda_atrasados'] if row['processo'].id == processo.id]
+        self.assertEqual(len(atrasados), 1)
+        self.assertEqual(atrasados[0]['labels'], ['Fim de propostas', 'Abertura / sessao'])
+        self.assertContains(resp, '0102/2026')
+
+    def test_dashboard_respeita_limite_da_grade_principal(self):
+        status = StatusProcesso.objects.create(nome='Em andamento')
+        for idx in range(1, 4):
+            Processo.objects.create(
+                numero_processo_sirel=f'020{idx}/2026',
+                numero_processo_adm=f'ADM-020{idx}',
+                ano_referencia=2026,
+                objeto=f'Processo {idx} para limite da grade',
+                status=status,
+            )
+
+        resp = self.client.get('/sirel/dashboards/', {'limite_grade': '2'})
+        self.assertEqual(resp.status_code, 200)
+        ctx = resp.context[-1] if isinstance(resp.context, list) else resp.context
+        self.assertEqual(ctx['rows_grade_limit'], 2)
+        self.assertEqual(len(ctx['rows_grade']), 2)
+        self.assertContains(resp, 'Mostrando 2 de')
+
+
+class SmokeAvisoHtmlTest(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='aviso-smoke',
+            password='senha-smoke',
+        )
+        self.client.login(username='aviso-smoke', password='senha-smoke')
+
+    def test_gerador_html_de_aviso_disponivel(self):
+        secretaria = Secretaria.objects.create(sigla='ADM', nome='Assessoria de Licitacao')
+        modalidade = Modalidade.objects.create(nome='Pregao Eletronico')
+        status = StatusProcesso.objects.create(nome='Em andamento')
+        condutor = Pessoa.objects.create(nome='Carlos Lima', cargo='Pregoeiro', secretaria=secretaria)
+        processo = Processo.objects.create(
+            numero_processo_sirel='0101/2026',
+            numero_processo_adm='ADM-0101',
+            numero_edital='0042/2026',
+            ano_referencia=2026,
+            objeto='Aquisicao de material de expediente',
+            secretaria=secretaria,
+            modalidade=modalidade,
+            status=status,
+            condutor_processo=condutor,
+            data_publicacao=timezone.localdate(),
+            data_hora_abertura=timezone.now() + timedelta(days=12),
+            inicio_recolhimento_propostas=timezone.now(),
+            fim_recolhimento_propostas=timezone.now() + timedelta(days=10),
+        )
+
+        resp = self.client.get(f'/sirel/licitacao/{processo.id}/documentos/minuta_aviso/html/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Configuracao do aviso')
+        self.assertContains(resp, 'Prazos, contagem e sessao')
+        self.assertContains(resp, 'Publicacao, acessos e contato')
+        self.assertContains(resp, '0042/2026')
+
+    def test_salvar_comprovantes_de_publicidade_no_gerador_de_aviso(self):
+        secretaria = Secretaria.objects.create(sigla='ADM', nome='Assessoria de Licitacao')
+        modalidade = Modalidade.objects.create(nome='Pregao Eletronico')
+        status = StatusProcesso.objects.create(nome='Em andamento')
+        processo = Processo.objects.create(
+            numero_processo_sirel='0103/2026',
+            numero_processo_adm='ADM-0103',
+            numero_edital='0043/2026',
+            ano_referencia=2026,
+            objeto='Aquisicao de computadores',
+            secretaria=secretaria,
+            modalidade=modalidade,
+            status=status,
+        )
+
+        resp = self.client.post(
+            f'/sirel/licitacao/{processo.id}/documentos/minuta_aviso/html/',
+            {
+                'action': 'save_publicidade',
+                'numero_documento': '0043/2026',
+                'modalidade_nome': 'Pregao Eletronico',
+                'assunto': 'Aviso teste',
+                'comprovante_pncp': SimpleUploadedFile(
+                    'pncp.pdf',
+                    b'%PDF-1.4 comprovante pncp',
+                    content_type='application/pdf',
+                ),
+                'comprovante_portal': SimpleUploadedFile(
+                    'portal.pdf',
+                    b'%PDF-1.4 comprovante portal',
+                    content_type='application/pdf',
+                ),
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Salvar comprovantes e publicidade')
+        self.assertTrue(
+            DocumentoProcessoWorkflow.objects.filter(
+                processo=processo,
+                tipo_documento='LICITACAO_AVISO_PUBLICIDADE::pncp',
+            ).exists()
+        )
+        self.assertTrue(
+            DocumentoProcessoWorkflow.objects.filter(
+                processo=processo,
+                tipo_documento='LICITACAO_AVISO_PUBLICIDADE::portal',
+            ).exists()
+        )
+
 
 class SmokeModuloDocumentosTest(TestCase):
     def setUp(self):

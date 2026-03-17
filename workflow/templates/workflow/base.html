@@ -8,13 +8,13 @@
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
     :root {
-      --bg: #edf2fb;
+      --bg: #eaf1fb;
       --surface: #ffffff;
-      --surface-soft: #f5f8ff;
-      --surface-elevated: #fafcff;
-      --border: #cfd9ea;
-      --text: #13243d;
-      --muted: #445a78;
+      --surface-soft: #eef4fd;
+      --surface-elevated: #f8fbff;
+      --border: #bfd0e5;
+      --text: #11253f;
+      --muted: #3f5774;
       --primary: #0f2d52;
       --primary-2: #1c4d86;
       --primary-3: #2b68ae;
@@ -87,6 +87,16 @@
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+    }
+
+    a {
+      color: color-mix(in srgb, var(--primary-2) 88%, var(--text) 12%);
+      text-decoration-thickness: from-font;
+      text-underline-offset: 2px;
+    }
+
+    a:hover {
+      color: color-mix(in srgb, var(--primary-3) 90%, var(--text) 10%);
     }
 
     body::before,
@@ -755,6 +765,14 @@
 
     form { display: grid; gap: 12px; }
 
+    label {
+      display: block;
+      color: color-mix(in srgb, var(--muted) 82%, var(--text) 18%);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
     input, select, textarea, button {
       width: 100%;
       border-radius: 11px;
@@ -771,6 +789,28 @@
     html[data-theme="dark"] textarea {
       background: color-mix(in srgb, var(--surface) 82%, #0f1d30 18%);
       border-color: color-mix(in srgb, var(--border) 82%, #7ea8de 18%);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+      color: color-mix(in srgb, var(--muted) 78%, #ffffff 22%);
+      opacity: 1;
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    textarea:-webkit-autofill,
+    textarea:-webkit-autofill:hover,
+    textarea:-webkit-autofill:focus,
+    select:-webkit-autofill,
+    select:-webkit-autofill:hover,
+    select:-webkit-autofill:focus {
+      -webkit-text-fill-color: var(--text);
+      caret-color: var(--text);
+      -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+      box-shadow: 0 0 0 1000px var(--surface) inset;
+      transition: background-color 9999s ease-in-out 0s;
     }
 
     input:focus,
@@ -840,11 +880,41 @@
       opacity: 1;
     }
 
+    .btn-secondary,
+    button.btn-secondary {
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-soft) 92%, #ffffff 8%) 0%,
+        color-mix(in srgb, var(--surface) 88%, #dbe7f7 12%) 100%
+      );
+      color: var(--primary);
+      border: 1px solid color-mix(in srgb, var(--border) 82%, var(--primary-3) 18%);
+      box-shadow: 0 8px 18px rgba(12, 37, 69, 0.1);
+    }
+
+    .btn-secondary::before,
+    button.btn-secondary::before {
+      display: none;
+    }
+
+    .btn-secondary:hover,
+    button.btn-secondary:hover {
+      background: linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--surface-soft) 86%, #ffffff 14%) 0%,
+        color-mix(in srgb, var(--surface) 82%, #d1def0 18%) 100%
+      );
+      color: var(--primary);
+      filter: none;
+      box-shadow: 0 12px 20px rgba(12, 37, 69, 0.14);
+    }
+
     .warn {
       background: var(--warn-bg);
       border: 1px solid var(--warn-border);
       padding: 8px;
       border-radius: 9px;
+      color: var(--text);
     }
 
     .ok {
@@ -852,6 +922,7 @@
       border: 1px solid var(--success-border);
       padding: 8px;
       border-radius: 9px;
+      color: var(--text);
     }
 
     .toast-stack {
