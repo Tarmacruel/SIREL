@@ -22,7 +22,8 @@
     "legacy:seed:basics": "npm run legacy:export && npm run legacy:import:basics",
     "legacy:sync": "node scripts/sync_legacy_pipeline.mjs",
     "legacy:sync:full": "node scripts/sync_legacy_pipeline.mjs --full",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "npm run test --workspace client"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
@@ -32,3 +33,4 @@
     "typescript": "^5.8.3"
   }
 }
+

@@ -9,10 +9,14 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@sirel/shared": fileURLToPath(new URL("../shared/src", import.meta.url)),
-      "@sirel/server": fileURLToPath(new URL("../server/src", import.meta.url))
-    }
+      "@sirel/server": fileURLToPath(new URL("../server/src", import.meta.url)),
+    },
   },
   server: {
-    port: 5173
-  }
+    port: 5173,
+  },
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.ts",
+  },
 });

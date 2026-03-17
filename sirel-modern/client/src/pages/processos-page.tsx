@@ -1,14 +1,26 @@
-﻿import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Filter, PlusCircle, Search } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
+import { CalendarDays, ChevronLeft, Filter, PlusCircle, Search } from "lucide-react";
 
 import { workflowModuleOptions } from "@sirel/shared/const";
 import { SectionCard } from "@/components/shared/section-card";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
+import { Pagination } from "@/components/ui/pagination";
+import { Select } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { buildProcessoPayload, type ProcessoFormState, validateProcessoForm } from "@/features/processos/form";
 import { trpc } from "@/lib/trpc";
+import { mapZodFieldErrors } from "@/lib/zod-errors";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" });
 
-const initialProcessoForm = {
+const initialProcessoForm: ProcessoFormState = {
   numeroAdministrativo: "",
   anoReferencia: String(new Date().getFullYear()),
   secretariaId: "",
@@ -44,13 +56,6 @@ function toOptionalId(value: string) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
-function toOptionalNumber(value: string) {
-  const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-  if (!normalized) return undefined;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 export function ProcessosPage() {
   const utils = trpc.useUtils();
   const [page, setPage] = useState(1);
@@ -59,9 +64,10 @@ export function ProcessosPage() {
   const [secretariaId, setSecretariaId] = useState("");
   const [statusId, setStatusId] = useState("");
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
-  const [form, setForm] = useState(initialProcessoForm);
+  const [form, setForm] = useState<ProcessoFormState>(initialProcessoForm);
   const [formMessage, setFormMessage] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const deferredSearch = useDeferredValue(search.trim());
   const filters = useMemo(
@@ -109,10 +115,7 @@ export function ProcessosPage() {
     }
   }, [rows, selectedProcessId]);
 
-  const overviewQuery = trpc.processos.overview.useQuery(
-    { processoId: selectedProcessId ?? 0 },
-    { enabled: Boolean(selectedProcessId), retry: false },
-  );
+  const overviewQuery = trpc.processos.overview.useQuery({ processoId: selectedProcessId ?? 0 }, { enabled: Boolean(selectedProcessId), retry: false });
 
   const createMutation = trpc.processos.create.useMutation({
     onSuccess: async (created) => {
@@ -132,6 +135,7 @@ export function ProcessosPage() {
         autoridadeCompetenteId: current.autoridadeCompetenteId,
         moduloInicial: current.moduloInicial,
       }));
+      setFieldErrors({});
       setFormError(null);
       setFormMessage(`Processo ${created.numeroSirel} criado. Agora a DFD pode ser iniciada no Planejamento e o edital sera gerado na publicidade.`);
     },
@@ -148,24 +152,15 @@ export function ProcessosPage() {
     setFormMessage(null);
     setFormError(null);
 
-    await createMutation.mutateAsync({
-      numeroAdministrativo: form.numeroAdministrativo.trim() || undefined,
-      anoReferencia: Number(form.anoReferencia),
-      secretariaId: Number(form.secretariaId),
-      modalidadeId: toOptionalId(form.modalidadeId),
-      statusId: toOptionalId(form.statusId),
-      autoridadeCompetenteId: toOptionalId(form.autoridadeCompetenteId),
-      objeto: form.objeto.trim(),
-      valorEstimado: toOptionalNumber(form.valorEstimado),
-      escopoDisputa: form.escopoDisputa as "ITEM" | "LOTE" | "GLOBAL",
-      criterioJulgamento: form.criterioJulgamento.trim() || undefined,
-      modoDisputa: form.modoDisputa as "NAO_SE_APLICA" | "ABERTO" | "FECHADO" | "ABERTO_FECHADO" | "FECHADO_ABERTO",
-      tipoObjeto: form.tipoObjeto as "PRODUTO" | "SERVICO" | "OBRA" | "SERVICO_ENG",
-      tipoContratacao: form.tipoContratacao as "AQUISICAO" | "REGISTRO_PRECO" | "AQUISICAO_PARCELADA",
-      dataAbertura: form.dataAbertura || undefined,
-      foraDoFluxo: form.foraDoFluxo,
-      moduloInicial: form.foraDoFluxo ? (form.moduloInicial as (typeof workflowModuleOptions)[number]) : undefined,
-    });
+    const parsed = validateProcessoForm(form);
+    if (!parsed.success) {
+      setFieldErrors(mapZodFieldErrors(parsed.error));
+      setFormError("Revise os campos destacados antes de salvar o processo.");
+      return;
+    }
+
+    setFieldErrors({});
+    await createMutation.mutateAsync(parsed.data);
   }
 
   return (
@@ -175,17 +170,17 @@ export function ProcessosPage() {
         description="Cadastro mestre dos processos. O fluxo nasce no Planejamento, o Workflow move entre modulos e a Licitacao cuida apenas das etapas especificas da fase licitatoria."
         action={
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex min-w-[260px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-              <Search className="h-4 w-4 text-slate-400" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por numero, objeto ou secretaria" className="w-full border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" />
-            </label>
-            <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            <div className="relative min-w-[260px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por numero, objeto ou secretaria" className="pl-9" />
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
               <Filter className="h-4 w-4" />
               <span>Por pagina</span>
-              <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))} className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 outline-none">
+              <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))} className="h-8 w-auto rounded-xl px-2 py-1 text-xs font-bold">
                 {[12, 24, 48, 96].map((option) => <option key={option} value={option}>{option}</option>)}
-              </select>
-            </label>
+              </Select>
+            </div>
           </div>
         }
       >
@@ -199,121 +194,197 @@ export function ProcessosPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 rounded-[28px] border border-slate-200 bg-white px-4 py-4">
-              <select value={secretariaId} onChange={(event) => setSecretariaId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none">
+              <Select value={secretariaId} onChange={(event) => setSecretariaId(event.target.value)} className="max-w-[320px]">
                 <option value="">Todas as secretarias</option>
                 {catalogQuery.data?.secretarias.map((item) => <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>)}
-              </select>
-              <select value={statusId} onChange={(event) => setStatusId(event.target.value)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none">
+              </Select>
+              <Select value={statusId} onChange={(event) => setStatusId(event.target.value)} className="max-w-[260px]">
                 <option value="">Todos os status</option>
                 {catalogQuery.data?.statusProcesso.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
-              </select>
+              </Select>
               <div className="rounded-2xl bg-slate-950 px-4 py-2 text-sm font-bold text-white">Pagina {page} de {totalPages}</div>
             </div>
 
             <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500"><tr><th className="px-4 py-3">Processo</th><th className="px-4 py-3">Secretaria</th><th className="px-4 py-3">Modalidade</th><th className="px-4 py-3">Modulo</th><th className="px-4 py-3">Abertura</th><th className="px-4 py-3 text-right">Valor estimado</th></tr></thead>
-                <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
-                  {rows.map((row) => {
+              <Table>
+                <TableHead>
+                  <tr>
+                    <TableHeaderCell>Processo</TableHeaderCell>
+                    <TableHeaderCell>Secretaria</TableHeaderCell>
+                    <TableHeaderCell>Modalidade</TableHeaderCell>
+                    <TableHeaderCell>Modulo</TableHeaderCell>
+                    <TableHeaderCell>Abertura</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Valor estimado</TableHeaderCell>
+                  </tr>
+                </TableHead>
+                <TableBody>
+                  {query.isLoading ? Array.from({ length: 6 }).map((_, index) => (
+                    <TableRow key={index}>
+                      <TableCell colSpan={6}><Skeleton className="h-12 w-full" /></TableCell>
+                    </TableRow>
+                  )) : rows.map((row) => {
                     const active = row.id === selectedProcessId;
                     return (
-                      <tr key={row.id} onClick={() => setSelectedProcessId(row.id)} className={["cursor-pointer transition", active ? "bg-sky-50/80" : "hover:bg-slate-50"].join(" ")}>
-                        <td className="px-4 py-3 align-top">
+                      <TableRow key={row.id} onClick={() => setSelectedProcessId(row.id)} className={active ? "cursor-pointer bg-sky-50/80" : "cursor-pointer transition hover:bg-slate-50"}>
+                        <TableCell className="align-top">
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="font-bold text-slate-950">{row.numeroSirel}</div>
                             {row.foraDoFluxo ? <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">Fora do fluxo</span> : null}
                           </div>
                           <div className="text-xs text-slate-500">{row.numeroEdital ?? "Edital ainda nao gerado"}</div>
-                        </td>
-                        <td className="px-4 py-3 align-top">{row.secretaria}</td>
-                        <td className="px-4 py-3 align-top">{row.modalidade ?? "Nao informada"}</td>
-                        <td className="px-4 py-3 align-top"><span className="inline-flex rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">{row.moduloAtual ?? "Sem workflow"}</span></td>
-                        <td className="px-4 py-3 align-top">{formatDate(row.dataAbertura)}</td>
-                        <td className="px-4 py-3 text-right align-top font-semibold text-slate-950">{formatCurrency(row.valorEstimado)}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="align-top">{row.secretaria}</TableCell>
+                        <TableCell className="align-top">{row.modalidade ?? "Nao informada"}</TableCell>
+                        <TableCell className="align-top"><span className="inline-flex rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">{row.moduloAtual ?? "Sem workflow"}</span></TableCell>
+                        <TableCell className="align-top">{formatDate(row.dataAbertura)}</TableCell>
+                        <TableCell className="text-right align-top font-semibold text-slate-950">{formatCurrency(row.valorEstimado)}</TableCell>
+                      </TableRow>
                     );
                   })}
-                  {!rows.length && (
-                    <tr><td className="px-4 py-8 text-center text-slate-500" colSpan={6}>{query.isFetching ? "Carregando processos..." : "Nenhum processo cadastrado ainda. Use o formulario ao lado para iniciar os testes."}</td></tr>
-                  )}
-                </tbody>
-              </table>
+                  {!query.isLoading && !rows.length ? <TableRow><TableCell className="text-center text-slate-500" colSpan={6}>Nenhum processo cadastrado ainda. Use o formulario ao lado para iniciar os testes.</TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm text-slate-600">Exibindo <span className="font-bold text-slate-950">{rows.length}</span> de <span className="font-bold text-slate-950">{total}</span> processos.</p>
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-45"><ChevronLeft className="h-4 w-4" />Anterior</button>
-                <button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-45">Proxima<ChevronRight className="h-4 w-4" /></button>
-              </div>
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </div>
 
           <div className="space-y-4">
             <SectionCard title="Cadastro rapido" description="O processo nasce no Planejamento. Em casos excepcionais, ative a tag de fora do fluxo e escolha o modulo inicial." action={<div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-sky-800"><PlusCircle className="h-4 w-4" />Beta operacional</div>}>
               <form className="space-y-4" onSubmit={handleCreateProcesso}>
-                <div className="rounded-3xl border border-sky-100 bg-sky-50 px-4 py-4 text-sm text-sky-900">
-                  <p className="font-semibold">Regras automaticas</p>
-                  <ul className="mt-2 space-y-1 text-sm leading-6 text-sky-800"><li>Numero SIREL gerado automaticamente.</li><li>Numero do edital gerado apenas na publicidade, dentro do modulo de Licitacao.</li><li>Condutor definido apenas na publicacao do processo.</li></ul>
+                <Alert variant="info" title="Regras automaticas">
+                  <ul className="space-y-1">
+                    <li>Numero SIREL gerado automaticamente.</li>
+                    <li>Numero do edital gerado apenas na publicidade, dentro do modulo de Licitacao.</li>
+                    <li>Condutor definido apenas na publicacao do processo.</li>
+                  </ul>
+                </Alert>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <FormField label="Ano de referencia" error={fieldErrors.anoReferencia}>
+                    <Input required type="number" min={2020} max={2100} value={form.anoReferencia} error={Boolean(fieldErrors.anoReferencia)} onChange={(event) => setForm((current) => ({ ...current, anoReferencia: event.target.value }))} />
+                  </FormField>
+                  <FormField label="Numero administrativo" error={fieldErrors.numeroAdministrativo}>
+                    <Input value={form.numeroAdministrativo} error={Boolean(fieldErrors.numeroAdministrativo)} onChange={(event) => setForm((current) => ({ ...current, numeroAdministrativo: event.target.value }))} />
+                  </FormField>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Ano de referencia</span><input required type="number" min={2020} max={2100} value={form.anoReferencia} onChange={(event) => setForm((current) => ({ ...current, anoReferencia: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Numero administrativo</span><input value={form.numeroAdministrativo} onChange={(event) => setForm((current) => ({ ...current, numeroAdministrativo: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
+                  <FormField label="Secretaria" error={fieldErrors.secretariaId}>
+                    <Select required value={form.secretariaId} error={Boolean(fieldErrors.secretariaId)} onChange={(event) => setForm((current) => ({ ...current, secretariaId: event.target.value }))}>
+                      <option value="">Selecione</option>
+                      {catalogQuery.data?.secretarias.map((item) => <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>)}
+                    </Select>
+                  </FormField>
+                  <FormField label="Modalidade" error={fieldErrors.modalidadeId}>
+                    <Select value={form.modalidadeId} error={Boolean(fieldErrors.modalidadeId)} onChange={(event) => setForm((current) => ({ ...current, modalidadeId: event.target.value }))}>
+                      <option value="">Selecione</option>
+                      {catalogQuery.data?.modalidades.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+                    </Select>
+                  </FormField>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Secretaria</span><select required value={form.secretariaId} onChange={(event) => setForm((current) => ({ ...current, secretariaId: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Selecione</option>{catalogQuery.data?.secretarias.map((item) => <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>)}</select></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Modalidade</span><select value={form.modalidadeId} onChange={(event) => setForm((current) => ({ ...current, modalidadeId: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Selecione</option>{catalogQuery.data?.modalidades.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>
+                  <FormField label="Status inicial" error={fieldErrors.statusId}>
+                    <Select value={form.statusId} error={Boolean(fieldErrors.statusId)} onChange={(event) => setForm((current) => ({ ...current, statusId: event.target.value }))}>
+                      <option value="">Selecione</option>
+                      {catalogQuery.data?.statusProcesso.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+                    </Select>
+                  </FormField>
+                  <FormField label="Valor estimado" error={fieldErrors.valorEstimado}>
+                    <Input value={form.valorEstimado} error={Boolean(fieldErrors.valorEstimado)} placeholder="0,00" onChange={(event) => setForm((current) => ({ ...current, valorEstimado: event.target.value }))} />
+                  </FormField>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Status inicial</span><select value={form.statusId} onChange={(event) => setForm((current) => ({ ...current, statusId: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Selecione</option>{catalogQuery.data?.statusProcesso.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Valor estimado</span><input value={form.valorEstimado} onChange={(event) => setForm((current) => ({ ...current, valorEstimado: event.target.value }))} placeholder="0,00" className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
+                  <FormField label="Autoridade competente" error={fieldErrors.autoridadeCompetenteId}>
+                    <Select value={form.autoridadeCompetenteId} error={Boolean(fieldErrors.autoridadeCompetenteId)} onChange={(event) => setForm((current) => ({ ...current, autoridadeCompetenteId: event.target.value }))}>
+                      <option value="">Selecione</option>
+                      {catalogQuery.data?.pessoas.map((item) => <option key={item.id} value={item.id}>{item.nome} {item.cargo ? `- ${item.cargo}` : ""}</option>)}
+                    </Select>
+                  </FormField>
+                  <FormField label="Modo de disputa" error={fieldErrors.modoDisputa}>
+                    <Select value={form.modoDisputa} error={Boolean(fieldErrors.modoDisputa)} onChange={(event) => setForm((current) => ({ ...current, modoDisputa: event.target.value }))}>
+                      {catalogQuery.data?.modoDisputa.map((item) => <option key={item.codigo} value={item.codigo}>{item.nome}</option>)}
+                    </Select>
+                  </FormField>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Autoridade competente</span><select value={form.autoridadeCompetenteId} onChange={(event) => setForm((current) => ({ ...current, autoridadeCompetenteId: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="">Selecione</option>{catalogQuery.data?.pessoas.map((item) => <option key={item.id} value={item.id}>{item.nome} {item.cargo ? `- ${item.cargo}` : ""}</option>)}</select></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Modo de disputa</span><select value={form.modoDisputa} onChange={(event) => setForm((current) => ({ ...current, modoDisputa: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400">{catalogQuery.data?.modoDisputa.map((item) => <option key={item.codigo} value={item.codigo}>{item.nome}</option>)}</select></label>
-                </div>
                 <div className="grid gap-3 md:grid-cols-3">
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Escopo</span><select value={form.escopoDisputa} onChange={(event) => setForm((current) => ({ ...current, escopoDisputa: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="GLOBAL">Global</option><option value="LOTE">Lote</option><option value="ITEM">Item</option></select></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Tipo de objeto</span><select value={form.tipoObjeto} onChange={(event) => setForm((current) => ({ ...current, tipoObjeto: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="PRODUTO">Produto</option><option value="SERVICO">Servico</option><option value="OBRA">Obra</option><option value="SERVICO_ENG">Servico de engenharia</option></select></label>
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Tipo de contratacao</span><select value={form.tipoContratacao} onChange={(event) => setForm((current) => ({ ...current, tipoContratacao: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400"><option value="AQUISICAO">Aquisicao</option><option value="REGISTRO_PRECO">Registro de preco</option><option value="AQUISICAO_PARCELADA">Aquisicao parcelada</option></select></label>
+                  <FormField label="Escopo" error={fieldErrors.escopoDisputa}>
+                    <Select value={form.escopoDisputa} error={Boolean(fieldErrors.escopoDisputa)} onChange={(event) => setForm((current) => ({ ...current, escopoDisputa: event.target.value }))}>
+                      <option value="GLOBAL">Global</option>
+                      <option value="LOTE">Lote</option>
+                      <option value="ITEM">Item</option>
+                    </Select>
+                  </FormField>
+                  <FormField label="Tipo de objeto" error={fieldErrors.tipoObjeto}>
+                    <Select value={form.tipoObjeto} error={Boolean(fieldErrors.tipoObjeto)} onChange={(event) => setForm((current) => ({ ...current, tipoObjeto: event.target.value }))}>
+                      <option value="PRODUTO">Produto</option>
+                      <option value="SERVICO">Servico</option>
+                      <option value="OBRA">Obra</option>
+                      <option value="SERVICO_ENG">Servico de engenharia</option>
+                    </Select>
+                  </FormField>
+                  <FormField label="Tipo de contratacao" error={fieldErrors.tipoContratacao}>
+                    <Select value={form.tipoContratacao} error={Boolean(fieldErrors.tipoContratacao)} onChange={(event) => setForm((current) => ({ ...current, tipoContratacao: event.target.value }))}>
+                      <option value="AQUISICAO">Aquisicao</option>
+                      <option value="REGISTRO_PRECO">Registro de preco</option>
+                      <option value="AQUISICAO_PARCELADA">Aquisicao parcelada</option>
+                    </Select>
+                  </FormField>
                 </div>
 
-                <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Criterio de julgamento</span><input value={form.criterioJulgamento} onChange={(event) => setForm((current) => ({ ...current, criterioJulgamento: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400" /></label>
-                <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Objeto</span><textarea required rows={5} value={form.objeto} onChange={(event) => setForm((current) => ({ ...current, objeto: event.target.value }))} placeholder="Descreva o objeto do processo com clareza suficiente para iniciar os testes da Beta 2.0." className="w-full rounded-3xl border border-slate-200 bg-white px-3 py-3 text-sm leading-6 outline-none transition focus:border-sky-400" /></label>
-                <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Data prevista de abertura</span><div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5"><CalendarDays className="h-4 w-4 text-slate-400" /><input type="date" value={form.dataAbertura} onChange={(event) => setForm((current) => ({ ...current, dataAbertura: event.target.value }))} className="w-full border-none bg-transparent text-sm outline-none" /></div></label>
+                <FormField label="Criterio de julgamento" error={fieldErrors.criterioJulgamento}>
+                  <Input value={form.criterioJulgamento} error={Boolean(fieldErrors.criterioJulgamento)} onChange={(event) => setForm((current) => ({ ...current, criterioJulgamento: event.target.value }))} />
+                </FormField>
+
+                <FormField label="Objeto" error={fieldErrors.objeto}>
+                  <Textarea required rows={5} value={form.objeto} error={Boolean(fieldErrors.objeto)} placeholder="Descreva o objeto do processo com clareza suficiente para iniciar os testes da Beta 2.0." onChange={(event) => setForm((current) => ({ ...current, objeto: event.target.value }))} />
+                </FormField>
+
+                <FormField label="Data prevista de abertura" error={fieldErrors.dataAbertura}>
+                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
+                    <CalendarDays className="h-4 w-4 text-slate-400" />
+                    <input type="date" value={form.dataAbertura} onChange={(event) => setForm((current) => ({ ...current, dataAbertura: event.target.value }))} className="w-full border-none bg-transparent text-sm outline-none" />
+                  </div>
+                </FormField>
 
                 <div className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
                   <label className="flex items-start gap-3">
-                    <input type="checkbox" checked={form.foraDoFluxo} onChange={(event) => setForm((current) => ({ ...current, foraDoFluxo: event.target.checked }))} className="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500" />
+                    <Checkbox checked={form.foraDoFluxo} onChange={(event) => setForm((current) => ({ ...current, foraDoFluxo: event.target.checked }))} className="mt-1" />
                     <span className="space-y-1"><span className="block text-sm font-semibold text-slate-800">Processo fora do fluxo</span><span className="block text-sm text-slate-600">Use apenas para casos excepcionais criados em outro departamento. O processo recebera a tag de fora do fluxo.</span></span>
                   </label>
                 </div>
 
                 {form.foraDoFluxo ? (
-                  <label className="space-y-2 text-sm font-semibold text-slate-700"><span>Modulo inicial excepcional</span><select value={form.moduloInicial} onChange={(event) => setForm((current) => ({ ...current, moduloInicial: event.target.value }))} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-sky-400">{catalogQuery.data?.workflowModules.filter((item) => item !== "PLANEJAMENTO").map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+                  <FormField label="Modulo inicial excepcional" error={fieldErrors.moduloInicial}>
+                    <Select value={form.moduloInicial} error={Boolean(fieldErrors.moduloInicial)} onChange={(event) => setForm((current) => ({ ...current, moduloInicial: event.target.value }))}>
+                      {catalogQuery.data?.workflowModules.filter((item) => item !== "PLANEJAMENTO").map((item) => <option key={item} value={item}>{item}</option>)}
+                    </Select>
+                  </FormField>
                 ) : null}
 
-                {formMessage ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{formMessage}</div> : null}
-                {formError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{formError}</div> : null}
+                {formMessage ? <Alert variant="success">{formMessage}</Alert> : null}
+                {formError ? <Alert variant="error">{formError}</Alert> : null}
 
                 <div className="flex flex-wrap gap-3">
-                  <button type="submit" disabled={createMutation.isPending} className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50">{createMutation.isPending ? "Salvando processo..." : "Salvar processo"}</button>
-                  <button type="button" onClick={() => { setForm((current) => ({ ...initialProcessoForm, anoReferencia: current.anoReferencia, secretariaId: current.secretariaId, modalidadeId: current.modalidadeId, statusId: current.statusId, autoridadeCompetenteId: current.autoridadeCompetenteId, moduloInicial: current.moduloInicial })); setFormMessage(null); setFormError(null); }} className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-sky-300 hover:text-sky-700">Limpar formulario</button>
+                  <Button type="submit" disabled={createMutation.isPending}>{createMutation.isPending ? "Salvando processo..." : "Salvar processo"}</Button>
+                  <Button type="button" variant="outline" onClick={() => { setForm((current) => ({ ...initialProcessoForm, anoReferencia: current.anoReferencia, secretariaId: current.secretariaId, modalidadeId: current.modalidadeId, statusId: current.statusId, autoridadeCompetenteId: current.autoridadeCompetenteId, moduloInicial: current.moduloInicial })); setFieldErrors({}); setFormMessage(null); setFormError(null); }}>Limpar formulario</Button>
                 </div>
               </form>
             </SectionCard>
 
             <SectionCard title="Visao geral do processo" description="Resumo rapido do processo selecionado para conferencia durante os testes.">
               {!selectedProcess ? (
-                <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-sm text-slate-500">Nenhum processo disponivel para detalhamento.</div>
+                <Alert variant="info">Nenhum processo disponivel para detalhamento.</Alert>
               ) : overviewQuery.isLoading ? (
-                <div className="space-y-3">{[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-3xl bg-slate-100" />)}</div>
+                <div className="space-y-3">{[0, 1, 2].map((item) => <Skeleton key={item} className="h-16" />)}</div>
               ) : overviewQuery.error ? (
-                <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">Falha ao carregar o resumo do processo selecionado.</div>
+                <Alert variant="warning">Falha ao carregar o resumo do processo selecionado.</Alert>
               ) : (
                 <div className="space-y-4">
                   <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
@@ -338,8 +409,8 @@ export function ProcessosPage() {
                     <dl className="mt-3 grid gap-3 text-sm text-slate-700">
                       <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2"><dt className="text-slate-500">Autoridade competente</dt><dd className="font-semibold text-slate-950">{overviewQuery.data?.processo?.autoridadeCompetente?.nome ?? "Nao definida"}</dd></div>
                       <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2"><dt className="text-slate-500">Condutor do processo</dt><dd className="font-semibold text-slate-950">{overviewQuery.data?.processo?.condutorProcesso?.nome ?? "Sera definido na publicacao"}</dd></div>
-                      <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2"><dt className="text-slate-500">Valor estimado</dt><dd className="font-semibold text-slate-950">{formatCurrency(overviewQuery.data?.processo?.valorEstimado ?? selectedProcess.valorEstimado ?? null)}</dd></div>
-                      <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">Abertura</dt><dd className="font-semibold text-slate-950">{formatDate(overviewQuery.data?.processo?.dataAbertura ?? selectedProcess.dataAbertura ?? null)}</dd></div>
+                      <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2"><dt className="text-slate-500">Valor estimado</dt><dd className="font-semibold text-slate-950">{formatCurrency(overviewQuery.data?.processo?.valorEstimado ?? null)}</dd></div>
+                      <div className="flex items-center justify-between gap-4"><dt className="text-slate-500">Data de abertura</dt><dd className="font-semibold text-slate-950">{formatDate(overviewQuery.data?.processo?.dataAbertura ?? null)}</dd></div>
                     </dl>
                   </article>
                 </div>
