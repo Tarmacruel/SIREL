@@ -1,21 +1,18 @@
-# SIREL Beta 2.0
+﻿# SIREL Beta 2.0
 
-Base nova do SIREL em monorepo full-stack, preparada para homologacao funcional com dados basicos e processos recriados no proprio sistema.
+Base nova do SIREL em monorepo full-stack, preparada para homologação funcional em ambiente local, com foco em gestão de processos, planejamento, licitação, documentos, contratos, workflow e auditoria.
 
 ## Objetivo
 
-Substituir gradualmente a dependencia operacional da base antiga e validar o novo fluxo sobre:
+A Beta 2.0 substitui a dependência operacional da base antiga por uma arquitetura moderna, organizada para operação on-premise e evolução por módulos.
 
-- React no frontend;
-- Express + tRPC no backend;
-- PostgreSQL com Drizzle ORM;
-- contratos tipados compartilhados em `shared/`.
+Diretrizes atuais:
 
-Neste momento, a estrategia de homologacao e:
-
-- importar apenas cadastros basicos;
-- recriar processos e movimentacoes no sistema novo;
-- validar consistencia, UX e regras de negocio diretamente na Beta 2.0.
+- operação local e confiável;
+- interface em português do Brasil e UTF-8;
+- responsividade nativa para desktop, tablet e smartphone;
+- rastreabilidade de ações críticas;
+- crescimento modular sem reescrever o sistema inteiro a cada rodada.
 
 ## Stack
 
@@ -28,6 +25,7 @@ Neste momento, a estrategia de homologacao e:
 - Drizzle ORM
 - PostgreSQL
 - TypeScript
+- Vitest
 
 ## Estrutura
 
@@ -35,77 +33,99 @@ Neste momento, a estrategia de homologacao e:
 - `server/`: backend Express + tRPC
 - `shared/`: tipos, schemas e constantes compartilhadas
 - `drizzle/`: schema PostgreSQL e migrations
-- `docs/`: plano de migracao e backlog
-- `storage/`: artefatos locais de migracao
+- `docs/`: migração, backlog e roadmap
+- `scripts/`: automações operacionais
+- `storage/`: uploads, backups e artefatos locais
 
 ## Estado funcional atual
 
-Ja implementado:
+Já implementado:
 
-- login local de homologacao;
+- autenticação local por usuário e senha;
+- perfis `admin`, `gestor`, `operador`, `auditor` e `user`;
+- troca de senha pelo próprio usuário;
+- redefinição de senha por administrador;
+- log local de autenticação com eventos de login, bloqueio e senha;
+- bloqueio temporário após tentativas inválidas repetidas;
 - dashboard inicial;
-- cadastro de processos com numero SIREL automatico;
-- workflow operacional entre modulos;
-- modulo de Licitacao separado da tela de Processos;
-- publicacao como ato proprio do modulo de Licitacao;
-- numero de edital automatico por modalidade:
-  - `CE`, `CP`, `CD`, `DLS`, `DLE`, `IL`, `LE`, `PE`, `PP`
-- gestao de usuarios e troca de senha;
-- Planejamento com DFD em tela dedicada;
-- solicitante automatico na DFD;
-- demanda sistemica com secretaria responsavel automatica;
-- seletores em modal para secretarias participantes e responsaveis;
-- catalogo de itens;
-- selecao de itens da DFD em formato de carrinho;
-- edicao e exclusao de itens ja incorporados a DFD;
-- exclusao completa da DFD com reinicio da etapa.
+- cadastro de processos com número SIREL automático;
+- processo regular e processo fora do fluxo;
+- workflow operacional entre módulos;
+- Planejamento com DFD, ETP, cotações preliminares e TR externo;
+- catálogo de itens e seleção em formato de carrinho;
+- geração e persistência de HTML/PDF da DFD, mapa comparativo e TR base;
+- módulo de Licitação com subetapas, licitantes, propostas, lances, recursos e documentos da fase;
+- módulo de Itens com rastreabilidade por processo e contrato;
+- módulo de Usuários com consulta de acessos recentes;
+- operação em rede local, com frontend e backend escutando em `0.0.0.0`.
 
 ## Fluxo de teste recomendado
 
 1. fazer login;
 2. criar um processo em `Processos`;
-3. abrir a DFD em `Planejamento`;
-4. salvar a DFD;
-5. selecionar itens pelo catalogo;
-6. movimentar o processo no `Workflow`;
-7. executar a publicacao no modulo `Licitacao` quando chegar a etapa correta.
+3. estruturar a DFD em `Planejamento`;
+4. anexar o ETP externo;
+5. registrar cotações preliminares;
+6. anexar o TR externo e gerar o documento-base em HTML/PDF;
+7. movimentar o processo no `Workflow`;
+8. conduzir publicação e subetapas no módulo `Licitação`.
 
-## Banco e carga inicial
+## Operação local
 
-Uso atual do legado:
-
-- apenas para seed basico de cadastros;
-- sem dependencia de sincronizacao continua para homologacao.
-
-Comando recomendado para preparar a base:
+### Inicialização guiada
 
 ```powershell
-npm run legacy:seed:basics
+npm run start:local
 ```
 
 Esse comando:
 
-- exporta o snapshot do legado;
-- reseta a base da Beta 2.0;
-- importa apenas cadastros essenciais para teste.
+- valida Node.js;
+- instala dependências se necessário;
+- aplica migrations;
+- verifica seed básico;
+- executa seed quando a base estiver vazia;
+- sobe frontend e backend em desenvolvimento.
 
-## Como rodar
+Script equivalente:
 
-### Opcao 1 - comando manual
+- `Iniciar_SIREL_Local.ps1`
+
+Script legado de conveniência:
+
+- `Iniciar_SIREL_Beta_2.bat`
+
+### Backup local
 
 ```powershell
-npm install
-npm run db:migrate
-npm run legacy:seed:basics
-npm run dev
+npm run backup:local
 ```
 
-### Opcao 2 - Windows
+Esse comando:
 
-Execute:
+- gera dump PostgreSQL;
+- compacta `storage/uploads`;
+- monta um pacote `.zip` em `storage/backups/`;
+- mantém os 7 backups mais recentes.
 
-```text
-Iniciar_SIREL_Beta_2.bat
+Script utilizado:
+
+- `scripts/backup-local.ps1`
+
+## Banco e seed básico
+
+Uso atual do legado:
+
+- apenas para seed básico de cadastros;
+- sem dependência de sincronização contínua para homologação;
+- processos e movimentações devem ser recriados na Beta 2.0.
+
+Comandos úteis:
+
+```powershell
+npm run db:migrate
+npm run db:check-seeded
+npm run legacy:seed:basics
 ```
 
 ## Ambiente
@@ -114,6 +134,7 @@ Exemplo de `.env`:
 
 ```env
 DATABASE_URL=postgresql://sirel_user:senha_segura@localhost:5432/sirel_db
+HOST=0.0.0.0
 PORT=3030
 CLIENT_URL=http://localhost:5173
 VITE_API_URL=http://localhost:3030/api/trpc
@@ -124,9 +145,9 @@ BETA_ADMIN_NAME=Jonatas Sousa
 BETA_ADMIN_EMAIL=jonatassousa@outlook.com
 ```
 
-## Credencial inicial
+## Credencial beta inicial
 
-- usuario: `jonatas.sousa`
+- usuário: `jonatas.sousa`
 - senha: `SirelBeta@2026`
 
 ## Scripts principais
@@ -134,25 +155,46 @@ BETA_ADMIN_EMAIL=jonatassousa@outlook.com
 - `npm run dev`
 - `npm run build`
 - `npm run check`
+- `npm run test`
 - `npm run db:generate`
 - `npm run db:migrate`
+- `npm run db:check-seeded`
 - `npm run legacy:export`
 - `npm run legacy:import`
 - `npm run legacy:import:basics`
 - `npm run legacy:seed:basics`
+- `npm run start:local`
+- `npm run backup:local`
 
-## Validacao executada
+## Roadmap resumido
 
-Validacoes tecnicas mais recentes:
+Frentes prioritárias em andamento:
+
+- design system institucional e acessibilidade;
+- central de consultas com busca textual e filtros avançados;
+- painel de prazos e alertas locais;
+- central de documentos com metadados e busca;
+- relatórios gerenciais e exportações;
+- auditoria expandida por evento e por alteração;
+- preparação técnica para busca semântica e assistente de IA.
+
+Detalhamento:
+
+- `docs/backlog-beta-2.md`
+- `docs/roadmap-beta-2.md`
+
+## Validação executada
+
+Validações técnicas mais recentes:
 
 - `npm run check`
 - `npm run build`
-- `npm run db:migrate`
+- `npm run test`
 
-## Proximas entregas
+## Próximas entregas
 
-- ETP como continuidade da DFD;
-- subetapas internas da Licitacao;
-- modulo de Documentos com upload e versionamento;
-- exportador e-TCM no novo stack;
-- refinamento de UX, tema claro e acessibilidade.
+- central de consultas;
+- painel de prazos e alertas;
+- relatórios operacionais locais;
+- reforço de segurança com recuperação de senha e políticas adicionais;
+- evolução do design system com tema institucional azul royal.

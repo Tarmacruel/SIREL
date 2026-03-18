@@ -9,3 +9,4 @@ storage/migration/*.json
 !storage/migration/.gitkeep
 !storage/migration/README.md
 storage/uploads/
+storage/backups/
