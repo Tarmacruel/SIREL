@@ -1,8 +1,8 @@
 import { getStoredAuthToken, loadStoredSession } from "@/lib/auth-session";
 
-type DocumentoTipo = "DFD" | "ETP" | "TR" | "EDITAL" | "COMUNICACAO_INTERNA" | "RESULTADO" | "CONTRATO" | "OUTRO";
+export type DocumentoTipo = "DFD" | "ETP" | "TR" | "EDITAL" | "COMUNICACAO_INTERNA" | "RESULTADO" | "CONTRATO" | "OUTRO";
 
-interface UploadPlanejamentoDocumentoInput {
+export interface UploadProcessoDocumentoInput {
   processoId: number;
   tipo: DocumentoTipo;
   categoria?: string;
@@ -44,7 +44,7 @@ async function parseError(response: Response) {
   }
 }
 
-export async function uploadPlanejamentoDocumento(input: UploadPlanejamentoDocumentoInput) {
+export async function uploadProcessoDocumento(input: UploadProcessoDocumentoInput) {
   const formData = new FormData();
   formData.append("processoId", String(input.processoId));
   formData.append("tipo", input.tipo);
@@ -66,7 +66,7 @@ export async function uploadPlanejamentoDocumento(input: UploadPlanejamentoDocum
   return response.json();
 }
 
-export async function deletePlanejamentoDocumento(documentoId: number) {
+export async function deleteProcessoDocumento(documentoId: number) {
   const response = await fetch(`${resolveServerBaseUrl()}/api/planejamento/documentos/${documentoId}`, {
     method: "DELETE",
     headers: buildAuthHeaders(),
@@ -78,3 +78,6 @@ export async function deletePlanejamentoDocumento(documentoId: number) {
 
   return response.json();
 }
+
+export const uploadPlanejamentoDocumento = uploadProcessoDocumento;
+export const deletePlanejamentoDocumento = deleteProcessoDocumento;

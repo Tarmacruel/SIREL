@@ -51,6 +51,13 @@ export function formatShortDateTimeBR(value: string | Date | null | undefined) {
   return Number.isNaN(date.getTime()) ? "-" : shortDateTimeFormatter.format(date);
 }
 
+export function formatCnpjBR(value: string | null | undefined) {
+  const digits = String(value ?? "").replace(/\D+/g, "");
+  if (digits.length !== 14) return value?.trim() || "-";
+
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
 export function normalizeDecimalInput(value: string) {
   const normalized = value.replace(/\./g, "").replace(",", ".").trim();
   if (!normalized) return undefined;

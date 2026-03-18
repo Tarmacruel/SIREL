@@ -55,6 +55,15 @@ export const licitacaoSaveLicitanteInputSchema = z.object({
   fornecedorId: z.number().int().positive(),
 });
 
+export const licitacaoQuickFornecedorInputSchema = z.object({
+  razaoSocial: z.string().trim().min(3).max(255),
+  cnpj: z.string().trim().min(14).max(18),
+  email: z.union([z.string().trim().email(), z.literal("")]).optional(),
+  telefone: z.string().trim().max(32).optional(),
+  cidade: z.string().trim().max(128).optional(),
+  estado: z.string().trim().max(2).optional(),
+});
+
 export const licitacaoDeleteLicitanteInputSchema = z.object({
   licitanteId: z.number().int().positive(),
 });
@@ -114,6 +123,7 @@ export type LicitacaoDetailInput = z.infer<typeof licitacaoDetailInputSchema>;
 export type LicitacaoSaveConfiguracaoInput = z.infer<typeof licitacaoSaveConfiguracaoInputSchema>;
 export type LicitacaoPublishInput = z.infer<typeof licitacaoPublishInputSchema>;
 export type LicitacaoSaveLicitanteInput = z.infer<typeof licitacaoSaveLicitanteInputSchema>;
+export type LicitacaoQuickFornecedorInput = z.infer<typeof licitacaoQuickFornecedorInputSchema>;
 export type LicitacaoDeleteLicitanteInput = z.infer<typeof licitacaoDeleteLicitanteInputSchema>;
 export type LicitacaoSavePropostaInput = z.infer<typeof licitacaoSavePropostaInputSchema>;
 export type LicitacaoSaveLanceInput = z.infer<typeof licitacaoSaveLanceInputSchema>;

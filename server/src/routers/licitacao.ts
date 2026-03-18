@@ -4,9 +4,11 @@ import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import {
   licitacaoAdvanceStageInputSchema,
   licitacaoDetailInputSchema,
+  licitacaoDeleteLicitanteInputSchema,
   licitacaoHomologarInputSchema,
   licitacaoListInputSchema,
   licitacaoPublishInputSchema,
+  licitacaoQuickFornecedorInputSchema,
   licitacaoSaveConfiguracaoInputSchema,
   licitacaoSaveHabilitacaoInputSchema,
   licitacaoSaveLanceInputSchema,
@@ -66,6 +68,16 @@ function nowDateString() {
 
 function toNullableText(value?: string | null) {
   return value?.trim() ? value.trim() : null;
+}
+
+function normalizeDigits(value?: string | null) {
+  return String(value ?? "").replace(/\D+/g, "");
+}
+
+function formatCnpj(value: string) {
+  const digits = normalizeDigits(value);
+  if (digits.length !== 14) return digits;
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
 function supportsLances(modalidadeCodigo?: string | null) {
@@ -635,6 +647,108 @@ export const licitacaoRouter = router({
     });
 
     return { success: true, licitanteId: created.id };
+  }),
+
+  createFornecedorQuick: operadorProcedure.input(licitacaoQuickFornecedorInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const cnpjDigits = normalizeDigits(input.cnpj);
+    if (cnpjDigits.length !== 14) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe um CNPJ válido com 14 dígitos." });
+    }
+
+    const cnpj = formatCnpj(cnpjDigits);
+    const [existing] = await db
+      .select()
+      .from(fornecedores)
+      .where(or(eq(fornecedores.cnpj, cnpj), eq(fornecedores.cnpj, cnpjDigits)))
+      .limit(1);
+
+    const patch = {
+      razaoSocial: input.razaoSocial.trim(),
+      cnpj,
+      email: toNullableText(input.email),
+      telefone: toNullableText(input.telefone),
+      cidade: toNullableText(input.cidade),
+      estado: toNullableText(input.estado)?.slice(0, 2).toUpperCase() ?? null,
+      ativo: true,
+      atualizadoEm: new Date(),
+    };
+
+    if (existing) {
+      await db.update(fornecedores).set(patch).where(eq(fornecedores.id, existing.id));
+      await logAuditoria(ctx, {
+        tabela: "fornecedores",
+        registroId: existing.id,
+        acao: "UPDATE",
+        dadosAnteriores: existing,
+        dadosNovos: patch,
+        descricao: `Fornecedor ${patch.razaoSocial} atualizado por cadastro rápido na licitação`,
+      });
+
+      return {
+        id: existing.id,
+        razaoSocial: patch.razaoSocial,
+        cnpj: patch.cnpj,
+        criado: false,
+        reativado: !existing.ativo,
+      };
+    }
+
+    const [created] = await db.insert(fornecedores).values({
+      ...patch,
+      criadoEm: new Date(),
+    }).returning();
+
+    await logAuditoria(ctx, {
+      tabela: "fornecedores",
+      registroId: created.id,
+      acao: "CREATE",
+      dadosNovos: created,
+      descricao: `Fornecedor ${created.razaoSocial} criado por cadastro rápido na licitação`,
+    });
+
+    return {
+      id: created.id,
+      razaoSocial: created.razaoSocial,
+      cnpj: created.cnpj,
+      criado: true,
+      reativado: false,
+    };
+  }),
+
+  deleteLicitante: operadorProcedure.input(licitacaoDeleteLicitanteInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [licitante] = await db.select().from(licitantes).where(eq(licitantes.id, input.licitanteId)).limit(1);
+    if (!licitante) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Licitante não encontrado." });
+    }
+
+    const [licitacao] = await db.select().from(licitacoes).where(eq(licitacoes.id, licitante.licitacaoId)).limit(1);
+    const [fornecedor] = await db.select().from(fornecedores).where(eq(fornecedores.id, licitante.fornecedorId)).limit(1);
+    if (!licitacao || !fornecedor) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Não foi possível localizar os dados do licitante." });
+    }
+
+    await db.update(licitantes).set({
+      ativo: false,
+      atualizadoEm: new Date(),
+    }).where(eq(licitantes.id, input.licitanteId));
+
+    await appendMovement(db, {
+      processoId: licitacao.processoId,
+      usuarioId: ctx.user?.id ?? null,
+      descricao: `Licitante ${fornecedor.razaoSocial} retirado da disputa`,
+    });
+    await logAuditoria(ctx, {
+      tabela: "licitantes",
+      registroId: licitante.id,
+      acao: "UPDATE",
+      dadosAnteriores: licitante,
+      dadosNovos: { ativo: false },
+      descricao: `Licitante ${fornecedor.razaoSocial} inativado na licitação do processo ${licitacao.processoId}`,
+    });
+
+    return { success: true };
   }),
 
   saveProposta: operadorProcedure.input(licitacaoSavePropostaInputSchema).mutation(async ({ ctx, input }) => {

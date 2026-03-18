@@ -1,5 +1,5 @@
-import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Gavel, Megaphone, ScrollText, Search, Users } from "lucide-react";
+import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { FolderOpen, Gavel, Megaphone, Plus, ScrollText, Search, Trash2, Upload, Users } from "lucide-react";
 
 import {
   habilitacaoStatusLabels,
@@ -14,8 +14,10 @@ import {
 } from "@sirel/shared/const";
 import {
   licitacaoAdvanceStageInputSchema,
+  licitacaoDeleteLicitanteInputSchema,
   licitacaoHomologarInputSchema,
   licitacaoPublishInputSchema,
+  licitacaoQuickFornecedorInputSchema,
   licitacaoSaveConfiguracaoInputSchema,
   licitacaoSaveHabilitacaoInputSchema,
   licitacaoSaveLanceInputSchema,
@@ -23,6 +25,7 @@ import {
   licitacaoSavePropostaInputSchema,
   licitacaoSaveRecursoInputSchema,
 } from "@sirel/shared/schemas/licitacao";
+import { Modal } from "@/components/shared/modal";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -34,11 +37,75 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { Tabs, type TabItem } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { formatCurrencyBRL, formatDecimalInput, formatShortDateBR, formatShortDateTimeBR, normalizeDecimalInput } from "@/lib/formatters";
+import { deleteProcessoDocumento, uploadProcessoDocumento, type DocumentoTipo } from "@/lib/document-upload";
+import { formatCnpjBR, formatCurrencyBRL, formatDecimalInput, formatShortDateBR, formatShortDateTimeBR, normalizeDecimalInput } from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
-type LicitacaoTabValue = "publicacao" | "licitantes" | "propostas" | "lances" | "julgamento" | "habilitacao" | "recursos" | "homologacao";
+type LicitacaoTabValue = "publicacao" | "documentos" | "licitantes" | "propostas" | "lances" | "julgamento" | "habilitacao" | "recursos" | "homologacao";
+
+type LicitacaoDocumentCategory =
+  | "LICITACAO_EDITAL_FINAL"
+  | "LICITACAO_AVISO"
+  | "LICITACAO_ATA_SESSAO"
+  | "LICITACAO_PARECER"
+  | "LICITACAO_HOMOLOGACAO";
+
+interface DocumentoUploadState {
+  titulo: string;
+  descricao: string;
+  arquivo: File | null;
+}
+
+interface LicitacaoDocumentSpec {
+  category: LicitacaoDocumentCategory;
+  label: string;
+  description: string;
+  tipo: DocumentoTipo;
+}
+
+const licitacaoDocumentSpecs: readonly LicitacaoDocumentSpec[] = [
+  {
+    category: "LICITACAO_EDITAL_FINAL",
+    label: "Edital final",
+    description: "Versão final do edital apta para publicação e arquivamento no processo.",
+    tipo: "EDITAL",
+  },
+  {
+    category: "LICITACAO_AVISO",
+    label: "Aviso de licitação",
+    description: "Aviso publicado nos veículos oficiais e no portal do município.",
+    tipo: "OUTRO",
+  },
+  {
+    category: "LICITACAO_ATA_SESSAO",
+    label: "Ata de sessão",
+    description: "Ata da abertura, disputa ou sessão pública correspondente à fase corrente.",
+    tipo: "RESULTADO",
+  },
+  {
+    category: "LICITACAO_PARECER",
+    label: "Pareceres e decisões",
+    description: "Parecer jurídico, análise técnica, decisão de julgamento ou decisão recursal.",
+    tipo: "OUTRO",
+  },
+  {
+    category: "LICITACAO_HOMOLOGACAO",
+    label: "Homologação",
+    description: "Documento final de homologação e demais registros de encerramento da fase licitatória.",
+    tipo: "RESULTADO",
+  },
+] as const;
+
+function createDocumentoUploadState(): Record<LicitacaoDocumentCategory, DocumentoUploadState> {
+  return {
+    LICITACAO_EDITAL_FINAL: { titulo: "", descricao: "", arquivo: null },
+    LICITACAO_AVISO: { titulo: "", descricao: "", arquivo: null },
+    LICITACAO_ATA_SESSAO: { titulo: "", descricao: "", arquivo: null },
+    LICITACAO_PARECER: { titulo: "", descricao: "", arquivo: null },
+    LICITACAO_HOMOLOGACAO: { titulo: "", descricao: "", arquivo: null },
+  };
+}
 
 function statusToTab(status?: string | null): LicitacaoTabValue {
   switch (status) {
@@ -171,6 +238,14 @@ export function LicitacaoPage() {
     observacao: "",
   });
   const [licitanteForm, setLicitanteForm] = useState({ fornecedorId: "" });
+  const [fornecedorForm, setFornecedorForm] = useState({
+    razaoSocial: "",
+    cnpj: "",
+    email: "",
+    telefone: "",
+    cidade: "",
+    estado: "BA",
+  });
   const [propostaForm, setPropostaForm] = useState({
     propostaId: "",
     licitanteId: "",
@@ -206,6 +281,11 @@ export function LicitacaoPage() {
     statusId: "",
     observacao: "",
   });
+  const [documentoForms, setDocumentoForms] = useState<Record<LicitacaoDocumentCategory, DocumentoUploadState>>(
+    createDocumentoUploadState(),
+  );
+  const [documentoUploading, setDocumentoUploading] = useState<LicitacaoDocumentCategory | null>(null);
+  const [openFornecedorModal, setOpenFornecedorModal] = useState(false);
 
   const deferredSearch = useDeferredValue(search.trim());
   const filters = useMemo(
@@ -243,13 +323,19 @@ export function LicitacaoPage() {
     { processoId: selectedProcessId ?? 0 },
     { enabled: Boolean(selectedProcessId), retry: false },
   );
+  const documentosQuery = trpc.documentos.listByProcesso.useQuery(
+    { processoId: selectedProcessId ?? 0 },
+    { enabled: Boolean(selectedProcessId), retry: false, placeholderData: (previous) => previous },
+  );
 
   const detail = detailQuery.data;
   const processo = detail?.processo;
   const licitacao = detail?.licitacao;
+  const documentosProcesso = documentosQuery.data ?? [];
 
   useEffect(() => {
     if (!detail) return;
+    const licitanteInicial = detail.licitantes.find((item) => item.ativo) ?? detail.licitantes[0];
     setActiveTab(statusToTab(detail.licitacao?.statusLicitacao));
     setConfigForm({
       criterioJulgamento: detail.processo.criterioJulgamento ?? "",
@@ -291,19 +377,20 @@ export function LicitacaoPage() {
       observacao: "",
     });
     setHabilitacaoForm({
-      licitanteId: detail.licitantes[0]?.id ? String(detail.licitantes[0].id) : "",
-      statusHabilitacao: detail.licitantes[0]?.statusHabilitacao ?? "PENDENTE",
-      observacaoHabilitacao: detail.licitantes[0]?.observacaoHabilitacao ?? "",
+      licitanteId: licitanteInicial?.id ? String(licitanteInicial.id) : "",
+      statusHabilitacao: licitanteInicial?.statusHabilitacao ?? "PENDENTE",
+      observacaoHabilitacao: licitanteInicial?.observacaoHabilitacao ?? "",
     });
     setRecursoForm({
       recursoId: "",
-      licitanteId: detail.licitantes[0]?.id ? String(detail.licitantes[0].id) : "",
+      licitanteId: licitanteInicial?.id ? String(licitanteInicial.id) : "",
       dataInterposicao: "",
       dataJulgamento: "",
       resultado: "PENDENTE",
       descricao: "",
       decisao: "",
     });
+    setDocumentoForms(createDocumentoUploadState());
     setFieldErrors({});
     setErrorMessage(null);
     setFeedback(null);
@@ -318,6 +405,9 @@ export function LicitacaoPage() {
       utils.workflow.byProcesso.invalidate({ processoId }),
       utils.processos.list.invalidate(),
       utils.processos.overview.invalidate({ processoId }),
+      utils.documentos.list.invalidate(),
+      utils.documentos.listByProcesso.invalidate({ processoId }),
+      utils.documentos.summary.invalidate(),
       utils.dashboard.summary.invalidate(),
     ]);
   }
@@ -351,6 +441,41 @@ export function LicitacaoPage() {
       await refreshModulo(variables.processoId);
       setFeedback("Licitante adicionado à fase de Licitação.");
       setLicitanteForm({ fornecedorId: "" });
+      setErrorMessage(null);
+    },
+    onError: handleMutationError,
+  });
+
+  const fornecedorQuickMutation = trpc.licitacao.createFornecedorQuick.useMutation({
+    onSuccess: async (result) => {
+      await utils.cadastros.formOptions.invalidate();
+      setFeedback(
+        result.criado
+          ? `Fornecedor ${result.razaoSocial} cadastrado e pronto para a disputa.`
+          : result.reativado
+            ? `Fornecedor ${result.razaoSocial} reativado e atualizado.`
+            : `Fornecedor ${result.razaoSocial} atualizado para uso imediato na Licitação.`,
+      );
+      setErrorMessage(null);
+      setLicitanteForm({ fornecedorId: String(result.id) });
+      setFornecedorForm({
+        razaoSocial: "",
+        cnpj: "",
+        email: "",
+        telefone: "",
+        cidade: "",
+        estado: "BA",
+      });
+      setOpenFornecedorModal(false);
+    },
+    onError: handleMutationError,
+  });
+
+  const deleteLicitanteMutation = trpc.licitacao.deleteLicitante.useMutation({
+    onSuccess: async () => {
+      if (!selectedProcessId) return;
+      await refreshModulo(selectedProcessId);
+      setFeedback("Licitante retirado da disputa.");
       setErrorMessage(null);
     },
     onError: handleMutationError,
@@ -469,6 +594,34 @@ export function LicitacaoPage() {
     await licitanteMutation.mutateAsync(parsed.data);
   }
 
+  async function handleCadastrarFornecedorRapido(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const parsed = licitacaoQuickFornecedorInputSchema.safeParse(fornecedorForm);
+    if (!parsed.success) {
+      setFieldErrors(mapZodFieldErrors(parsed.error));
+      setErrorMessage("Revise os dados do fornecedor antes de salvar.");
+      return;
+    }
+
+    setFieldErrors({});
+    await fornecedorQuickMutation.mutateAsync(parsed.data);
+  }
+
+  async function handleExcluirLicitante(licitanteId: number) {
+    const confirmed = window.confirm("Deseja retirar este licitante da disputa? O histórico será preservado.");
+    if (!confirmed) return;
+
+    const parsed = licitacaoDeleteLicitanteInputSchema.safeParse({ licitanteId });
+    if (!parsed.success) {
+      setFieldErrors(mapZodFieldErrors(parsed.error));
+      setErrorMessage("Não foi possível preparar a retirada do licitante.");
+      return;
+    }
+
+    setFieldErrors({});
+    await deleteLicitanteMutation.mutateAsync(parsed.data);
+  }
+
   async function handleSalvarProposta(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedProcessId) return;
@@ -584,6 +737,71 @@ export function LicitacaoPage() {
     setActiveTab(nextTab);
   }
 
+  function handleDocumentoFileChange(category: LicitacaoDocumentCategory, event: ChangeEvent<HTMLInputElement>) {
+    const nextFile = event.target.files?.[0] ?? null;
+    setDocumentoForms((current) => ({
+      ...current,
+      [category]: {
+        ...current[category],
+        arquivo: nextFile,
+        titulo: current[category].titulo || nextFile?.name || "",
+      },
+    }));
+  }
+
+  async function handleUploadDocumentoLicitacao(event: FormEvent<HTMLFormElement>, spec: LicitacaoDocumentSpec) {
+    event.preventDefault();
+    if (!selectedProcessId) return;
+
+    const form = documentoForms[spec.category];
+    if (!form.arquivo) {
+      setFeedback(null);
+      setErrorMessage(`Selecione um arquivo para ${spec.label.toLowerCase()}.`);
+      return;
+    }
+
+    try {
+      setDocumentoUploading(spec.category);
+      setFeedback(null);
+      setErrorMessage(null);
+      await uploadProcessoDocumento({
+        processoId: selectedProcessId,
+        tipo: spec.tipo,
+        categoria: spec.category,
+        titulo: form.titulo.trim() || form.arquivo.name,
+        descricao: form.descricao.trim() || undefined,
+        arquivo: form.arquivo,
+      });
+      await refreshModulo(selectedProcessId);
+      setDocumentoForms((current) => ({
+        ...current,
+        [spec.category]: { titulo: "", descricao: "", arquivo: null },
+      }));
+      setFeedback(`${spec.label} anexado ao processo com sucesso.`);
+    } catch (error) {
+      setFeedback(null);
+      setErrorMessage(error instanceof Error ? error.message : "Falha ao anexar o documento da fase licitatória.");
+    } finally {
+      setDocumentoUploading(null);
+    }
+  }
+
+  async function handleDeleteDocumentoLicitacao(documentoId: number) {
+    const confirmed = window.confirm("Deseja remover este documento da Licitação?");
+    if (!confirmed || !selectedProcessId) return;
+
+    try {
+      setFeedback(null);
+      setErrorMessage(null);
+      await deleteProcessoDocumento(documentoId);
+      await refreshModulo(selectedProcessId);
+      setFeedback("Documento removido do processo.");
+    } catch (error) {
+      setFeedback(null);
+      setErrorMessage(error instanceof Error ? error.message : "Falha ao remover o documento.");
+    }
+  }
+
   function carregarProposta(propostaId: string) {
     const proposta = detail?.propostas.find((item) => String(item.id) === propostaId);
     if (!proposta) return;
@@ -614,7 +832,16 @@ export function LicitacaoPage() {
   }
 
   const licitanteOptions = detail?.licitantes ?? [];
+  const licitanteOptionsAtivos = licitanteOptions.filter((item) => item.ativo);
   const propostaOptions = detail?.propostas ?? [];
+  const documentosLicitacao = useMemo(
+    () =>
+      licitacaoDocumentSpecs.map((spec) => ({
+        ...spec,
+        documentos: documentosProcesso.filter((documento) => documento.categoria === spec.category),
+      })),
+    [documentosProcesso],
+  );
 
   const tabItems: TabItem[] = [
     {
@@ -701,6 +928,112 @@ export function LicitacaoPage() {
       ),
     },
     {
+      value: "documentos",
+      label: "Documentos",
+      content: (
+        <div className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            {documentosLicitacao.map((spec) => {
+              const form = documentoForms[spec.category];
+              const docs = spec.documentos;
+              return (
+                <SectionCard key={spec.category} title={spec.label} description={spec.description}>
+                  <div className="space-y-4">
+                    <form className="grid gap-4 md:grid-cols-[1fr_1fr_220px] md:items-end" onSubmit={(event) => void handleUploadDocumentoLicitacao(event, spec)}>
+                      <FormField label={`Título do ${spec.label.toLowerCase()}`}>
+                        <Input
+                          value={form.titulo}
+                          onChange={(event) =>
+                            setDocumentoForms((current) => ({
+                              ...current,
+                              [spec.category]: {
+                                ...current[spec.category],
+                                titulo: event.target.value,
+                              },
+                            }))
+                          }
+                          placeholder={spec.label}
+                        />
+                      </FormField>
+                      <FormField label="Descrição">
+                        <Input
+                          value={form.descricao}
+                          onChange={(event) =>
+                            setDocumentoForms((current) => ({
+                              ...current,
+                              [spec.category]: {
+                                ...current[spec.category],
+                                descricao: event.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Resumo do documento anexado"
+                        />
+                      </FormField>
+                      <FormField label="Arquivo">
+                        <Input type="file" onChange={(event) => handleDocumentoFileChange(spec.category, event)} />
+                      </FormField>
+                      <div className="md:col-span-3 flex flex-wrap items-center gap-3">
+                        <Button type="submit" disabled={documentoUploading === spec.category}>
+                          <Upload className="h-4 w-4" />
+                          {documentoUploading === spec.category ? "Enviando..." : `Anexar ${spec.label}`}
+                        </Button>
+                        <span className="text-xs text-slate-500">
+                          {docs.length
+                            ? `${docs.length} documento(s) já arquivado(s) nesta categoria.`
+                            : "Nenhum documento arquivado nesta categoria ainda."}
+                        </span>
+                      </div>
+                    </form>
+
+                    <div className="overflow-x-auto rounded-[24px] border border-slate-200">
+                      <Table className="min-w-[720px]">
+                        <TableHead>
+                          <tr>
+                            <TableHeaderCell>Título</TableHeaderCell>
+                            <TableHeaderCell>Descrição</TableHeaderCell>
+                            <TableHeaderCell>Data</TableHeaderCell>
+                            <TableHeaderCell className="text-right">Ações</TableHeaderCell>
+                          </tr>
+                        </TableHead>
+                        <TableBody>
+                          {docs.map((doc) => (
+                            <TableRow key={doc.id}>
+                              <TableCell className="font-semibold text-slate-950">{doc.titulo}</TableCell>
+                              <TableCell>{doc.descricao ?? "-"}</TableCell>
+                              <TableCell>{formatShortDateTimeBR(doc.criadoEm)}</TableCell>
+                              <TableCell>
+                                <div className="flex justify-end gap-2">
+                                  <Button type="button" variant="outline" size="sm" onClick={() => window.open(doc.arquivoUrl ?? "#", "_blank", "noopener,noreferrer")}>
+                                    <FolderOpen className="h-4 w-4" />
+                                    Abrir
+                                  </Button>
+                                  <Button type="button" variant="ghost" size="sm" onClick={() => void handleDeleteDocumentoLicitacao(doc.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          {!docs.length ? (
+                            <TableRow>
+                              <TableCell colSpan={4} className="text-center text-slate-500">
+                                Nenhum documento cadastrado para {spec.label.toLowerCase()}.
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </SectionCard>
+              );
+            })}
+          </div>
+        </div>
+      ),
+    },
+    {
       value: "licitantes",
       label: "Licitantes",
       content: (
@@ -711,26 +1044,54 @@ export function LicitacaoPage() {
               <FormField label="Fornecedor" error={fieldErrors.fornecedorId}>
                 <Select value={licitanteForm.fornecedorId} onChange={(event) => setLicitanteForm({ fornecedorId: event.target.value })}>
                   <option value="">Selecione</option>
-                  {catalogQuery.data?.fornecedores.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial} · {item.cnpj}</option>)}
+                  {catalogQuery.data?.fornecedores.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial} · {formatCnpjBR(item.cnpj)}</option>)}
                 </Select>
               </FormField>
-              <Button type="submit" disabled={licitanteMutation.isPending}>Adicionar licitante</Button>
+              <div className="flex flex-wrap gap-3">
+                <Button type="submit" disabled={licitanteMutation.isPending}>Adicionar licitante</Button>
+                <Button type="button" variant="outline" onClick={() => setOpenFornecedorModal(true)}>
+                  <Plus className="h-4 w-4" />
+                  Cadastro rápido de fornecedor
+                </Button>
+              </div>
             </form>
           </SectionCard>
-          <SectionCard title="Participantes" description="Licitantes cadastrados na disputa e situação documental.">
+          <SectionCard title="Participantes" description="Licitantes cadastrados na disputa, com situação documental e controle de atividade.">
             <div className="overflow-x-auto rounded-[24px] border border-slate-200">
-              <Table className="min-w-[620px]">
-                <TableHead><tr><TableHeaderCell>Fornecedor</TableHeaderCell><TableHeaderCell>CNPJ</TableHeaderCell><TableHeaderCell>Habilitação</TableHeaderCell><TableHeaderCell>Cadastro</TableHeaderCell></tr></TableHead>
+              <Table className="min-w-[760px]">
+                <TableHead><tr><TableHeaderCell>Fornecedor</TableHeaderCell><TableHeaderCell>CNPJ</TableHeaderCell><TableHeaderCell>Habilitação</TableHeaderCell><TableHeaderCell>Situação</TableHeaderCell><TableHeaderCell>Cadastro</TableHeaderCell><TableHeaderCell className="text-right">Ações</TableHeaderCell></tr></TableHead>
                 <TableBody>
                   {licitanteOptions.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-semibold text-slate-950">{item.razaoSocial}</TableCell>
-                      <TableCell>{item.cnpj}</TableCell>
+                      <TableCell>{formatCnpjBR(item.cnpj)}</TableCell>
                       <TableCell><span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.statusHabilitacao === "HABILITADO" ? "bg-emerald-100 text-emerald-800" : item.statusHabilitacao === "INABILITADO" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{habilitacaoStatusLabels[item.statusHabilitacao]}</span></TableCell>
+                      <TableCell>
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${item.ativo ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-600"}`}>
+                          {item.ativo ? "Ativo" : "Retirado"}
+                        </span>
+                      </TableCell>
                       <TableCell>{formatShortDateTimeBR(item.dataCadastro)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => {
+                            setHabilitacaoForm({
+                              licitanteId: String(item.id),
+                              statusHabilitacao: item.statusHabilitacao,
+                              observacaoHabilitacao: item.observacaoHabilitacao ?? "",
+                            });
+                            setActiveTab("habilitacao");
+                          }}>
+                            Ir para habilitação
+                          </Button>
+                          <Button type="button" variant="ghost" size="sm" disabled={!item.ativo || deleteLicitanteMutation.isPending} onClick={() => void handleExcluirLicitante(item.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
-                  {!licitanteOptions.length ? <TableRow><TableCell colSpan={4} className="text-center text-slate-500">Nenhum licitante registrado até o momento.</TableCell></TableRow> : null}
+                  {!licitanteOptions.length ? <TableRow><TableCell colSpan={6} className="text-center text-slate-500">Nenhum licitante registrado até o momento.</TableCell></TableRow> : null}
                 </TableBody>
               </Table>
             </div>
@@ -754,7 +1115,7 @@ export function LicitacaoPage() {
               <FormField label="Licitante" error={fieldErrors.licitanteId}>
                 <Select value={propostaForm.licitanteId} onChange={(event) => setPropostaForm((current) => ({ ...current, licitanteId: event.target.value }))}>
                   <option value="">Selecione</option>
-                  {licitanteOptions.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial}</option>)}
+                  {licitanteOptionsAtivos.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial}</option>)}
                 </Select>
               </FormField>
               <FormField label="Item do processo" error={fieldErrors.itemId}>
@@ -899,7 +1260,7 @@ export function LicitacaoPage() {
                   });
                 }}>
                   <option value="">Selecione</option>
-                  {licitanteOptions.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial}</option>)}
+                  {licitanteOptionsAtivos.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial}</option>)}
                 </Select>
               </FormField>
               <FormField label="Situação da habilitação">
@@ -919,7 +1280,7 @@ export function LicitacaoPage() {
               <Table className="min-w-[620px]">
                 <TableHead><tr><TableHeaderCell>Licitante</TableHeaderCell><TableHeaderCell>Situação</TableHeaderCell><TableHeaderCell>Observação</TableHeaderCell></tr></TableHead>
                 <TableBody>
-                  {licitanteOptions.map((item) => (
+                  {licitanteOptionsAtivos.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-semibold text-slate-950">{item.razaoSocial}</TableCell>
                       <TableCell>{habilitacaoStatusLabels[item.statusHabilitacao]}</TableCell>
@@ -950,7 +1311,7 @@ export function LicitacaoPage() {
               <FormField label="Licitante">
                 <Select value={recursoForm.licitanteId} onChange={(event) => setRecursoForm((current) => ({ ...current, licitanteId: event.target.value }))}>
                   <option value="">Selecione</option>
-                  {licitanteOptions.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial}</option>)}
+                  {licitanteOptionsAtivos.map((item) => <option key={item.id} value={item.id}>{item.razaoSocial}</option>)}
                 </Select>
               </FormField>
               <div className="grid gap-4 md:grid-cols-2">
@@ -1111,6 +1472,72 @@ export function LicitacaoPage() {
           </div>
         </div>
       </SectionCard>
+
+      <Modal
+        open={openFornecedorModal}
+        onClose={() => setOpenFornecedorModal(false)}
+        title="Cadastro rápido de fornecedor"
+        description="Cadastre o fornecedor sem sair da fase licitatória e já deixe-o disponível para inclusão como licitante."
+        size="md"
+      >
+        <form className="space-y-4" onSubmit={handleCadastrarFornecedorRapido}>
+          <FormField label="Razão social" error={fieldErrors.razaoSocial}>
+            <Input
+              value={fornecedorForm.razaoSocial}
+              onChange={(event) => setFornecedorForm((current) => ({ ...current, razaoSocial: event.target.value }))}
+              placeholder="Nome empresarial do fornecedor"
+            />
+          </FormField>
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField label="CNPJ" error={fieldErrors.cnpj}>
+              <Input
+                value={fornecedorForm.cnpj}
+                onChange={(event) => setFornecedorForm((current) => ({ ...current, cnpj: event.target.value }))}
+                placeholder="00.000.000/0000-00"
+              />
+            </FormField>
+            <FormField label="Telefone">
+              <Input
+                value={fornecedorForm.telefone}
+                onChange={(event) => setFornecedorForm((current) => ({ ...current, telefone: event.target.value }))}
+                placeholder="(00) 00000-0000"
+              />
+            </FormField>
+          </div>
+          <FormField label="E-mail" error={fieldErrors.email}>
+            <Input
+              value={fornecedorForm.email}
+              onChange={(event) => setFornecedorForm((current) => ({ ...current, email: event.target.value }))}
+              placeholder="contato@fornecedor.com.br"
+            />
+          </FormField>
+          <div className="grid gap-4 md:grid-cols-[1fr_100px]">
+            <FormField label="Cidade">
+              <Input
+                value={fornecedorForm.cidade}
+                onChange={(event) => setFornecedorForm((current) => ({ ...current, cidade: event.target.value }))}
+                placeholder="Município"
+              />
+            </FormField>
+            <FormField label="UF">
+              <Input
+                value={fornecedorForm.estado}
+                maxLength={2}
+                onChange={(event) => setFornecedorForm((current) => ({ ...current, estado: event.target.value.toUpperCase() }))}
+                placeholder="BA"
+              />
+            </FormField>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setOpenFornecedorModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={fornecedorQuickMutation.isPending}>
+              {fornecedorQuickMutation.isPending ? "Salvando..." : "Salvar fornecedor"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
