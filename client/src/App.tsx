@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/query-client";
 import { trpc, trpcClient } from "@/lib/trpc";
 
 const ContratosPage = lazy(() => import("@/pages/contratos-page").then((module) => ({ default: module.ContratosPage })));
+const ConsultasPage = lazy(() => import("@/pages/consultas-page").then((module) => ({ default: module.ConsultasPage })));
 const DashboardPage = lazy(() => import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
 const DocumentosPage = lazy(() => import("@/pages/documentos-page").then((module) => ({ default: module.DocumentosPage })));
 const ItensPage = lazy(() => import("@/pages/itens-page").then((module) => ({ default: module.ItensPage })));
@@ -27,6 +28,7 @@ const PlanejamentoTrPage = lazy(() =>
   import("@/pages/planejamento-tr-page").then((module) => ({ default: module.PlanejamentoTrPage })),
 );
 const PlanejamentoPage = lazy(() => import("@/pages/planejamento-page").then((module) => ({ default: module.PlanejamentoPage })));
+const PrazosPage = lazy(() => import("@/pages/prazos-page").then((module) => ({ default: module.PrazosPage })));
 const ProcessosPage = lazy(() => import("@/pages/processos-page").then((module) => ({ default: module.ProcessosPage })));
 const UsuariosPage = lazy(() => import("@/pages/usuarios-page").then((module) => ({ default: module.UsuariosPage })));
 const WorkflowPage = lazy(() => import("@/pages/workflow-page").then((module) => ({ default: module.WorkflowPage })));
@@ -76,6 +78,8 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
       <Suspense fallback={<RouteFallback />}>
         <Switch>
           <Route path="/" component={DashboardPage} />
+          <Route path="/consultas" component={ConsultasPage} />
+          <Route path="/prazos" component={PrazosPage} />
           <Route path="/planejamento/dfd/:processoId">
             {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}
           </Route>

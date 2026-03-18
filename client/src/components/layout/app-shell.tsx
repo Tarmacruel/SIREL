@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   Bell,
   Boxes,
+  Clock3,
   FileText,
   FolderKanban,
   LayoutDashboard,
@@ -11,6 +12,7 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  Search,
   ScrollText,
   Users,
   Workflow,
@@ -22,6 +24,8 @@ import type { AuthUser } from "@/lib/auth-session";
 
 const icons: Record<string, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
+  consultas: Search,
+  prazos: Clock3,
   itens: Boxes,
   planejamento: FolderKanban,
   compras: ListTodo,
