@@ -1,0 +1,36 @@
+{
+  "name": "sirel-modern",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@10.9.0",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "dev:client": "npm run dev --workspace client",
+    "dev:server": "npm run dev --workspace server",
+    "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client",
+    "check": "npm run typecheck --workspace shared && npm run typecheck --workspace server && npm run typecheck --workspace client",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "legacy:export": "python scripts/export_legacy_snapshot.py",
+    "legacy:import": "npm run import:legacy --workspace server",
+    "legacy:import:basics": "npm run import:legacy --workspace server -- --scope basics --reset",
+    "legacy:seed:basics": "npm run legacy:export && npm run legacy:import:basics",
+    "legacy:sync": "node scripts/sync_legacy_pipeline.mjs",
+    "legacy:sync:full": "node scripts/sync_legacy_pipeline.mjs --full",
+    "format": "prettier --write .",
+    "test": "npm run test --workspace client"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.1.2",
+    "drizzle-kit": "^0.30.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.8.3"
+  }
+}
+

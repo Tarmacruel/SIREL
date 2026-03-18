@@ -1,0 +1,1 @@
+ALTER TABLE "processos" ADD COLUMN "fora_do_fluxo" boolean DEFAULT false NOT NULL;
