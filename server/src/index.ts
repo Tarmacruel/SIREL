@@ -38,6 +38,31 @@ function slugifyFileName(value: string) {
     .toLowerCase();
 }
 
+function parseBooleanFlag(value: unknown) {
+  return ["1", "true", "on", "sim", "yes"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+function parseStringArrayField(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return [];
+
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean);
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return raw
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function resolveRequestUser(req: express.Request) {
   const authHeader = String(req.headers.authorization ?? "").trim();
   const bearerToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
@@ -141,6 +166,10 @@ app.post("/api/planejamento/documentos/upload", upload.single("arquivo"), async 
     const categoria = String(req.body.categoria ?? "").trim() || null;
     const titulo = String(req.body.titulo ?? req.file.originalname).trim();
     const descricao = String(req.body.descricao ?? "").trim() || null;
+    const dataReferencia = String(req.body.dataReferencia ?? "").trim() || null;
+    const publico = parseBooleanFlag(req.body.publico);
+    const palavrasChave = parseStringArrayField(req.body.palavrasChave);
+    const restritoA = parseStringArrayField(req.body.restritoA);
     if (!processoId || !titulo || !tipo) {
       res.status(400).json({ message: "Informe processo, tipo e titulo do documento." });
       return;
@@ -167,6 +196,10 @@ app.post("/api/planejamento/documentos/upload", upload.single("arquivo"), async 
       arquivoChave: relativePath,
       tamanhoBytes: req.file.size,
       mimeType: req.file.mimetype,
+      dataReferencia,
+      publico,
+      palavrasChave,
+      restritoA,
       criadoPor: user.id,
       criadoEm: new Date(),
       atualizadoEm: new Date(),

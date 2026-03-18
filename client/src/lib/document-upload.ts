@@ -1,4 +1,4 @@
-import { getStoredAuthToken, loadStoredSession } from "@/lib/auth-session";
+﻿import { getStoredAuthToken, loadStoredSession } from "@/lib/auth-session";
 
 export type DocumentoTipo = "DFD" | "ETP" | "TR" | "EDITAL" | "COMUNICACAO_INTERNA" | "RESULTADO" | "CONTRATO" | "OUTRO";
 
@@ -8,6 +8,10 @@ export interface UploadProcessoDocumentoInput {
   categoria?: string;
   titulo: string;
   descricao?: string;
+  dataReferencia?: string;
+  publico?: boolean;
+  palavrasChave?: string[];
+  restritoA?: string[];
   arquivo: File;
 }
 
@@ -51,6 +55,10 @@ export async function uploadProcessoDocumento(input: UploadProcessoDocumentoInpu
   formData.append("categoria", input.categoria ?? "");
   formData.append("titulo", input.titulo);
   formData.append("descricao", input.descricao ?? "");
+  formData.append("dataReferencia", input.dataReferencia ?? "");
+  formData.append("publico", input.publico ? "true" : "false");
+  formData.append("palavrasChave", JSON.stringify(input.palavrasChave ?? []));
+  formData.append("restritoA", JSON.stringify(input.restritoA ?? []));
   formData.append("arquivo", input.arquivo);
 
   const response = await fetch(`${resolveServerBaseUrl()}/api/planejamento/documentos/upload`, {
