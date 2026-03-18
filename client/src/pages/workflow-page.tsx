@@ -1,8 +1,9 @@
-import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowRightLeft, Search, Workflow } from "lucide-react";
+﻿import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
+import { ArrowRightLeft, FileStack, Search, Workflow } from "lucide-react";
 import { Link } from "wouter";
 
 import { workflowModuleOptions, workflowSituacaoOptions } from "@sirel/shared/const";
+import { Modal } from "@/components/shared/modal";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ export function WorkflowPage() {
   const [moduloAtual, setModuloAtual] = useState("");
   const [situacao, setSituacao] = useState("");
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
+  const [openDocumentsModal, setOpenDocumentsModal] = useState(false);
   const [moveForm, setMoveForm] = useState({
     moduloDestino: "PLANEJAMENTO",
     situacao: "RASCUNHO",
@@ -79,6 +81,10 @@ export function WorkflowPage() {
   const detailQuery = trpc.workflow.byProcesso.useQuery(
     { processoId: selectedProcessId ?? 0 },
     { enabled: Boolean(selectedProcessId), retry: false },
+  );
+  const documentosQuery = trpc.documentos.listByProcesso.useQuery(
+    { processoId: selectedProcessId ?? 0 },
+    { enabled: openDocumentsModal && Boolean(selectedProcessId), retry: false },
   );
 
   useEffect(() => {
@@ -501,6 +507,78 @@ export function WorkflowPage() {
           </div>
         </div>
       </SectionCard>
+
+      <Modal
+        open={openDocumentsModal}
+        onClose={() => setOpenDocumentsModal(false)}
+        title={`Documentos do processo ${detailQuery.data?.processo?.numeroSirel ?? ""}`.trim()}
+        description="Todos os documentos vinculados ao processo, em ordem de inclusão, para facilitar a conferência entre os setores."
+        size="xl"
+        actions={
+          <div className="flex justify-end">
+            <Button type="button" onClick={() => setOpenDocumentsModal(false)}>
+              Fechar
+            </Button>
+          </div>
+        }
+      >
+        {documentosQuery.isLoading ? (
+          <div className="space-y-3">
+            {[0, 1, 2, 3].map((item) => (
+              <Skeleton key={item} className="h-16 w-full rounded-[24px]" />
+            ))}
+          </div>
+        ) : documentosQuery.error ? (
+          <Alert variant="error">Falha ao carregar os documentos do processo.</Alert>
+        ) : !documentosQuery.data?.length ? (
+          <Alert variant="info">Este processo ainda não possui documentos vinculados.</Alert>
+        ) : (
+          <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+            <Table className="min-w-[980px]">
+              <TableHead>
+                <tr>
+                  <TableHeaderCell>#</TableHeaderCell>
+                  <TableHeaderCell>Título</TableHeaderCell>
+                  <TableHeaderCell>Tipo</TableHeaderCell>
+                  <TableHeaderCell>Categoria</TableHeaderCell>
+                  <TableHeaderCell>Data de referência</TableHeaderCell>
+                  <TableHeaderCell>Adicionado em</TableHeaderCell>
+                  <TableHeaderCell className="text-right">Arquivo</TableHeaderCell>
+                </tr>
+              </TableHead>
+              <TableBody>
+                {documentosQuery.data.map((item, index) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>
+                      <div className="font-semibold text-slate-950">{item.titulo}</div>
+                      <div className="text-xs text-slate-500">Versão {item.versao}</div>
+                    </TableCell>
+                    <TableCell>{item.tipo}</TableCell>
+                    <TableCell>{item.categoria ?? "-"}</TableCell>
+                    <TableCell>{formatShortDateBR(item.dataReferencia)}</TableCell>
+                    <TableCell>{formatShortDateTimeBR(item.criadoEm)}</TableCell>
+                    <TableCell className="text-right">
+                      {item.arquivoUrl ? (
+                        <a href={item.arquivoUrl} target="_blank" rel="noreferrer">
+                          <Button type="button" size="sm" variant="outline">
+                            Abrir
+                          </Button>
+                        </a>
+                      ) : (
+                        <span className="text-sm text-slate-400">Sem arquivo</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
+
+
+

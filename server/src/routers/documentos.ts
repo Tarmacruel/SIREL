@@ -1,4 +1,4 @@
-﻿import { and, count, countDistinct, desc, eq, ilike, or, sql } from "drizzle-orm";
+﻿import { and, asc, count, countDistinct, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -203,7 +203,7 @@ export const documentosRouter = router({
       .select()
       .from(documentos)
       .where(eq(documentos.processoId, input.processoId))
-      .orderBy(desc(documentos.criadoEm));
+      .orderBy(asc(documentos.criadoEm), asc(documentos.id));
     return rows.map((row) => ({ ...row, palavrasChave: normalizeKeywords(row.palavrasChave as string[] | null | undefined) }));
   }),
 
@@ -236,3 +236,4 @@ export const documentosRouter = router({
     return created;
   }),
 });
+
