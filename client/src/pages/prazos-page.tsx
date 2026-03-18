@@ -1,4 +1,4 @@
-﻿import { Clock3, Siren, CheckCircle2, CalendarRange, Trash2, Pencil } from "lucide-react";
+﻿import { Clock3, Siren, CheckCircle2, CalendarRange, Trash2, Pencil, Search } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 
 import { SectionCard } from "@/components/shared/section-card";
@@ -192,10 +192,26 @@ export function PrazosPage() {
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <SectionCard title="Agenda operacional" description="Acompanhe prazos, destaque criticidade e finalize eventos diretamente da fila.">
           <div className="space-y-4">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_180px]">
-              <FormField label="Buscar">
-                <Input value={busca} onChange={(event) => { setPagina(1); setBusca(event.target.value); }} placeholder="Processo, título ou secretaria" />
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px]">
+              <FormField label="Busca textual" className="w-full">
+                <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                  <Search className="h-4 w-4 text-slate-400" />
+                  <input
+                    value={busca}
+                    onChange={(event) => { setPagina(1); setBusca(event.target.value); }}
+                    placeholder="Processo, título ou secretaria"
+                    className="w-full border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                  />
+                </div>
               </FormField>
+              <FormField label="Listagem">
+                <Select value={String(limite)} onChange={(event) => { setPagina(1); setLimite(Number(event.target.value)); }}>
+                  {[10, 20, 30].map((option) => <option key={option} value={option}>{option} por página</option>)}
+                </Select>
+              </FormField>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
               <FormField label="Tipo">
                 <Select value={tipo} onChange={(event) => { setPagina(1); setTipo(event.target.value as "" | PrazoTipo); }}>
                   <option value="">Todos</option>
@@ -206,11 +222,6 @@ export function PrazosPage() {
                 <Select value={status} onChange={(event) => { setPagina(1); setStatus(event.target.value as "" | PrazoStatus); }}>
                   <option value="">Todos</option>
                   {Object.entries(prazoProcessualStatusLabels).map(([codigo, label]) => <option key={codigo} value={codigo}>{label}</option>)}
-                </Select>
-              </FormField>
-              <FormField label="Listagem">
-                <Select value={String(limite)} onChange={(event) => { setPagina(1); setLimite(Number(event.target.value)); }}>
-                  {[10, 20, 30].map((option) => <option key={option} value={option}>{option} por página</option>)}
                 </Select>
               </FormField>
             </div>
@@ -354,6 +365,7 @@ export function PrazosPage() {
     </div>
   );
 }
+
 
 
 
