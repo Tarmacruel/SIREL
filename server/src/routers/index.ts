@@ -6,6 +6,7 @@ import { dashboardRouter } from "./dashboard.js";
 import { documentosRouter } from "./documentos.js";
 import { healthRouter } from "./health.js";
 import { itensRouter } from "./itens.js";
+import { licitacaoRouter } from "./licitacao.js";
 import { planejamentoRouter } from "./planejamento.js";
 import { processosRouter } from "./processos.js";
 import { usuariosRouter } from "./usuarios.js";
@@ -17,6 +18,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   cadastros: cadastrosRouter,
   itens: itensRouter,
+  licitacao: licitacaoRouter,
   planejamento: planejamentoRouter,
   processos: processosRouter,
   documentos: documentosRouter,

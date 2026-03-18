@@ -37,6 +37,40 @@ export const metodologiaCotacaoOptions = [
   "MEDIANA",
 ] as const;
 
+export const licitacaoStatusOptions = [
+  "PREPARACAO",
+  "PUBLICACAO",
+  "RECEBIMENTO_PROPOSTAS",
+  "ABERTURA_PROPOSTAS",
+  "LANCES",
+  "JULGAMENTO",
+  "HABILITACAO",
+  "RECURSOS",
+  "HOMOLOGACAO",
+  "CONTRATACAO",
+  "FRACASSADA",
+  "CANCELADA",
+] as const;
+
+export const habilitacaoStatusOptions = [
+  "PENDENTE",
+  "HABILITADO",
+  "INABILITADO",
+] as const;
+
+export const propostaSituacaoOptions = [
+  "VALIDA",
+  "DESCLASSIFICADA",
+  "VENCEDORA",
+] as const;
+
+export const recursoResultadoOptions = [
+  "PENDENTE",
+  "PROVIDO",
+  "IMPROVIDO",
+  "PARCIALMENTE_PROVIDO",
+] as const;
+
 export const modoDisputaLabels: Record<(typeof modoDisputaOptions)[number], string> = {
   NAO_SE_APLICA: "N\u00e3o se aplica",
   ABERTO: "Aberto",
@@ -57,6 +91,78 @@ export const metodologiaCotacaoLabels: Record<(typeof metodologiaCotacaoOptions)
   MEDIA: "M\u00e9dia",
   MEDIANA: "Mediana",
 };
+
+export const licitacaoStatusLabels: Record<(typeof licitacaoStatusOptions)[number], string> = {
+  PREPARACAO: "Preparação do edital",
+  PUBLICACAO: "Publicação do edital",
+  RECEBIMENTO_PROPOSTAS: "Recebimento de propostas",
+  ABERTURA_PROPOSTAS: "Abertura de propostas",
+  LANCES: "Fase de lances",
+  JULGAMENTO: "Julgamento",
+  HABILITACAO: "Habilitação",
+  RECURSOS: "Recursos",
+  HOMOLOGACAO: "Homologação",
+  CONTRATACAO: "Contratação",
+  FRACASSADA: "Licitação fracassada",
+  CANCELADA: "Licitação cancelada",
+};
+
+export const habilitacaoStatusLabels: Record<(typeof habilitacaoStatusOptions)[number], string> = {
+  PENDENTE: "Pendente",
+  HABILITADO: "Habilitado",
+  INABILITADO: "Inabilitado",
+};
+
+export const propostaSituacaoLabels: Record<(typeof propostaSituacaoOptions)[number], string> = {
+  VALIDA: "Válida",
+  DESCLASSIFICADA: "Desclassificada",
+  VENCEDORA: "Vencedora",
+};
+
+export const recursoResultadoLabels: Record<(typeof recursoResultadoOptions)[number], string> = {
+  PENDENTE: "Pendente",
+  PROVIDO: "Provido",
+  IMPROVIDO: "Improvido",
+  PARCIALMENTE_PROVIDO: "Parcialmente provido",
+};
+
+export const licitacaoStepCatalog = [
+  {
+    key: "PUBLICACAO",
+    label: "Publicação",
+    description: "Edital, aviso e cronograma oficial da licitação.",
+  },
+  {
+    key: "RECEBIMENTO_PROPOSTAS",
+    label: "Propostas",
+    description: "Cadastro dos licitantes e recebimento das propostas.",
+  },
+  {
+    key: "LANCES",
+    label: "Lances",
+    description: "Fase competitiva aplicável às modalidades que admitem lances.",
+  },
+  {
+    key: "JULGAMENTO",
+    label: "Julgamento",
+    description: "Análise, classificação e definição das propostas vencedoras.",
+  },
+  {
+    key: "HABILITACAO",
+    label: "Habilitação",
+    description: "Verificação documental do licitante classificado.",
+  },
+  {
+    key: "RECURSOS",
+    label: "Recursos",
+    description: "Interposição, análise e decisão recursal.",
+  },
+  {
+    key: "HOMOLOGACAO",
+    label: "Homologação",
+    description: "Encerramento da fase licitatória e aprovação do resultado.",
+  },
+] as const;
 
 export const modalidadeCatalog = [
   { codigo: "CONCORRENCIA_ELETRONICA", nome: "Concorr\u00eancia Eletr\u00f4nica", siglaEdital: "CE" },

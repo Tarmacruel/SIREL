@@ -26,6 +26,28 @@ export const alertaTipoEnum = pgEnum("alerta_tipo", ["VENCIMENTO", "PRAZO", "APR
 export const auditoriaAcaoEnum = pgEnum("auditoria_acao", ["CREATE", "UPDATE", "DELETE"]);
 export const cotacaoStatusEnum = pgEnum("cotacao_status", ["ATIVA", "VENCIDA", "CANCELADA"]);
 export const prioridadeDfdEnum = pgEnum("prioridade_dfd", ["BAIXA", "MEDIA", "ALTA", "URGENTE"]);
+export const licitacaoStatusEnum = pgEnum("licitacao_status", [
+  "PREPARACAO",
+  "PUBLICACAO",
+  "RECEBIMENTO_PROPOSTAS",
+  "ABERTURA_PROPOSTAS",
+  "LANCES",
+  "JULGAMENTO",
+  "HABILITACAO",
+  "RECURSOS",
+  "HOMOLOGACAO",
+  "CONTRATACAO",
+  "FRACASSADA",
+  "CANCELADA",
+]);
+export const habilitacaoStatusEnum = pgEnum("habilitacao_status", ["PENDENTE", "HABILITADO", "INABILITADO"]);
+export const propostaSituacaoEnum = pgEnum("proposta_situacao", ["VALIDA", "DESCLASSIFICADA", "VENCEDORA"]);
+export const recursoResultadoEnum = pgEnum("recurso_resultado", [
+  "PENDENTE",
+  "PROVIDO",
+  "IMPROVIDO",
+  "PARCIALMENTE_PROVIDO",
+]);
 
 export const secretarias = pgTable("secretarias", {
   id: serial("id").primaryKey(),
@@ -308,6 +330,88 @@ export const cotacoes = pgTable("cotacoes", {
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()
 });
+
+export const licitacoes = pgTable("licitacoes", {
+  id: serial("id").primaryKey(),
+  processoId: integer("processo_id").notNull().unique().references(() => processos.id, { onDelete: "cascade" }),
+  statusLicitacao: licitacaoStatusEnum("status_licitacao").notNull().default("PREPARACAO"),
+  dataPublicacaoEdital: timestamp("data_publicacao_edital", { withTimezone: true }),
+  dataRecebimentoPropostasInicio: timestamp("data_recebimento_propostas_inicio", { withTimezone: true }),
+  dataRecebimentoPropostasFim: timestamp("data_recebimento_propostas_fim", { withTimezone: true }),
+  dataAberturaPropostas: timestamp("data_abertura_propostas", { withTimezone: true }),
+  dataInicioLances: timestamp("data_inicio_lances", { withTimezone: true }),
+  dataFimLances: timestamp("data_fim_lances", { withTimezone: true }),
+  dataJulgamento: timestamp("data_julgamento", { withTimezone: true }),
+  dataHomologacao: timestamp("data_homologacao", { withTimezone: true }),
+  observacoes: text("observacoes"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxStatus: index("licitacoes_status_idx").on(table.statusLicitacao),
+}));
+
+export const licitantes = pgTable("licitantes", {
+  id: serial("id").primaryKey(),
+  licitacaoId: integer("licitacao_id").notNull().references(() => licitacoes.id, { onDelete: "cascade" }),
+  fornecedorId: integer("fornecedor_id").notNull().references(() => fornecedores.id, { onDelete: "cascade" }),
+  dataCadastro: timestamp("data_cadastro", { withTimezone: true }).notNull().defaultNow(),
+  statusHabilitacao: habilitacaoStatusEnum("status_habilitacao").notNull().default("PENDENTE"),
+  observacaoHabilitacao: text("observacao_habilitacao"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxLicitacao: index("licitantes_licitacao_idx").on(table.licitacaoId),
+  idxFornecedor: index("licitantes_fornecedor_idx").on(table.fornecedorId),
+  uqLicitante: uniqueIndex("licitantes_licitacao_fornecedor_uq").on(table.licitacaoId, table.fornecedorId),
+}));
+
+export const propostasLicitacao = pgTable("propostas_licitacao", {
+  id: serial("id").primaryKey(),
+  licitanteId: integer("licitante_id").notNull().references(() => licitantes.id, { onDelete: "cascade" }),
+  itemId: integer("item_id").notNull().references(() => itensProcesso.id, { onDelete: "cascade" }),
+  valorUnitarioProposto: numeric("valor_unitario_proposto", { precision: 14, scale: 2 }).notNull(),
+  valorTotalProposto: numeric("valor_total_proposto", { precision: 14, scale: 2 }).notNull(),
+  dataProposta: timestamp("data_proposta", { withTimezone: true }).notNull().defaultNow(),
+  classificacao: integer("classificacao"),
+  situacao: propostaSituacaoEnum("situacao").notNull().default("VALIDA"),
+  justificativa: text("justificativa"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxLicitante: index("propostas_licitacao_licitante_idx").on(table.licitanteId),
+  idxItem: index("propostas_licitacao_item_idx").on(table.itemId),
+  uqPropostaPorItem: uniqueIndex("propostas_licitacao_licitante_item_uq").on(table.licitanteId, table.itemId),
+}));
+
+export const lancesLicitacao = pgTable("lances_licitacao", {
+  id: serial("id").primaryKey(),
+  propostaId: integer("proposta_id").notNull().references(() => propostasLicitacao.id, { onDelete: "cascade" }),
+  valorLance: numeric("valor_lance", { precision: 14, scale: 2 }).notNull(),
+  dataLance: timestamp("data_lance", { withTimezone: true }).notNull().defaultNow(),
+  usuarioId: integer("usuario_id").references(() => users.id),
+  observacao: text("observacao"),
+}, (table) => ({
+  idxProposta: index("lances_licitacao_proposta_idx").on(table.propostaId),
+  idxUsuario: index("lances_licitacao_usuario_idx").on(table.usuarioId),
+}));
+
+export const recursosLicitacao = pgTable("recursos_licitacao", {
+  id: serial("id").primaryKey(),
+  licitacaoId: integer("licitacao_id").notNull().references(() => licitacoes.id, { onDelete: "cascade" }),
+  licitanteId: integer("licitante_id").notNull().references(() => licitantes.id, { onDelete: "cascade" }),
+  dataInterposicao: date("data_interposicao").notNull(),
+  dataJulgamento: date("data_julgamento"),
+  resultado: recursoResultadoEnum("resultado").notNull().default("PENDENTE"),
+  descricao: text("descricao").notNull(),
+  decisao: text("decisao"),
+  criadoPor: integer("criado_por").references(() => users.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxLicitacao: index("recursos_licitacao_licitacao_idx").on(table.licitacaoId),
+  idxLicitante: index("recursos_licitacao_licitante_idx").on(table.licitanteId),
+}));
 
 export const documentos = pgTable("documentos", {
   id: serial("id").primaryKey(),

@@ -6,4 +6,5 @@ export * from "./schemas/planejamento.js";
 export * from "./schemas/workflow.js";
 export * from "./schemas/usuarios.js";
 export * from "./schemas/itens.js";
+export * from "./schemas/licitacao.js";
 export * from "./document-templates/planejamento.js";

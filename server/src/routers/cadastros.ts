@@ -11,7 +11,7 @@ import {
   workflowModuleOptions,
 } from "@sirel/shared/const";
 
-import { modalidades, pessoas, secretarias, statusProcesso } from "../db/schema.js";
+import { fornecedores, modalidades, pessoas, secretarias, statusProcesso } from "../db/schema.js";
 import { requireDb } from "../db/client.js";
 import { publicProcedure, router } from "../trpc.js";
 
@@ -19,7 +19,7 @@ export const cadastrosRouter = router({
   formOptions: publicProcedure.query(async () => {
     const db = requireDb();
 
-    const [secretariaRows, modalidadeRows, statusRows, pessoaRows] = await Promise.all([
+    const [secretariaRows, modalidadeRows, statusRows, pessoaRows, fornecedorRows] = await Promise.all([
       db
         .select({ id: secretarias.id, nome: secretarias.nome, sigla: secretarias.sigla })
         .from(secretarias)
@@ -45,6 +45,15 @@ export const cadastrosRouter = router({
         .from(pessoas)
         .where(eq(pessoas.ativo, true))
         .orderBy(asc(pessoas.nome)),
+      db
+        .select({
+          id: fornecedores.id,
+          razaoSocial: fornecedores.razaoSocial,
+          cnpj: fornecedores.cnpj,
+        })
+        .from(fornecedores)
+        .where(eq(fornecedores.ativo, true))
+        .orderBy(asc(fornecedores.razaoSocial)),
     ]);
 
     return {
@@ -56,6 +65,7 @@ export const cadastrosRouter = router({
       }),
       statusProcesso: statusRows,
       pessoas: pessoaRows,
+      fornecedores: fornecedorRows,
       workflowModules: workflowModuleOptions,
       modoDisputa: modoDisputaOptions.map((codigo) => ({ codigo, nome: modoDisputaLabels[codigo] })),
       grauPrioridade: grauPrioridadeOptions.map((codigo) => ({ codigo, nome: grauPrioridadeLabels[codigo] })),

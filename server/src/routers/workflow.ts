@@ -12,6 +12,7 @@ import {
   movimentacoesWorkflow,
   pessoas,
   processos,
+  licitacoes,
   secretarias,
   statusProcesso,
   workflowProcesso,
@@ -231,8 +232,15 @@ export const workflowRouter = router({
       processPatch.statusId = input.statusId;
     }
 
-    if (input.moduloDestino !== "LICITACAO" && input.condutorProcessoId) {
-      processPatch.condutorProcessoId = currentProcess.condutorProcessoId;
+    if (input.moduloDestino === "LICITACAO") {
+      const [licitacaoAtual] = await db.select().from(licitacoes).where(eq(licitacoes.processoId, input.processoId)).limit(1);
+      if (!licitacaoAtual) {
+        await db.insert(licitacoes).values({
+          processoId: input.processoId,
+          criadoEm: new Date(),
+          atualizadoEm: new Date(),
+        });
+      }
     }
 
     await db.update(processos).set(processPatch).where(eq(processos.id, input.processoId));
@@ -301,6 +309,23 @@ export const workflowRouter = router({
         atualizadoEm: new Date(),
       })
       .where(eq(workflowProcesso.processoId, input.processoId));
+
+    const [licitacaoAtual] = await db.select().from(licitacoes).where(eq(licitacoes.processoId, input.processoId)).limit(1);
+    if (licitacaoAtual) {
+      await db.update(licitacoes).set({
+        statusLicitacao: "RECEBIMENTO_PROPOSTAS",
+        dataPublicacaoEdital: licitacaoAtual.dataPublicacaoEdital ?? new Date(),
+        atualizadoEm: new Date(),
+      }).where(eq(licitacoes.id, licitacaoAtual.id));
+    } else {
+      await db.insert(licitacoes).values({
+        processoId: input.processoId,
+        statusLicitacao: "RECEBIMENTO_PROPOSTAS",
+        dataPublicacaoEdital: new Date(),
+        criadoEm: new Date(),
+        atualizadoEm: new Date(),
+      });
+    }
 
     await db.insert(movimentacoesWorkflow).values({
       processoId: input.processoId,

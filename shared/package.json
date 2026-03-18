@@ -42,6 +42,10 @@
       "types": "./dist/schemas/itens.d.ts",
       "import": "./dist/schemas/itens.js"
     },
+    "./schemas/licitacao": {
+      "types": "./dist/schemas/licitacao.d.ts",
+      "import": "./dist/schemas/licitacao.js"
+    },
     "./document-templates/planejamento": {
       "types": "./dist/document-templates/planejamento.d.ts",
       "import": "./dist/document-templates/planejamento.js"
