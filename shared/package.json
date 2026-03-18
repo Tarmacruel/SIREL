@@ -26,9 +26,21 @@
       "types": "./dist/schemas/dashboard.d.ts",
       "import": "./dist/schemas/dashboard.js"
     },
+    "./schemas/consultas": {
+      "types": "./dist/schemas/consultas.d.ts",
+      "import": "./dist/schemas/consultas.js"
+    },
+    "./schemas/documentos": {
+      "types": "./dist/schemas/documentos.d.ts",
+      "import": "./dist/schemas/documentos.js"
+    },
     "./schemas/planejamento": {
       "types": "./dist/schemas/planejamento.d.ts",
       "import": "./dist/schemas/planejamento.js"
+    },
+    "./schemas/prazos": {
+      "types": "./dist/schemas/prazos.d.ts",
+      "import": "./dist/schemas/prazos.js"
     },
     "./schemas/workflow": {
       "types": "./dist/schemas/workflow.d.ts",

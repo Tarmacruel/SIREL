@@ -31,6 +31,17 @@ export const authEventTypeEnum = pgEnum("auth_event_type", [
   "PASSWORD_CHANGE",
   "PASSWORD_RESET",
 ]);
+export const prazoProcessualTipoEnum = pgEnum("prazo_processual_tipo", [
+  "PUBLICACAO_EDITAL",
+  "RECEBIMENTO_PROPOSTAS",
+  "SESSAO_PUBLICA",
+  "JULGAMENTO",
+  "RECURSOS",
+  "HOMOLOGACAO",
+  "PUBLICACAO_RESULTADO",
+  "ASSINATURA_CONTRATO",
+]);
+export const prazoProcessualStatusEnum = pgEnum("prazo_processual_status", ["PENDENTE", "EM_ATRASO", "CONCLUIDO"]);
 export const cotacaoStatusEnum = pgEnum("cotacao_status", ["ATIVA", "VENCIDA", "CANCELADA"]);
 export const prioridadeDfdEnum = pgEnum("prioridade_dfd", ["BAIXA", "MEDIA", "ALTA", "URGENTE"]);
 export const licitacaoStatusEnum = pgEnum("licitacao_status", [
@@ -432,11 +443,40 @@ export const documentos = pgTable("documentos", {
   arquivoChave: varchar("arquivo_chave", { length: 255 }),
   tamanhoBytes: integer("tamanho_bytes"),
   mimeType: varchar("mime_type", { length: 120 }),
+  dataReferencia: date("data_referencia"),
+  palavrasChave: jsonb("palavras_chave").$type<string[]>(),
+  publico: boolean("publico").notNull().default(false),
+  restritoA: jsonb("restrito_a").$type<string[]>(),
   criadoPor: integer("criado_por").references(() => users.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
-  idxProcesso: index("documentos_processo_idx").on(table.processoId)
+  idxProcesso: index("documentos_processo_idx").on(table.processoId),
+  idxTipo: index("documentos_tipo_idx").on(table.tipo),
+  idxDataReferencia: index("documentos_data_referencia_idx").on(table.dataReferencia)
+}));
+
+export const prazosProcessuais = pgTable("prazos_processuais", {
+  id: serial("id").primaryKey(),
+  processoId: integer("processo_id").notNull().references(() => processos.id, { onDelete: "cascade" }),
+  tipo: prazoProcessualTipoEnum("tipo").notNull(),
+  titulo: varchar("titulo", { length: 200 }).notNull(),
+  dataPrevista: date("data_prevista").notNull(),
+  dataRealizada: date("data_realizada"),
+  status: prazoProcessualStatusEnum("status").notNull().default("PENDENTE"),
+  alertasConfig: jsonb("alertas_config")
+    .$type<{ lembretes: number[]; canais: string[] }>()
+    .notNull()
+    .default({ lembretes: [7, 3, 1], canais: ["sistema"] }),
+  observacao: text("observacao"),
+  criadoPor: integer("criado_por").references(() => users.id),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxProcesso: index("prazos_processuais_processo_idx").on(table.processoId),
+  idxStatus: index("prazos_processuais_status_idx").on(table.status),
+  idxTipo: index("prazos_processuais_tipo_idx").on(table.tipo),
+  idxDataPrevista: index("prazos_processuais_data_prevista_idx").on(table.dataPrevista),
 }));
 
 export const contratos = pgTable("contratos", {

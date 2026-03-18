@@ -71,6 +71,23 @@ export const recursoResultadoOptions = [
   "PARCIALMENTE_PROVIDO",
 ] as const;
 
+export const prazoProcessualTipoOptions = [
+  "PUBLICACAO_EDITAL",
+  "RECEBIMENTO_PROPOSTAS",
+  "SESSAO_PUBLICA",
+  "JULGAMENTO",
+  "RECURSOS",
+  "HOMOLOGACAO",
+  "PUBLICACAO_RESULTADO",
+  "ASSINATURA_CONTRATO",
+] as const;
+
+export const prazoProcessualStatusOptions = [
+  "PENDENTE",
+  "EM_ATRASO",
+  "CONCLUIDO",
+] as const;
+
 export const modoDisputaLabels: Record<(typeof modoDisputaOptions)[number], string> = {
   NAO_SE_APLICA: "N\u00e3o se aplica",
   ABERTO: "Aberto",
@@ -124,6 +141,23 @@ export const recursoResultadoLabels: Record<(typeof recursoResultadoOptions)[num
   PROVIDO: "Provido",
   IMPROVIDO: "Improvido",
   PARCIALMENTE_PROVIDO: "Parcialmente provido",
+};
+
+export const prazoProcessualTipoLabels: Record<(typeof prazoProcessualTipoOptions)[number], string> = {
+  PUBLICACAO_EDITAL: "Publicação do edital",
+  RECEBIMENTO_PROPOSTAS: "Recebimento de propostas",
+  SESSAO_PUBLICA: "Sessão pública",
+  JULGAMENTO: "Julgamento",
+  RECURSOS: "Recursos",
+  HOMOLOGACAO: "Homologação",
+  PUBLICACAO_RESULTADO: "Publicação do resultado",
+  ASSINATURA_CONTRATO: "Assinatura do contrato",
+};
+
+export const prazoProcessualStatusLabels: Record<(typeof prazoProcessualStatusOptions)[number], string> = {
+  PENDENTE: "Pendente",
+  EM_ATRASO: "Em atraso",
+  CONCLUIDO: "Concluído",
 };
 
 export const licitacaoStepCatalog = [
@@ -183,6 +217,8 @@ export const modalidadeCodes = modalidadeCatalog.map((item) => item.codigo) as [
 
 export const appModules = [
   { key: "dashboard", label: "Dashboard", href: "/" },
+  { key: "consultas", label: "Consultas", href: "/consultas" },
+  { key: "prazos", label: "Prazos", href: "/prazos" },
   { key: "itens", label: "Itens", href: "/itens" },
   { key: "planejamento", label: "Planejamento", href: "/planejamento" },
   { key: "compras", label: "Compras", href: "/compras" },

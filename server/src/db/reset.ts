@@ -5,6 +5,7 @@ import type { db } from "./client.js";
 const RESET_TABLES = [
   "auth_log",
   "auditoria_log",
+  "prazos_processuais",
   "alertas",
   "aditivos_contratos",
   "contrato_itens",
