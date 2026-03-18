@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+﻿import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { KeyRound, Shield, UserCog, Users } from "lucide-react";
 
 import { SectionCard } from "@/components/shared/section-card";
@@ -15,6 +15,7 @@ import {
   validateCreateUserForm,
   validateUpdateUserForm,
 } from "@/features/usuarios/form";
+import { formatShortDateTimeBR } from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -22,6 +23,22 @@ function toOptionalId(value: string) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
+
+const roleLabels = {
+  admin: "Administrador",
+  gestor: "Gestor",
+  operador: "Operador",
+  auditor: "Auditor",
+  user: "Usuário",
+} as const;
+
+const accessEventLabels = {
+  LOGIN_SUCCESS: "Login concluído",
+  LOGIN_FAILURE: "Tentativa inválida",
+  LOGIN_BLOCKED: "Bloqueio temporário",
+  PASSWORD_CHANGE: "Troca de senha",
+  PASSWORD_RESET: "Redefinição de senha",
+} as const;
 
 const initialCreateForm = {
   username: "",
@@ -59,7 +76,9 @@ export function UsuariosPage() {
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
   const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
 
-  const isAdmin = meQuery.data?.user.role === "admin";
+  const currentRole = meQuery.data?.user.role;
+  const isAdmin = currentRole === "admin";
+  const canAudit = currentRole === "admin" || currentRole === "auditor";
   const userFilters = useMemo(
     () => ({
       search: search.trim() || undefined,
@@ -69,7 +88,9 @@ export function UsuariosPage() {
     [filterAtivo, filterSecretariaId, search],
   );
   const usersQuery = trpc.usuarios.list.useQuery(userFilters, { enabled: isAdmin, retry: false });
+  const accessLogQuery = trpc.usuarios.accessLog.useQuery({ limit: 20 }, { enabled: canAudit, retry: false });
   const users = usersQuery.data ?? [];
+  const accessLog = accessLogQuery.data ?? [];
   const selectedUser = users.find((item) => item.id === selectedUserId) ?? null;
 
   useEffect(() => {
@@ -105,7 +126,7 @@ export function UsuariosPage() {
 
   const createMutation = trpc.usuarios.create.useMutation({
     onSuccess: async () => {
-      await utils.usuarios.list.invalidate();
+      await Promise.all([utils.usuarios.list.invalidate(), utils.usuarios.accessLog.invalidate()]);
       setCreateForm((current) => ({ ...initialCreateForm, role: current.role, secretariaId: current.secretariaId }));
       setCreateErrors({});
       setAdminError(null);
@@ -133,7 +154,7 @@ export function UsuariosPage() {
 
   const resetMutation = trpc.usuarios.resetPassword.useMutation({
     onSuccess: async (updated) => {
-      await utils.usuarios.list.invalidate();
+      await Promise.all([utils.usuarios.list.invalidate(), utils.usuarios.accessLog.invalidate()]);
       setResetPassword("");
       setAdminError(null);
       setAdminMessage(`Senha do usuário ${updated.username} redefinida.`);
@@ -146,7 +167,7 @@ export function UsuariosPage() {
 
   const changeOwnPasswordMutation = trpc.usuarios.changePassword.useMutation({
     onSuccess: async () => {
-      await utils.auth.me.invalidate();
+      await Promise.all([utils.auth.me.invalidate(), utils.usuarios.accessLog.invalidate()]);
       setOwnPasswordForm(initialPasswordForm);
       setPasswordErrors({});
       setPasswordError(null);
@@ -249,7 +270,7 @@ export function UsuariosPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Usuários e segurança" description="Gestão administrativa de usuários e troca de senha da Beta 2.0.">
+      <SectionCard title="Usuários e segurança" description="Gestão administrativa de usuários, perfis e proteção básica de acesso da Beta 2.0.">
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
           <div className="space-y-4">
             <SectionCard
@@ -361,7 +382,7 @@ export function UsuariosPage() {
                                 {item.email ? ` | ${item.email}` : ""}
                               </div>
                             </TableCell>
-                            <TableCell className="align-top uppercase">{item.role}</TableCell>
+                            <TableCell className="align-top uppercase">{roleLabels[item.role] ?? item.role}</TableCell>
                             <TableCell className="align-top">{item.secretaria ?? "Não vinculada"}</TableCell>
                             <TableCell className="align-top">
                               <span
@@ -389,17 +410,23 @@ export function UsuariosPage() {
               </SectionCard>
             ) : (
               <SectionCard
-                title="Acesso administrativo"
-                description="Seu perfil atual não possui permissão para gerenciar outros usuários."
+                title={canAudit ? "Consulta de segurança" : "Acesso administrativo"}
+                description={
+                  canAudit
+                    ? "Seu perfil pode consultar o histórico de acessos e eventos sensíveis do sistema."
+                    : "Seu perfil atual não possui permissão para gerenciar outros usuários."
+                }
                 action={
                   <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
                     <Shield className="h-4 w-4" />
-                    Somente admin
+                    {canAudit ? "Auditoria" : "Somente admin"}
                   </div>
                 }
               >
-                <Alert variant="warning">
-                  A gestão de usuários fica disponível apenas para administradores. Seu acesso continua habilitado para troca da própria senha.
+                <Alert variant={canAudit ? "info" : "warning"}>
+                  {canAudit
+                    ? "Use o painel à direita para acompanhar logins, bloqueios temporários e trocas de senha do ambiente beta."
+                    : "A gestão de usuários fica disponível apenas para administradores. Seu acesso continua habilitado para troca da própria senha."}
                 </Alert>
               </SectionCard>
             )}
@@ -461,9 +488,10 @@ export function UsuariosPage() {
                           error={Boolean(createErrors.role)}
                           onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value }))}
                         >
-                          <option value="admin">Admin</option>
+                          <option value="admin">Administrador</option>
                           <option value="gestor">Gestor</option>
                           <option value="operador">Operador</option>
+                          <option value="auditor">Auditor</option>
                           <option value="user">Usuário</option>
                         </Select>
                       </FormField>
@@ -536,9 +564,10 @@ export function UsuariosPage() {
                               error={Boolean(editErrors.role)}
                               onChange={(event) => setEditForm((current) => ({ ...current, role: event.target.value }))}
                             >
-                              <option value="admin">Admin</option>
+                              <option value="admin">Administrador</option>
                               <option value="gestor">Gestor</option>
                               <option value="operador">Operador</option>
+                              <option value="auditor">Auditor</option>
                               <option value="user">Usuário</option>
                             </Select>
                           </FormField>
@@ -589,6 +618,55 @@ export function UsuariosPage() {
                   )}
                 </SectionCard>
               </>
+            ) : null}
+
+            {canAudit ? (
+              <SectionCard
+                title="Acessos recentes"
+                description="Log local de autenticação, tentativas inválidas e eventos sensíveis de senha."
+                action={
+                  <div className="inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-indigo-800">
+                    <Shield className="h-4 w-4" />
+                    Auditoria
+                  </div>
+                }
+              >
+                <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+                  <Table className="min-w-[720px]">
+                    <TableHead>
+                      <tr>
+                        <TableHeaderCell>Evento</TableHeaderCell>
+                        <TableHeaderCell>Usuário</TableHeaderCell>
+                        <TableHeaderCell>Origem</TableHeaderCell>
+                        <TableHeaderCell>Data</TableHeaderCell>
+                      </tr>
+                    </TableHead>
+                    <TableBody>
+                      {accessLog.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="align-top">
+                            <div className="font-semibold text-slate-900">{accessEventLabels[item.evento] ?? item.evento}</div>
+                            <div className="text-xs text-slate-500">{item.detalhe || "Sem detalhe adicional."}</div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="font-medium text-slate-800">{item.userName ?? item.loginInformado ?? "Usuário não identificado"}</div>
+                            <div className="text-xs text-slate-500">{item.username ?? item.loginInformado ?? "-"}</div>
+                          </TableCell>
+                          <TableCell className="align-top text-sm text-slate-600">{item.ipAddress ?? "local"}</TableCell>
+                          <TableCell className="align-top text-sm text-slate-600">{formatShortDateTimeBR(item.criadoEm)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {!accessLog.length ? (
+                        <TableRow>
+                          <TableCell className="py-8 text-center text-slate-500" colSpan={4}>
+                            {accessLogQuery.isFetching ? "Carregando eventos de acesso..." : "Nenhum evento registrado até o momento."}
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </div>
+              </SectionCard>
             ) : null}
           </div>
         </div>

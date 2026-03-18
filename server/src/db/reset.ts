@@ -3,11 +3,18 @@ import { sql } from "drizzle-orm";
 import type { db } from "./client.js";
 
 const RESET_TABLES = [
+  "auth_log",
   "auditoria_log",
   "alertas",
   "aditivos_contratos",
+  "contrato_itens",
   "contratos",
   "documentos",
+  "recursos_licitacao",
+  "lances_licitacao",
+  "propostas_licitacao",
+  "licitantes",
+  "licitacoes",
   "cotacoes",
   "etp_cotacoes_preliminares",
   "itens_processo",

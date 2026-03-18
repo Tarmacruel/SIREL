@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { z } from "zod";
 
 import {
   usuarioChangePasswordInputSchema,
@@ -10,11 +11,36 @@ import {
 } from "@sirel/shared/schemas/usuarios";
 
 import { requireDb } from "../db/client.js";
-import { secretarias, users } from "../db/schema.js";
+import { logAuthEvent } from "../db/auth-log.js";
+import { authLog, secretarias, users } from "../db/schema.js";
 import { hashPassword, verifyPassword } from "../lib/auth-password.js";
-import { adminProcedure, protectedProcedure, router } from "../trpc.js";
+import { adminProcedure, auditorProcedure, protectedProcedure, router } from "../trpc.js";
 
 export const usuariosRouter = router({
+  accessLog: auditorProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(100).default(30) }).optional())
+    .query(async ({ input }) => {
+      const db = requireDb();
+      const limit = input?.limit ?? 30;
+
+      return db
+        .select({
+          id: authLog.id,
+          evento: authLog.evento,
+          detalhe: authLog.detalhe,
+          ipAddress: authLog.ipAddress,
+          loginInformado: authLog.loginInformado,
+          criadoEm: authLog.criadoEm,
+          userId: authLog.userId,
+          userName: users.name,
+          username: users.username,
+        })
+        .from(authLog)
+        .leftJoin(users, eq(users.id, authLog.userId))
+        .orderBy(desc(authLog.criadoEm))
+        .limit(limit);
+    }),
+
   list: adminProcedure.input(usuarioListInputSchema.optional()).query(async ({ input }) => {
     const db = requireDb();
     const filters: any[] = [];
@@ -132,6 +158,14 @@ export const usuariosRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "Usuario nao encontrado." });
     }
 
+    await logAuthEvent({
+      userId: updated.id,
+      loginInformado: updated.username,
+      loginNormalizado: updated.username,
+      evento: "PASSWORD_RESET",
+      detalhe: "Senha redefinida por administrador.",
+    });
+
     return updated;
   }),
 
@@ -157,6 +191,14 @@ export const usuariosRouter = router({
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
+
+    await logAuthEvent({
+      userId,
+      loginInformado: currentUser.username ?? currentUser.email ?? String(currentUser.id),
+      loginNormalizado: currentUser.username ?? currentUser.email ?? String(currentUser.id),
+      evento: "PASSWORD_CHANGE",
+      detalhe: "Senha alterada pelo proprio usuario.",
+    });
 
     return { success: true };
   }),

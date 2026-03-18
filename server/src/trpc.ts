@@ -2,7 +2,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 
 import type { AppContext } from "./_core/context.js";
-import { requireAdmin, requireGestor, requireOperador } from "./auth.js";
+import { requireAdmin, requireAuditor, requireGestor, requireOperador } from "./auth.js";
 
 const t = initTRPC.context<AppContext>().create({ transformer: superjson });
 
@@ -28,5 +28,10 @@ export const gestorProcedure = protectedProcedure.use(({ ctx, next }) => {
 
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   requireAdmin(ctx);
+  return next({ ctx });
+});
+
+export const auditorProcedure = protectedProcedure.use(({ ctx, next }) => {
+  requireAuditor(ctx);
   return next({ ctx });
 });

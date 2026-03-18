@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 
 import type { AppContext } from "./_core/context.js";
 
-export type UserRole = "user" | "admin" | "gestor" | "operador";
+export type UserRole = "user" | "admin" | "gestor" | "operador" | "auditor";
 
 export function hasRole(ctx: AppContext, role: UserRole | UserRole[]): boolean {
   if (!ctx.user) return false;
@@ -25,5 +25,11 @@ export function requireGestor(ctx: AppContext) {
 export function requireOperador(ctx: AppContext) {
   if (!hasRole(ctx, ["admin", "gestor", "operador"])) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a operadores" });
+  }
+}
+
+export function requireAuditor(ctx: AppContext) {
+  if (!hasRole(ctx, ["admin", "auditor"])) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Acesso restrito a auditores" });
   }
 }

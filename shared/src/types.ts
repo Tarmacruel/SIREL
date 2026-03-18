@@ -1,6 +1,6 @@
 import { workflowModuleOptions, workflowSituacaoOptions } from "./const.js";
 
-export type UserRole = "user" | "admin" | "gestor" | "operador";
+export type UserRole = "user" | "admin" | "gestor" | "operador" | "auditor";
 
 export type WorkflowModule = (typeof workflowModuleOptions)[number];
 export type WorkflowSituacao = (typeof workflowSituacaoOptions)[number];

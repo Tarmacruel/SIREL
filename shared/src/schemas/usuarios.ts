@@ -10,7 +10,7 @@ export const usuarioCreateInputSchema = z.object({
   username: z.string().trim().min(3).max(80),
   name: z.string().trim().min(3).max(255),
   email: z.string().trim().email().optional(),
-  role: z.enum(["user", "admin", "gestor", "operador"]),
+  role: z.enum(["user", "admin", "gestor", "operador", "auditor"]),
   secretariaId: z.number().int().positive().optional(),
   ativo: z.boolean().default(true),
   password: z.string().min(8).max(120),
@@ -20,7 +20,7 @@ export const usuarioUpdateInputSchema = z.object({
   userId: z.number().int().positive(),
   name: z.string().trim().min(3).max(255),
   email: z.string().trim().email().optional(),
-  role: z.enum(["user", "admin", "gestor", "operador"]),
+  role: z.enum(["user", "admin", "gestor", "operador", "auditor"]),
   secretariaId: z.number().int().positive().nullable().optional(),
   ativo: z.boolean(),
 });

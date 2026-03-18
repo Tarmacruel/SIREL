@@ -14,7 +14,7 @@ import {
   varchar
 } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["user", "admin", "gestor", "operador"]);
+export const userRoleEnum = pgEnum("user_role", ["user", "admin", "gestor", "operador", "auditor"]);
 export const escopoDisputaEnum = pgEnum("escopo_disputa", ["ITEM", "LOTE", "GLOBAL"]);
 export const tipoObjetoEnum = pgEnum("tipo_objeto", ["PRODUTO", "SERVICO", "OBRA", "SERVICO_ENG"]);
 export const tipoContratacaoEnum = pgEnum("tipo_contratacao", ["AQUISICAO", "REGISTRO_PRECO", "AQUISICAO_PARCELADA"]);
@@ -24,6 +24,13 @@ export const workflowSituacaoEnum = pgEnum("workflow_situacao", ["RASCUNHO", "EM
 export const contratoStatusEnum = pgEnum("contrato_status", ["ATIVO", "ENCERRADO", "SUSPENSO", "RESCINDIDO"]);
 export const alertaTipoEnum = pgEnum("alerta_tipo", ["VENCIMENTO", "PRAZO", "APROVACAO", "DOCUMENTACAO"]);
 export const auditoriaAcaoEnum = pgEnum("auditoria_acao", ["CREATE", "UPDATE", "DELETE"]);
+export const authEventTypeEnum = pgEnum("auth_event_type", [
+  "LOGIN_SUCCESS",
+  "LOGIN_FAILURE",
+  "LOGIN_BLOCKED",
+  "PASSWORD_CHANGE",
+  "PASSWORD_RESET",
+]);
 export const cotacaoStatusEnum = pgEnum("cotacao_status", ["ATIVA", "VENCIDA", "CANCELADA"]);
 export const prioridadeDfdEnum = pgEnum("prioridade_dfd", ["BAIXA", "MEDIA", "ALTA", "URGENTE"]);
 export const licitacaoStatusEnum = pgEnum("licitacao_status", [
@@ -493,6 +500,22 @@ export const alertas = pgTable("alertas", {
 }, (table) => ({
   idxProcesso: index("alertas_processo_idx").on(table.processoId),
   idxContrato: index("alertas_contrato_idx").on(table.contratoId)
+}));
+
+export const authLog = pgTable("auth_log", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  loginInformado: varchar("login_informado", { length: 120 }),
+  loginNormalizado: varchar("login_normalizado", { length: 120 }),
+  ipAddress: varchar("ip_address", { length: 120 }),
+  evento: authEventTypeEnum("evento").notNull(),
+  detalhe: text("detalhe"),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxUser: index("auth_log_user_idx").on(table.userId),
+  idxLogin: index("auth_log_login_idx").on(table.loginNormalizado),
+  idxEvento: index("auth_log_evento_idx").on(table.evento),
+  idxCriadoEm: index("auth_log_criado_em_idx").on(table.criadoEm),
 }));
 
 export const auditoriaLog = pgTable("auditoria_log", {
