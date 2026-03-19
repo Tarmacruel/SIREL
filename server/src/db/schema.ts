@@ -88,6 +88,21 @@ export const secretarias = pgTable("secretarias", {
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()
 });
 
+export const parametrosSistema = pgTable("parametros_sistema", {
+  id: serial("id").primaryKey(),
+  categoria: varchar("categoria", { length: 120 }).notNull(),
+  chave: varchar("chave", { length: 120 }).notNull(),
+  valor: text("valor").notNull(),
+  descricao: text("descricao"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  uqChave: uniqueIndex("parametros_sistema_chave_uq").on(table.chave),
+  idxCategoria: index("parametros_sistema_categoria_idx").on(table.categoria),
+  idxAtivo: index("parametros_sistema_ativo_idx").on(table.ativo),
+}));
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   openId: varchar("open_id", { length: 255 }).unique(),
@@ -117,6 +132,21 @@ export const pessoas = pgTable("pessoas", {
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()
 }, (table) => ({
   idxSecretaria: index("pessoas_secretaria_idx").on(table.secretariaId)
+}));
+
+export const departamentos = pgTable("departamentos", {
+  id: serial("id").primaryKey(),
+  nome: varchar("nome", { length: 255 }).notNull(),
+  codigoCentroCusto: varchar("codigo_centro_custo", { length: 64 }),
+  secretariaId: integer("secretaria_id").notNull().references(() => secretarias.id),
+  responsavelId: integer("responsavel_id").references(() => pessoas.id),
+  descricao: text("descricao"),
+  ativo: boolean("ativo").notNull().default(true),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  idxSecretaria: index("departamentos_secretaria_idx").on(table.secretariaId),
+  idxAtivo: index("departamentos_ativo_idx").on(table.ativo),
 }));
 
 export const modalidades = pgTable("modalidades", {
@@ -255,6 +285,8 @@ export const catalogoItens = pgTable("catalogo_itens", {
   descricao: text("descricao").notNull(),
   unidadePadrao: varchar("unidade_padrao", { length: 32 }).notNull(),
   valorReferencia: numeric("valor_referencia", { precision: 14, scale: 2 }),
+  imagemUrl: varchar("imagem_url", { length: 255 }),
+  imagemChave: varchar("imagem_chave", { length: 255 }),
   ativo: boolean("ativo").notNull().default(true),
   criadoPor: integer("criado_por").references(() => users.id),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
@@ -337,6 +369,8 @@ export const fornecedores = pgTable("fornecedores", {
   telefone: varchar("telefone", { length: 32 }),
   cidade: varchar("cidade", { length: 128 }),
   estado: varchar("estado", { length: 2 }),
+  logoUrl: varchar("logo_url", { length: 255 }),
+  logoChave: varchar("logo_chave", { length: 255 }),
   ativo: boolean("ativo").notNull().default(true),
   criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
   atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow()

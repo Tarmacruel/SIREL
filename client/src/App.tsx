@@ -8,6 +8,7 @@ import { queryClient } from "@/lib/query-client";
 import { trpc, trpcClient } from "@/lib/trpc";
 
 const AuditoriaPage = lazy(() => import("@/pages/auditoria-page").then((module) => ({ default: module.AuditoriaPage })));
+const CadastrosPage = lazy(() => import("@/pages/cadastros-page").then((module) => ({ default: module.CadastrosPage })));
 const ContratosPage = lazy(() => import("@/pages/contratos-page").then((module) => ({ default: module.ContratosPage })));
 const ConsultasPage = lazy(() => import("@/pages/consultas-page").then((module) => ({ default: module.ConsultasPage })));
 const DashboardPage = lazy(() => import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
@@ -90,6 +91,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           <Route path="/consultas" component={ConsultasPage} />
           <Route path="/relatorios" component={RelatoriosPage} />
           <Route path="/prazos" component={PrazosPage} />
+          <Route path="/cadastros" component={CadastrosPage} />
           <Route path="/planejamento/dfd/:processoId">
             {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}
           </Route>
@@ -105,7 +107,10 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           <Route path="/itens" component={ItensPage} />
           <Route path="/planejamento" component={PlanejamentoPage} />
           <Route path="/compras">{() => <PlaceholderPage title="Módulo de Compras" />}</Route>
-          <Route path="/processos" component={ProcessosPage} />
+          <Route path="/processos/:processoId">
+            {(params) => <ProcessosPage processoId={Number(params.processoId)} />}
+          </Route>
+          <Route path="/processos">{() => <ProcessosPage />}</Route>
           <Route path="/licitacao/:processoId">
             {(params) => <LicitacaoProcessoPage processoId={Number(params.processoId)} />}
           </Route>

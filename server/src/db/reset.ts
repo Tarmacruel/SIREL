@@ -29,6 +29,8 @@ const RESET_TABLES = [
   "movimentacoes_workflow",
   "workflow_processo",
   "processos",
+  "parametros_sistema",
+  "departamentos",
   "fornecedores",
   "catalogo_itens",
   "pessoas",

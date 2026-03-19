@@ -368,6 +368,8 @@ export const appModules = [
   { key: "consultas", label: "Consultas", href: "/consultas" },
   { key: "relatorios", label: "Relatórios", href: "/relatorios" },
   { key: "prazos", label: "Prazos", href: "/prazos" },
+  { key: "cadastros", label: "Cadastros", href: "/cadastros" },
+  { key: "processos", label: "Processos", href: "/processos" },
   { key: "itens", label: "Itens", href: "/itens" },
   { key: "planejamento", label: "Planejamento", href: "/planejamento" },
   { key: "compras", label: "Compras", href: "/compras" },

@@ -13,7 +13,7 @@ import { desc, eq } from "drizzle-orm";
 import { createContext } from "./_core/context.js";
 import { logAuditoria } from "./db/auditoria.js";
 import { requireDb } from "./db/client.js";
-import { documentos } from "./db/schema.js";
+import { catalogoItens, documentos, fornecedores } from "./db/schema.js";
 import { verifySessionToken } from "./lib/auth-session.js";
 import { appRouter } from "./routers/index.js";
 
@@ -24,9 +24,13 @@ const clientUrl = process.env.CLIENT_URL ?? "http://localhost:5173";
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const uploadsRoot = resolve(currentDir, "../../storage/uploads");
 const legacyUploadsRoot = resolve(currentDir, "../../../storage/uploads");
+const cadastroAssetsRoot = join(uploadsRoot, "cadastros");
 
 if (!existsSync(uploadsRoot)) {
   mkdirSync(uploadsRoot, { recursive: true });
+}
+if (!existsSync(cadastroAssetsRoot)) {
+  mkdirSync(cadastroAssetsRoot, { recursive: true });
 }
 
 function resolveDocumentoPath(arquivoChave: string) {
@@ -138,6 +142,26 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
 });
 
+const cadastroAssetStorage = multer.diskStorage({
+  destination(req, _file, callback) {
+    const entity = String(req.body.entity ?? "").trim().toLowerCase();
+    const recordId = String(req.body.recordId ?? "").replace(/\D+/g, "") || "geral";
+    const targetDir = join(cadastroAssetsRoot, `${entity}-${recordId}`);
+    mkdirSync(targetDir, { recursive: true });
+    callback(null, targetDir);
+  },
+  filename(_req, file, callback) {
+    const extension = extname(file.originalname) || "";
+    const baseName = slugifyFileName(file.originalname.replace(extension, "")) || "arquivo";
+    callback(null, `${Date.now()}-${baseName}${extension.toLowerCase()}`);
+  },
+});
+
+const cadastroAssetUpload = multer({
+  storage: cadastroAssetStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 app.use(cors({
   origin(origin, callback) {
     if (!origin) {
@@ -234,6 +258,142 @@ app.post("/api/planejamento/documentos/upload", upload.single("arquivo"), async 
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Falha ao salvar o documento enviado." });
+  }
+});
+
+app.post("/api/cadastros/assets/upload", cadastroAssetUpload.single("arquivo"), async (req, res) => {
+  try {
+    const user = requireUploadUser(req, res);
+    if (!user) return;
+    if (!req.file) {
+      res.status(400).json({ message: "Selecione um arquivo para upload." });
+      return;
+    }
+
+    const entity = String(req.body.entity ?? "").trim();
+    const recordId = Number(req.body.recordId ?? 0);
+    if (!recordId || !["itens", "fornecedores"].includes(entity)) {
+      res.status(400).json({ message: "Informe a entidade e o registro do cadastro." });
+      return;
+    }
+
+    const relativePath = req.file.path.replace(/\\/g, "/").split("/storage/uploads/").pop() ?? req.file.filename;
+    const db = requireDb();
+
+    if (entity === "itens") {
+      const [item] = await db.select().from(catalogoItens).where(eq(catalogoItens.id, recordId)).limit(1);
+      if (!item) {
+        res.status(404).json({ message: "Item não encontrado." });
+        return;
+      }
+
+      if (item.imagemChave) {
+        const previousPath = resolveDocumentoPath(item.imagemChave);
+        if (existsSync(previousPath)) {
+          rmSync(previousPath, { force: true });
+        }
+      }
+
+      const assetUrl = `/api/cadastros/assets/itens/${recordId}/download`;
+      const [updated] = await db.update(catalogoItens).set({
+        imagemUrl: assetUrl,
+        imagemChave: relativePath,
+        atualizadoEm: new Date(),
+      }).where(eq(catalogoItens.id, recordId)).returning();
+
+      await logAuditoria({ user } as any, {
+        tabela: "catalogo_itens",
+        registroId: recordId,
+        acao: "UPDATE",
+        dadosAnteriores: item,
+        dadosNovos: updated,
+        descricao: `Imagem do item ${item.descricao} atualizada`,
+      });
+
+      res.status(201).json({ success: true, assetUrl });
+      return;
+    }
+
+    const [fornecedor] = await db.select().from(fornecedores).where(eq(fornecedores.id, recordId)).limit(1);
+    if (!fornecedor) {
+      res.status(404).json({ message: "Fornecedor não encontrado." });
+      return;
+    }
+
+    if (fornecedor.logoChave) {
+      const previousPath = resolveDocumentoPath(fornecedor.logoChave);
+      if (existsSync(previousPath)) {
+        rmSync(previousPath, { force: true });
+      }
+    }
+
+    const assetUrl = `/api/cadastros/assets/fornecedores/${recordId}/download`;
+    const [updated] = await db.update(fornecedores).set({
+      logoUrl: assetUrl,
+      logoChave: relativePath,
+      atualizadoEm: new Date(),
+    }).where(eq(fornecedores.id, recordId)).returning();
+
+    await logAuditoria({ user } as any, {
+      tabela: "fornecedores",
+      registroId: recordId,
+      acao: "UPDATE",
+      dadosAnteriores: fornecedor,
+      dadosNovos: updated,
+      descricao: `Logo do fornecedor ${fornecedor.razaoSocial} atualizada`,
+    });
+
+    res.status(201).json({ success: true, assetUrl });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Falha ao salvar o arquivo do cadastro." });
+  }
+});
+
+app.get("/api/cadastros/assets/:entity/:recordId/download", async (req, res) => {
+  try {
+    const entity = String(req.params.entity ?? "").trim();
+    const recordId = Number(req.params.recordId ?? 0);
+    const db = requireDb();
+
+    if (!recordId || !["itens", "fornecedores"].includes(entity)) {
+      res.status(400).json({ message: "Cadastro inválido." });
+      return;
+    }
+
+    if (entity === "itens") {
+      const [item] = await db.select().from(catalogoItens).where(eq(catalogoItens.id, recordId)).limit(1);
+      if (!item?.imagemChave) {
+        res.status(404).json({ message: "Imagem do item não encontrada." });
+        return;
+      }
+
+      const absolutePath = resolveDocumentoPath(item.imagemChave);
+      if (!existsSync(absolutePath)) {
+        res.status(404).json({ message: "Arquivo físico não encontrado." });
+        return;
+      }
+
+      res.sendFile(absolutePath);
+      return;
+    }
+
+    const [fornecedor] = await db.select().from(fornecedores).where(eq(fornecedores.id, recordId)).limit(1);
+    if (!fornecedor?.logoChave) {
+      res.status(404).json({ message: "Logo do fornecedor não encontrada." });
+      return;
+    }
+
+    const absolutePath = resolveDocumentoPath(fornecedor.logoChave);
+    if (!existsSync(absolutePath)) {
+      res.status(404).json({ message: "Arquivo físico não encontrado." });
+      return;
+    }
+
+    res.sendFile(absolutePath);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Falha ao disponibilizar o arquivo do cadastro." });
   }
 });
 

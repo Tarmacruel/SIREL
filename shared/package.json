@@ -54,6 +54,10 @@
       "types": "./dist/schemas/itens.d.ts",
       "import": "./dist/schemas/itens.js"
     },
+    "./schemas/cadastros": {
+      "types": "./dist/schemas/cadastros.d.ts",
+      "import": "./dist/schemas/cadastros.js"
+    },
     "./schemas/licitacao": {
       "types": "./dist/schemas/licitacao.d.ts",
       "import": "./dist/schemas/licitacao.js"
