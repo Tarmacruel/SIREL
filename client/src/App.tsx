@@ -18,6 +18,9 @@ const LicitacaoPage = lazy(() => import("@/pages/licitacao-page").then((module) 
 const LicitacaoProcessoPage = lazy(() =>
   import("@/pages/licitacao-processo-page").then((module) => ({ default: module.LicitacaoProcessoPage })),
 );
+const NotificacoesPage = lazy(() =>
+  import("@/pages/notificacoes-page").then((module) => ({ default: module.NotificacoesPage })),
+);
 const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage })));
 const PlanejamentoCotacoesPage = lazy(() =>
   import("@/pages/planejamento-cotacoes-page").then((module) => ({ default: module.PlanejamentoCotacoesPage })),
@@ -83,6 +86,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
       <Suspense fallback={<RouteFallback />}>
         <Switch>
           <Route path="/" component={DashboardPage} />
+          <Route path="/notificacoes" component={NotificacoesPage} />
           <Route path="/consultas" component={ConsultasPage} />
           <Route path="/relatorios" component={RelatoriosPage} />
           <Route path="/prazos" component={PrazosPage} />

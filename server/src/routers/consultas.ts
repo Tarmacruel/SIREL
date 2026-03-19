@@ -3,7 +3,19 @@
 import { consultaSearchInputSchema } from "@sirel/shared/schemas/consultas";
 
 import { requireDb } from "../db/client.js";
-import { documentos, modalidades, movimentacoesWorkflow, processos, secretarias, statusProcesso, workflowProcesso } from "../db/schema.js";
+import {
+  cotacoes,
+  documentos,
+  fornecedores,
+  licitacoes,
+  licitantes,
+  modalidades,
+  movimentacoesWorkflow,
+  processos,
+  secretarias,
+  statusProcesso,
+  workflowProcesso,
+} from "../db/schema.js";
 import { publicProcedure, router } from "../trpc.js";
 
 function toNumber(value: unknown) {
@@ -24,20 +36,35 @@ export const consultasRouter = router({
     if (input.dataFim) filters.push(sql`${processos.criadoEm} <= ${new Date(`${input.dataFim}T23:59:59`)}`);
 
     let matchingDocumentProcessIds: number[] = [];
+    let matchingSupplierProcessIds: number[] = [];
     if (input.termo) {
       const pattern = `%${input.termo}%`;
-      const matchingDocs = await db
-        .selectDistinct({ processoId: documentos.processoId })
-        .from(documentos)
-        .where(
-          or(
-            ilike(documentos.titulo, pattern),
-            ilike(documentos.descricao, pattern),
-            ilike(documentos.categoria, pattern),
-            sql`coalesce(${documentos.palavrasChave}::text, '') ilike ${pattern}`,
+      const [matchingDocs, cotacaoMatches, licitanteMatches] = await Promise.all([
+        db
+          .selectDistinct({ processoId: documentos.processoId })
+          .from(documentos)
+          .where(
+            or(
+              ilike(documentos.titulo, pattern),
+              ilike(documentos.descricao, pattern),
+              ilike(documentos.categoria, pattern),
+              sql`coalesce(${documentos.palavrasChave}::text, '') ilike ${pattern}`,
+            ),
           ),
-        );
+        db
+          .selectDistinct({ processoId: cotacoes.processoId })
+          .from(cotacoes)
+          .innerJoin(fornecedores, eq(fornecedores.id, cotacoes.fornecedorId))
+          .where(or(ilike(fornecedores.razaoSocial, pattern), ilike(fornecedores.cnpj, pattern))),
+        db
+          .selectDistinct({ processoId: licitacoes.processoId })
+          .from(licitantes)
+          .innerJoin(fornecedores, eq(fornecedores.id, licitantes.fornecedorId))
+          .innerJoin(licitacoes, eq(licitacoes.id, licitantes.licitacaoId))
+          .where(or(ilike(fornecedores.razaoSocial, pattern), ilike(fornecedores.cnpj, pattern))),
+      ]);
       matchingDocumentProcessIds = matchingDocs.map((row) => row.processoId);
+      matchingSupplierProcessIds = [...cotacaoMatches, ...licitanteMatches].map((row) => row.processoId);
 
       const termFilters: any[] = [
         ilike(processos.numeroSirel, pattern),
@@ -48,6 +75,9 @@ export const consultasRouter = router({
       ];
       if (matchingDocumentProcessIds.length) {
         termFilters.push(inArray(processos.id, matchingDocumentProcessIds));
+      }
+      if (matchingSupplierProcessIds.length) {
+        termFilters.push(inArray(processos.id, matchingSupplierProcessIds));
       }
       filters.push(or(...termFilters));
     }

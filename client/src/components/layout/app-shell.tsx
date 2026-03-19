@@ -2,6 +2,7 @@
 import { Link, useLocation } from "wouter";
 import {
   Bell,
+  BellRing,
   BarChart3,
   Boxes,
   Clock3,
@@ -26,6 +27,7 @@ import type { AuthUser } from "@/lib/auth-session";
 
 const icons: Record<string, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
+  notificacoes: BellRing,
   consultas: Search,
   relatorios: BarChart3,
   prazos: Clock3,

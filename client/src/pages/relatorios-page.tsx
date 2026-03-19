@@ -1,4 +1,4 @@
-import { BarChart3, Download, FileJson, FileSpreadsheet, Printer } from "lucide-react";
+﻿import { BarChart3, FileJson, FileSpreadsheet, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { relatorioTipoLabels, relatorioTipoOptions } from "@sirel/shared/const";
@@ -40,6 +40,7 @@ export function RelatoriosPage() {
     modalidadeId: "",
     statusId: "",
   });
+
   const queryInput = useMemo(
     () => ({
       tipo: filters.tipo,
@@ -84,7 +85,7 @@ export function RelatoriosPage() {
     <div className="space-y-6">
       <SectionCard
         title="Central de Relatórios e Exportação"
-        description="Gere consolidações operacionais da Beta 2.0 e exporte em formatos úteis para gestão interna."
+        description="Gere consolidações operacionais da Beta 2.0 com filtros de período, secretaria, modalidade e status."
         action={
           <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-sky-800">
             <BarChart3 className="h-4 w-4" />
@@ -155,7 +156,7 @@ export function RelatoriosPage() {
           </Button>
           <Button variant="outline" onClick={handlePrint} disabled={!report?.rows.length}>
             <Printer className="h-4 w-4" />
-            Imprimir
+            Imprimir relatório
           </Button>
         </div>
       </SectionCard>
@@ -164,11 +165,10 @@ export function RelatoriosPage() {
 
       <SectionCard
         title={report?.title ?? "Resultado consolidado"}
-        description="Visualização tabular pronta para conferência, exportação e impressão."
+        description="Visualização tabular pronta para conferência, impressão e exportação."
         action={
           report ? (
             <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700">
-              <Download className="h-4 w-4" />
               {report.rows.length} linhas
             </div>
           ) : null
@@ -176,8 +176,8 @@ export function RelatoriosPage() {
       >
         {reportQuery.isLoading ? (
           <div className="space-y-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, index) => (
+            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, index) => (
                 <Skeleton key={index} className="h-24 w-full rounded-[24px]" />
               ))}
             </div>
@@ -186,7 +186,7 @@ export function RelatoriosPage() {
         ) : report ? (
           <div className="space-y-5">
             {report.summary?.length ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {report.summary.map((item) => (
                   <article key={item.label} className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
@@ -227,9 +227,23 @@ export function RelatoriosPage() {
                 </TableBody>
               </Table>
             </div>
+
+            {report.summary?.length ? (
+              <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Totalizadores do relatório</p>
+                <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                  {report.summary.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
+                      <span className="font-semibold text-slate-700">{item.label}</span>
+                      <span className="font-black text-slate-950">{formatReportValue(item.label, item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
-          <Alert variant="info">Selecione os filtros e aguarde a geração do relatório.</Alert>
+          <Alert variant="info">Selecione os filtros e gere o relatório desejado.</Alert>
         )}
       </SectionCard>
     </div>

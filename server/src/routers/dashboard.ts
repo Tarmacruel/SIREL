@@ -1,12 +1,14 @@
-import { and, count, desc, eq, gte, inArray, isNull, lt, lte, or, sum } from "drizzle-orm";
-import { z } from "zod";
+﻿import { and, count, desc, eq, gte, inArray, isNull, lte, or, sql, sum } from "drizzle-orm";
 
 import { requireDb } from "../db/client.js";
 import {
   contratos,
+  modalidades,
+  movimentacoesWorkflow,
   notificacoesUsuario,
   processos,
   prazosProcessuais,
+  secretarias,
   workflowProcesso,
 } from "../db/schema.js";
 import { syncOperationalNotifications } from "../lib/notificacoes.js";
@@ -25,13 +27,6 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-const priorityRank = {
-  URGENTE: 4,
-  ALTA: 3,
-  MEDIA: 2,
-  BAIXA: 1,
-} as const;
-
 export const dashboardRouter = router({
   summary: protectedProcedure.query(async ({ ctx }) => {
     const db = requireDb();
@@ -44,21 +39,29 @@ export const dashboardRouter = router({
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const recentMovementWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const today = formatDateString(todayStart);
+    const limit24h = formatDateString(addDays(todayStart, 1));
     const limit48h = formatDateString(addDays(todayStart, 2));
-    const weekLimit = formatDateString(addDays(todayStart, 7));
+    const monthWindowStart = new Date(todayStart.getFullYear(), todayStart.getMonth() - 5, 1);
 
     const [
       processosAtivosRow,
       contratosVigentesRow,
       valorGlobalEstimadoRow,
       prazosHojeRow,
+      prazos24hRow,
       prazos48hRow,
       prazosAtrasadosRow,
-      prazosSemanaRow,
-      porModulo,
-      unreadNotificationsRow,
-      notificationsRows,
+      tarefasPendentesRow,
+      movimentacoesUltimas24hRow,
+      porModuloRows,
+      processosPorSecretariaRows,
+      modalidadesMaisUtilizadasRows,
+      evolucaoMensalRows,
+      minhaAgendaRows,
+      agendaCriticaRows,
+      movimentacoesRecentesRows,
     ] = await Promise.all([
       db.select({ total: count() }).from(processos).where(eq(processos.finalizado, false)).then((rows) => rows[0]),
       db.select({ total: count() }).from(contratos).where(eq(contratos.status, "ATIVO")).then((rows) => rows[0]),
@@ -66,7 +69,7 @@ export const dashboardRouter = router({
       db
         .select({ total: count() })
         .from(prazosProcessuais)
-        .where(and(eq(prazosProcessuais.status, "PENDENTE"), eq(prazosProcessuais.dataPrevista, today)))
+        .where(and(inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]), eq(prazosProcessuais.dataPrevista, today)))
         .then((rows) => rows[0]),
       db
         .select({ total: count() })
@@ -75,6 +78,17 @@ export const dashboardRouter = router({
           and(
             inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]),
             gte(prazosProcessuais.dataPrevista, today),
+            lte(prazosProcessuais.dataPrevista, limit24h),
+          ),
+        )
+        .then((rows) => rows[0]),
+      db
+        .select({ total: count() })
+        .from(prazosProcessuais)
+        .where(
+          and(
+            inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]),
+            gte(prazosProcessuais.dataPrevista, formatDateString(addDays(todayStart, 2))),
             lte(prazosProcessuais.dataPrevista, limit48h),
           ),
         )
@@ -82,23 +96,8 @@ export const dashboardRouter = router({
       db
         .select({ total: count() })
         .from(prazosProcessuais)
-        .where(and(inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]), lt(prazosProcessuais.dataPrevista, today)))
+        .where(and(inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]), sql`${prazosProcessuais.dataPrevista} < ${today}`))
         .then((rows) => rows[0]),
-      db
-        .select({ total: count() })
-        .from(prazosProcessuais)
-        .where(
-          and(
-            inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]),
-            gte(prazosProcessuais.dataPrevista, today),
-            lte(prazosProcessuais.dataPrevista, weekLimit),
-          ),
-        )
-        .then((rows) => rows[0]),
-      db
-        .select({ modulo: workflowProcesso.moduloAtual, total: count() })
-        .from(workflowProcesso)
-        .groupBy(workflowProcesso.moduloAtual),
       db
         .select({ total: count() })
         .from(notificacoesUsuario)
@@ -111,14 +110,46 @@ export const dashboardRouter = router({
         )
         .then((rows) => rows[0]),
       db
+        .select({ total: count() })
+        .from(movimentacoesWorkflow)
+        .where(gte(movimentacoesWorkflow.criadoEm, recentMovementWindow))
+        .then((rows) => rows[0]),
+      db
+        .select({ modulo: workflowProcesso.moduloAtual, total: count() })
+        .from(workflowProcesso)
+        .groupBy(workflowProcesso.moduloAtual),
+      db
+        .select({ secretaria: secretarias.nome, total: count() })
+        .from(processos)
+        .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
+        .where(eq(processos.finalizado, false))
+        .groupBy(secretarias.nome)
+        .orderBy(desc(count()), secretarias.nome)
+        .limit(6),
+      db
+        .select({ modalidade: modalidades.nome, total: count() })
+        .from(processos)
+        .leftJoin(modalidades, eq(modalidades.id, processos.modalidadeId))
+        .groupBy(modalidades.nome)
+        .orderBy(desc(count()), modalidades.nome)
+        .limit(6),
+      db
+        .select({
+          referencia: sql<string>`to_char(date_trunc('month', ${processos.criadoEm}), 'YYYY-MM')`,
+          mes: sql<string>`to_char(date_trunc('month', ${processos.criadoEm}), 'MM/YYYY')`,
+          total: count(),
+        })
+        .from(processos)
+        .where(gte(processos.criadoEm, monthWindowStart))
+        .groupBy(sql`date_trunc('month', ${processos.criadoEm})`)
+        .orderBy(sql`date_trunc('month', ${processos.criadoEm})`),
+      db
         .select({
           id: notificacoesUsuario.id,
           type: notificacoesUsuario.tipo,
           priority: notificacoesUsuario.prioridade,
           title: notificacoesUsuario.titulo,
           message: notificacoesUsuario.mensagem,
-          processId: notificacoesUsuario.processoId,
-          documentoId: notificacoesUsuario.documentoId,
           href: notificacoesUsuario.href,
           read: notificacoesUsuario.lida,
           createdAt: notificacoesUsuario.criadoEm,
@@ -127,88 +158,61 @@ export const dashboardRouter = router({
         .where(
           and(
             eq(notificacoesUsuario.userId, userId),
+            eq(notificacoesUsuario.lida, false),
             or(isNull(notificacoesUsuario.dataExpiracao), gte(notificacoesUsuario.dataExpiracao, now)),
           ),
         )
-        .orderBy(desc(notificacoesUsuario.atualizadoEm), desc(notificacoesUsuario.id))
-        .limit(20),
+        .orderBy(desc(notificacoesUsuario.prioridade), desc(notificacoesUsuario.atualizadoEm), desc(notificacoesUsuario.id))
+        .limit(5),
+      db
+        .select({
+          id: prazosProcessuais.id,
+          processoId: processos.id,
+          numeroSirel: processos.numeroSirel,
+          objeto: processos.objeto,
+          titulo: prazosProcessuais.titulo,
+          tipo: prazosProcessuais.tipo,
+          dataPrevista: prazosProcessuais.dataPrevista,
+          status: prazosProcessuais.status,
+        })
+        .from(prazosProcessuais)
+        .innerJoin(processos, eq(processos.id, prazosProcessuais.processoId))
+        .where(and(inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]), lte(prazosProcessuais.dataPrevista, limit48h)))
+        .orderBy(prazosProcessuais.dataPrevista, processos.numeroSirel)
+        .limit(8),
+      db
+        .select({
+          id: movimentacoesWorkflow.id,
+          processoId: processos.id,
+          numeroSirel: processos.numeroSirel,
+          descricao: movimentacoesWorkflow.descricao,
+          moduloDestino: movimentacoesWorkflow.moduloDestino,
+          criadoEm: movimentacoesWorkflow.criadoEm,
+        })
+        .from(movimentacoesWorkflow)
+        .innerJoin(processos, eq(processos.id, movimentacoesWorkflow.processoId))
+        .orderBy(desc(movimentacoesWorkflow.criadoEm), desc(movimentacoesWorkflow.id))
+        .limit(8),
     ]);
-
-    const agendaHoje = await db
-      .select({
-        id: prazosProcessuais.id,
-        processoId: processos.id,
-        numeroSirel: processos.numeroSirel,
-        titulo: prazosProcessuais.titulo,
-        tipo: prazosProcessuais.tipo,
-        dataPrevista: prazosProcessuais.dataPrevista,
-        status: prazosProcessuais.status,
-      })
-      .from(prazosProcessuais)
-      .innerJoin(processos, eq(processos.id, prazosProcessuais.processoId))
-      .where(and(inArray(prazosProcessuais.status, ["PENDENTE", "EM_ATRASO"]), lte(prazosProcessuais.dataPrevista, limit48h)))
-      .orderBy(prazosProcessuais.dataPrevista, processos.numeroSirel)
-      .limit(8);
-
-    const notifications = [...notificationsRows]
-      .sort((left, right) => {
-        if (left.read !== right.read) return Number(left.read) - Number(right.read);
-        const byPriority = priorityRank[right.priority] - priorityRank[left.priority];
-        if (byPriority !== 0) return byPriority;
-        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
-      })
-      .slice(0, 10);
 
     return {
       processosAtivos: Number(processosAtivosRow?.total ?? 0),
       contratosVigentes: Number(contratosVigentesRow?.total ?? 0),
       valorGlobalEstimado: Number(valorGlobalEstimadoRow?.total ?? 0),
       prazosHoje: Number(prazosHojeRow?.total ?? 0),
+      prazos24h: Number(prazos24hRow?.total ?? 0),
       prazos48h: Number(prazos48hRow?.total ?? 0),
       prazosAtrasados: Number(prazosAtrasadosRow?.total ?? 0),
-      prazosSemana: Number(prazosSemanaRow?.total ?? 0),
-      notificacoesPendentes: Number(unreadNotificationsRow?.total ?? 0),
-      porModulo: porModulo.map((row) => ({ modulo: row.modulo, total: Number(row.total) })),
-      agendaHoje,
-      notifications,
+      tarefasPendentesUsuario: Number(tarefasPendentesRow?.total ?? 0),
+      movimentacoesUltimas24h: Number(movimentacoesUltimas24hRow?.total ?? 0),
+      porModulo: porModuloRows.map((row) => ({ modulo: row.modulo, total: Number(row.total) })),
+      processosPorSecretaria: processosPorSecretariaRows.map((row) => ({ secretaria: row.secretaria, total: Number(row.total) })),
+      modalidadesMaisUtilizadas: modalidadesMaisUtilizadasRows.map((row) => ({ modalidade: row.modalidade ?? "Sem modalidade", total: Number(row.total) })),
+      evolucaoMensal: evolucaoMensalRows.map((row) => ({ referencia: row.referencia, mes: row.mes, total: Number(row.total) })),
+      minhaAgenda: minhaAgendaRows,
+      agendaCritica: agendaCriticaRows,
+      ultimasMovimentacoes: movimentacoesRecentesRows,
     };
   }),
-
-  markNotificationRead: protectedProcedure
-    .input(z.object({ notificationId: z.number().int().positive() }))
-    .mutation(async ({ ctx, input }) => {
-      const db = requireDb();
-      const userId = ctx.user?.id;
-      if (!userId) {
-        throw new Error("Usuário não autenticado para leitura de notificações.");
-      }
-
-      await db
-        .update(notificacoesUsuario)
-        .set({
-          lida: true,
-          atualizadoEm: new Date(),
-        })
-        .where(and(eq(notificacoesUsuario.id, input.notificationId), eq(notificacoesUsuario.userId, userId)));
-
-      return { success: true };
-    }),
-
-  markAllNotificationsRead: protectedProcedure.mutation(async ({ ctx }) => {
-    const db = requireDb();
-    const userId = ctx.user?.id;
-    if (!userId) {
-      throw new Error("Usuário não autenticado para leitura de notificações.");
-    }
-
-    await db
-      .update(notificacoesUsuario)
-      .set({
-        lida: true,
-        atualizadoEm: new Date(),
-      })
-      .where(and(eq(notificacoesUsuario.userId, userId), eq(notificacoesUsuario.lida, false)));
-
-    return { success: true };
-  }),
 });
+

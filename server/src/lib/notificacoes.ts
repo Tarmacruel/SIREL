@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, notInArray, or } from "drizzle-orm";
+﻿import { and, desc, eq, gte, inArray, isNull, lte, notInArray, or } from "drizzle-orm";
 
 import { requireDb } from "../db/client.js";
 import {
@@ -116,7 +116,7 @@ export async function syncOperationalNotifications(userId: number) {
       tipo: "PRAZO" as const,
       prioridade: getPrazoPriority(item.status, item.dataPrevista, today),
       chave: `prazo:${item.id}:${item.status}:${item.dataPrevista}`,
-      titulo: `${item.numeroSirel} · ${item.titulo}`,
+      titulo: `${item.numeroSirel} - ${item.titulo}`,
       mensagem: `Prazo previsto para ${item.dataPrevista}.`,
       href: "/prazos",
       dataExpiracao: addDays(new Date(`${item.dataPrevista}T12:00:00`), 30),
@@ -127,7 +127,7 @@ export async function syncOperationalNotifications(userId: number) {
       tipo: "MOVIMENTACAO" as const,
       prioridade: "BAIXA" as const,
       chave: `mov:${item.id}`,
-      titulo: `${item.numeroSirel} · Workflow atualizado`,
+      titulo: `${item.numeroSirel} - Workflow atualizado`,
       mensagem: item.descricao,
       href: "/workflow",
       dataExpiracao: addDays(new Date(item.criadoEm), 7),
@@ -139,7 +139,7 @@ export async function syncOperationalNotifications(userId: number) {
       tipo: "DOCUMENTO" as const,
       prioridade: "BAIXA" as const,
       chave: `doc:${item.id}`,
-      titulo: `${item.numeroSirel} · Documento anexado`,
+      titulo: `${item.numeroSirel} - Documento anexado`,
       mensagem: item.titulo,
       href: "/documentos",
       dataExpiracao: addDays(new Date(item.criadoEm), 7),
@@ -211,3 +211,4 @@ export async function syncOperationalNotifications(userId: number) {
       .where(and(...expireBaseFilters));
   }
 }
+

@@ -364,6 +364,7 @@ export const licitacaoPrazoBasePorModalidade: Record<(typeof modalidadeCatalog)[
 
 export const appModules = [
   { key: "dashboard", label: "Dashboard", href: "/" },
+  { key: "notificacoes", label: "Notificações", href: "/notificacoes" },
   { key: "consultas", label: "Consultas", href: "/consultas" },
   { key: "relatorios", label: "Relatórios", href: "/relatorios" },
   { key: "prazos", label: "Prazos", href: "/prazos" },

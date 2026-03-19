@@ -1,4 +1,4 @@
-﻿import { and, count, countDistinct, desc, eq, gte, ilike, lte, sql, sum } from "drizzle-orm";
+﻿import { and, count, countDistinct, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 
 import { relatorioTipoLabels } from "@sirel/shared/const";
 import { relatorioRunInputSchema } from "@sirel/shared/schemas/relatorios";
@@ -12,6 +12,8 @@ import {
   secretarias,
   statusProcesso,
   users,
+  workflowProcesso,
+  modalidades,
 } from "../db/schema.js";
 import { protectedProcedure, router } from "../trpc.js";
 
@@ -35,39 +37,66 @@ export const relatoriosRouter = router({
       const filters: any[] = [];
       if (input.secretariaId) filters.push(eq(processos.secretariaId, input.secretariaId));
       if (input.modalidadeId) filters.push(eq(processos.modalidadeId, input.modalidadeId));
+      if (input.statusId) filters.push(eq(processos.statusId, input.statusId));
       if (dataInicial) filters.push(gte(processos.criadoEm, dataInicial));
       if (dataFinal) filters.push(lte(processos.criadoEm, new Date(`${input.dataFinal}T23:59:59`)));
 
       const whereClause = filters.length ? and(...filters) : undefined;
       const rows = await db
         .select({
+          numeroSirel: processos.numeroSirel,
+          numeroAdministrativo: processos.numeroAdministrativo,
+          objeto: processos.objeto,
+          secretaria: secretarias.nome,
+          modalidade: modalidades.nome,
           status: statusProcesso.nome,
-          total: count(),
-          valorEstimado: sum(processos.valorEstimado),
+          moduloAtual: workflowProcesso.moduloAtual,
+          valorEstimado: processos.valorEstimado,
+          publicado: processos.publicado,
+          homologado: processos.homologado,
+          finalizado: processos.finalizado,
+          criadoEm: processos.criadoEm,
         })
         .from(processos)
+        .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
+        .leftJoin(modalidades, eq(modalidades.id, processos.modalidadeId))
         .leftJoin(statusProcesso, eq(statusProcesso.id, processos.statusId))
+        .leftJoin(workflowProcesso, eq(workflowProcesso.processoId, processos.id))
         .where(whereClause)
-        .groupBy(statusProcesso.nome)
-        .orderBy(desc(count()));
+        .orderBy(desc(processos.criadoEm), desc(processos.id));
 
       return {
         title: relatorioTipoLabels[input.tipo],
         generatedAt: new Date(),
         columns: [
+          { key: "numeroSirel", label: "Processo" },
+          { key: "numeroAdministrativo", label: "Número administrativo" },
+          { key: "objeto", label: "Objeto" },
+          { key: "secretaria", label: "Secretaria" },
+          { key: "modalidade", label: "Modalidade" },
           { key: "status", label: "Status" },
-          { key: "total", label: "Total de processos" },
+          { key: "moduloAtual", label: "Módulo atual" },
           { key: "valorEstimado", label: "Valor estimado" },
+          { key: "criadoEm", label: "Criado em" },
         ],
         rows: rows.map((row) => ({
+          numeroSirel: row.numeroSirel,
+          numeroAdministrativo: row.numeroAdministrativo ?? "-",
+          objeto: row.objeto,
+          secretaria: row.secretaria,
+          modalidade: row.modalidade ?? "Sem modalidade",
           status: row.status ?? "Sem status",
-          total: Number(row.total ?? 0),
+          moduloAtual: row.moduloAtual ?? "SEM_WORKFLOW",
           valorEstimado: Number(row.valorEstimado ?? 0),
+          criadoEm: row.criadoEm,
         })),
         summary: [
           { label: "Período inicial", value: input.dataInicial || "-" },
           { label: "Período final", value: input.dataFinal || "-" },
-          { label: "Total consolidado", value: rows.reduce((acc, row) => acc + Number(row.total ?? 0), 0) },
+          { label: "Processos listados", value: rows.length },
+          { label: "Valor total estimado", value: rows.reduce((acc, row) => acc + Number(row.valorEstimado ?? 0), 0) },
+          { label: "Publicados", value: rows.filter((row) => row.publicado).length },
+          { label: "Homologados", value: rows.filter((row) => row.homologado).length },
         ],
       };
     }
@@ -83,6 +112,7 @@ export const relatoriosRouter = router({
       const rows = await db
         .select({
           processoNumeroSirel: processos.numeroSirel,
+          objeto: processos.objeto,
           secretaria: secretarias.nome,
           titulo: prazosProcessuais.titulo,
           tipo: prazosProcessuais.tipo,
@@ -100,6 +130,7 @@ export const relatoriosRouter = router({
         generatedAt: new Date(),
         columns: [
           { key: "processoNumeroSirel", label: "Processo" },
+          { key: "objeto", label: "Objeto" },
           { key: "secretaria", label: "Secretaria" },
           { key: "titulo", label: "Prazo" },
           { key: "tipo", label: "Tipo" },
@@ -240,4 +271,3 @@ export const relatoriosRouter = router({
     };
   }),
 });
-
