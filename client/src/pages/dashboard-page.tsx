@@ -13,9 +13,10 @@
   Search,
 } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { ProcessoCreateModal } from "@/components/processos/processo-create-modal";
 import { SimpleBarChart } from "@/components/dashboard/simple-bar-chart";
 import { SimpleDonutChart } from "@/components/dashboard/simple-donut-chart";
 import { SimpleLineChart } from "@/components/dashboard/simple-line-chart";
@@ -52,9 +53,11 @@ function buildDashboardSearchHref(row: { id: number; moduloAtual: string }) {
 }
 
 export function DashboardPage() {
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchStatusId, setSearchStatusId] = useState("");
   const [searchModalidadeId, setSearchModalidadeId] = useState("");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const deferredSearch = useDeferredValue(searchTerm.trim());
 
   const summaryQuery = trpc.dashboard.summary.useQuery(undefined, {
@@ -246,7 +249,7 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href="/processos"><Button size="sm">Novo processo</Button></Link>
+            <Button size="sm" onClick={() => setCreateModalOpen(true)}>Novo processo</Button>
             <Link href="/prazos"><Button size="sm" variant="outline">Abrir prazos</Button></Link>
             <Link href="/relatorios"><Button size="sm" variant="outline">Gerar relatório</Button></Link>
           </div>
@@ -326,6 +329,14 @@ export function DashboardPage() {
           </div>
         </SectionCard>
       </div>
+
+      <ProcessoCreateModal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onCreated={(created) => {
+          setLocation(`/processos/${created.id}`);
+        }}
+      />
     </div>
   );
 }
