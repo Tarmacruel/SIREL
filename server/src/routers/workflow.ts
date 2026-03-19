@@ -164,6 +164,7 @@ export const workflowRouter = router({
         numeroEdital: processos.numeroEdital,
         objeto: processos.objeto,
         secretaria: secretarias.nome,
+        secretariaId: processos.secretariaId,
         modalidade: modalidades.nome,
         statusProcesso: statusProcesso.nome,
         valorEstimado: processos.valorEstimado,
@@ -171,6 +172,10 @@ export const workflowRouter = router({
         foraDoFluxo: processos.foraDoFluxo,
         ativo: processos.ativo,
         condutorProcessoId: processos.condutorProcessoId,
+        autoridadeCompetenteId: processos.autoridadeCompetenteId,
+        criterioJulgamento: processos.criterioJulgamento,
+        modoDisputa: processos.modoDisputa,
+        escopoDisputa: processos.escopoDisputa,
         publicado: processos.publicado,
       })
       .from(processos)

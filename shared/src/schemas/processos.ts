@@ -56,6 +56,18 @@ export const processoSetAtivoInputSchema = z.object({
   ativo: z.boolean(),
 });
 
+export const processoUpdateDataInputSchema = z.object({
+  processoId: z.number().int().positive(),
+  secretariaId: z.number().int().positive().optional(),
+  autoridadeCompetenteId: z.number().int().positive().optional(),
+  objeto: z.string().min(10).optional(),
+  valorEstimado: z.number().nonnegative().optional(),
+  criterioJulgamento: z.string().max(120).optional(),
+  modoDisputa: z.enum(modoDisputaOptions).optional(),
+  escopoDisputa: z.enum(["ITEM", "LOTE", "GLOBAL"]).optional(),
+});
+
 export type ProcessoListInput = z.infer<typeof processoListInputSchema>;
 export type ProcessoCreateInput = z.infer<typeof processoCreateInputSchema>;
 export type ProcessoSetAtivoInput = z.infer<typeof processoSetAtivoInputSchema>;
+export type ProcessoUpdateDataInput = z.infer<typeof processoUpdateDataInputSchema>;

@@ -1,10 +1,16 @@
-import { and, desc, eq, ilike, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, ne, or, SQL } from "drizzle-orm";
 
 import type { ImportacaoBllSource } from "@sirel/shared/schemas/importacoes";
 
 import { requireDb } from "../db/client.js";
 import {
+  catalogoItens,
+  cotacoes,
+  fornecedores,
+  importacaoBllItens,
   importacaoBllProcessos,
+  itensProcesso,
+  lotes,
   modalidades,
   processos,
   secretarias,
@@ -488,6 +494,338 @@ export async function linkImportedProcessToInternal(
       conciliadoEm: new Date(),
     })
     .where(eq(importacaoBllProcessos.id, importedId));
+
+  // Link items and suppliers from the imported process
+  await linkImportedItemsAndSuppliers(importedId, processoId, userId);
+}
+
+async function findOrCreateCatalogItem(
+  description: string,
+  unit: string | null,
+  similarityThreshold: number = 0.85,
+): Promise<number> {
+  const db = requireDb();
+
+  // Try to find an existing item with similar description
+  const existingItems = await db
+    .select({ id: catalogoItens.id, descricao: catalogoItens.descricao })
+    .from(catalogoItens)
+    .where(eq(catalogoItens.ativo, true))
+    .limit(20);
+
+  for (const item of existingItems) {
+    if (tokenSimilarity(description, item.descricao) >= similarityThreshold) {
+      return item.id;
+    }
+  }
+
+  // Create a new catalog item if no similar one found
+  const [newItem] = await db
+    .insert(catalogoItens)
+    .values({
+      descricao: description,
+      unidadePadrao: unit || "UN",
+      ativo: true,
+    })
+    .returning({ id: catalogoItens.id });
+
+  if (!newItem) {
+    throw new Error("Falha ao criar item no catálogo.");
+  }
+
+  return newItem.id;
+}
+
+async function findOrCreateSupplier(
+  supplierName: string,
+  cnpj?: string | null,
+): Promise<number> {
+  const db = requireDb();
+
+  // If CNPJ is provided, try to find by CNPJ first (unique constraint)
+  if (cnpj?.trim()) {
+    const cleanCnpj = cnpj.replace(/\D/g, "");
+    if (cleanCnpj.length > 0) {
+      const [existing] = await db
+        .select({ id: fornecedores.id })
+        .from(fornecedores)
+        .where(eq(fornecedores.cnpj, cleanCnpj))
+        .limit(1);
+
+      if (existing) {
+        return existing.id;
+      }
+    }
+  }
+
+  // Try to find by name similarity
+  const existingSuppliers = await db
+    .select({ id: fornecedores.id, razaoSocial: fornecedores.razaoSocial })
+    .from(fornecedores)
+    .where(eq(fornecedores.ativo, true))
+    .limit(10);
+
+  for (const supplier of existingSuppliers) {
+    if (
+      tokenSimilarity(supplierName, supplier.razaoSocial) >= 0.9 ||
+      normalizeText(supplierName) === normalizeText(supplier.razaoSocial)
+    ) {
+      return supplier.id;
+    }
+  }
+
+  // Create a new supplier if no existing one found
+  const [newSupplier] = await db
+    .insert(fornecedores)
+    .values({
+      razaoSocial: supplierName,
+      cnpj: cnpj?.replace(/\D/g, "") || `AUTO_${Date.now()}`,
+      ativo: true,
+    })
+    .returning({ id: fornecedores.id });
+
+  if (!newSupplier) {
+    throw new Error("Falha ao criar fornecedor.");
+  }
+
+  return newSupplier.id;
+}
+
+async function linkImportedItemsAndSuppliers(
+  importedId: number,
+  processoId: number,
+  userId: number | null,
+): Promise<void> {
+  try {
+    const db = requireDb();
+
+    // Get all imported items for this process
+    const importedItems = await db
+      .select()
+      .from(importacaoBllItens)
+      .where(eq(importacaoBllItens.processoImportadoId, importedId));
+
+    if (!importedItems.length) {
+      return; // No items to process
+    }
+
+    // Track created items
+    const processItems: {
+      loteNumero: string | null;
+      numeroItem: number;
+      descricao: string;
+      quantidade: number;
+      unidade: string;
+      valorUnitarioEstimado: number | null;
+      valorTotalEstimado: number | null;
+      catalogoItemId: number;
+    }[] = [];
+
+    // Process each imported item
+    for (let index = 0; index < importedItems.length; index++) {
+      const importedItem = importedItems[index];
+
+      // Find or create catalog item
+      const catalogoItemId = await findOrCreateCatalogItem(
+        importedItem.descricao,
+        importedItem.unidade,
+      );
+
+      // Parse quantities and values
+      const quantidade = importedItem.quantidade
+        ? Number(importedItem.quantidade)
+        : 1;
+      const valorUnitario = importedItem.valorUnitario
+        ? Number(importedItem.valorUnitario)
+        : null;
+      const subtotal = importedItem.subtotal
+        ? Number(importedItem.subtotal)
+        : valorUnitario && quantidade
+          ? valorUnitario * quantidade
+          : null;
+
+      processItems.push({
+        loteNumero: importedItem.loteNumero,
+        numeroItem: index + 1,
+        descricao: importedItem.descricao,
+        quantidade,
+        unidade: importedItem.unidade || "UN",
+        valorUnitarioEstimado: valorUnitario,
+        valorTotalEstimado: subtotal,
+        catalogoItemId,
+      });
+    }
+
+    // Check if items already exist for this process
+    const existingItems = await db
+      .select({ id: itensProcesso.id })
+      .from(itensProcesso)
+      .where(eq(itensProcesso.processoId, processoId));
+
+    // Create a map to track created items for supplier linking
+    const itemCreationMap: {
+      importedItemIndex: number;
+      itemId: number;
+      fornecedor: string | null;
+      valorUnitario: number | null;
+    }[] = [];
+
+    // Only create items if the process doesn't have any yet
+    if (!existingItems.length) {
+      // Create items in the process - insert all at once and capture IDs
+      const createdItems = await db
+        .insert(itensProcesso)
+        .values(
+          processItems.map((item) => ({
+            processoId,
+            numeroItem: item.numeroItem,
+            descricao: item.descricao,
+            quantidade: String(item.quantidade),
+            unidade: item.unidade,
+            valorUnitarioEstimado: item.valorUnitarioEstimado
+              ? String(item.valorUnitarioEstimado)
+              : null,
+            valorTotalEstimado: item.valorTotalEstimado
+              ? String(item.valorTotalEstimado)
+              : null,
+            catalogoItemId: item.catalogoItemId,
+          }))
+        )
+        .returning({ id: itensProcesso.id });
+
+      // Map created items with imported items data and supplier info
+      for (let i = 0; i < createdItems.length; i++) {
+        itemCreationMap.push({
+          importedItemIndex: i,
+          itemId: createdItems[i].id,
+          fornecedor: importedItems[i].fornecedorNome || null,
+          valorUnitario: importedItems[i].valorUnitario
+            ? Number(importedItems[i].valorUnitario)
+            : null,
+        });
+      }
+    } else {
+      // If items already exist, map them with imported items for supplier linking
+      for (let i = 0; i < importedItems.length; i++) {
+        if (i < existingItems.length) {
+          itemCreationMap.push({
+            importedItemIndex: i,
+            itemId: existingItems[i].id,
+            fornecedor: importedItems[i].fornecedorNome || null,
+            valorUnitario: importedItems[i].valorUnitario
+              ? Number(importedItems[i].valorUnitario)
+              : null,
+          });
+        }
+      }
+    }
+
+    // Handle suppliers and homologated values
+    const uniqueSuppliers = new Map<string, string>();
+    for (const item of importedItems) {
+      if (item.fornecedorNome?.trim()) {
+        uniqueSuppliers.set(
+          normalizeText(item.fornecedorNome),
+          item.fornecedorNome,
+        );
+      }
+    }
+
+    // Create suppliers if they don't exist
+    const supplierMap = new Map<string, number>();
+    for (const [, supplierName] of uniqueSuppliers) {
+      try {
+        const supplierId = await findOrCreateSupplier(supplierName);
+        supplierMap.set(supplierName, supplierId);
+      } catch (error) {
+        // Log supplier creation error but continue
+        console.error(
+          `Erro ao criar/vincular fornecedor "${supplierName}":`,
+          error
+        );
+      }
+    }
+
+    // Link suppliers to items via cotacoes (quotations) table
+    for (const itemData of itemCreationMap) {
+      if (itemData.fornecedor && supplierMap.has(itemData.fornecedor)) {
+        try {
+          const supplierId = supplierMap.get(itemData.fornecedor)!;
+
+          // Check if cotacao already exists
+          const existingCotacao = await db
+            .select({ id: cotacoes.id })
+            .from(cotacoes)
+            .where(
+              and(
+                eq(cotacoes.itemId, itemData.itemId),
+                eq(cotacoes.fornecedorId, supplierId)
+              )
+            )
+            .limit(1);
+
+          if (!existingCotacao.length) {
+            // Create cotacao linking supplier to item
+            await db.insert(cotacoes).values({
+              processoId,
+              itemId: itemData.itemId,
+              fornecedorId: supplierId,
+              valorUnitario: itemData.valorUnitario
+                ? String(itemData.valorUnitario)
+                : null,
+              valorTotal: null,
+              status: "ATIVA",
+            });
+          }
+        } catch (error) {
+          // Log cotacao creation error but continue
+          console.error(
+            `Erro ao criar cotação para item ${itemData.itemId} e fornecedor ${itemData.fornecedor}:`,
+            error
+          );
+        }
+      }
+    }
+
+    // Calculate total value from imported items for homologated value
+    let totalValue = 0;
+    for (const item of importedItems) {
+      if (item.subtotal) {
+        totalValue += Number(item.subtotal);
+      } else if (item.valorUnitario && item.quantidade) {
+        totalValue += Number(item.valorUnitario) * Number(item.quantidade);
+      }
+    }
+
+    // Create or update lotes with homologated value
+    const lotes_batch = await db
+      .select({ id: lotes.id, numeroLote: lotes.numeroLote })
+      .from(lotes)
+      .where(eq(lotes.processoId, processoId));
+
+    if (lotes_batch.length === 0 && totalValue > 0) {
+      // Create a default batch if none exists and we have a total value
+      await db.insert(lotes).values({
+        processoId,
+        numeroLote: 1,
+        descricao: `Lote importado de ${importedItems.length} item(ns)`,
+        valorEstimado: String(totalValue),
+        valorHomologado: String(totalValue),
+      });
+    } else if (lotes_batch.length > 0 && totalValue > 0) {
+      // Update the first batch with the homologated value
+      await db
+        .update(lotes)
+        .set({ valorHomologado: String(totalValue) })
+        .where(eq(lotes.id, lotes_batch[0].id));
+    }
+  } catch (error) {
+    // Log errors but don't throw - the main process link should succeed even if items fail
+    console.error(
+      "Erro ao vincular itens e fornecedores importados:",
+      error
+    );
+  }
 }
 
 export async function unlinkImportedProcess(importedId: number) {

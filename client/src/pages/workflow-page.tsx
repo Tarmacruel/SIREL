@@ -1,5 +1,5 @@
 ﻿import { useDeferredValue, useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowRightLeft, FileStack, Search, Workflow } from "lucide-react";
+import { ArrowRightLeft, Edit, FileStack, Search, Workflow } from "lucide-react";
 import { Link } from "wouter";
 
 import { workflowModuleOptions, workflowSituacaoOptions } from "@sirel/shared/const";
@@ -34,6 +34,17 @@ export function WorkflowPage() {
   const [situacao, setSituacao] = useState("");
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
   const [openDocumentsModal, setOpenDocumentsModal] = useState(false);
+  const [openEditDataModal, setOpenEditDataModal] = useState(false);
+  const [editDataForm, setEditDataForm] = useState({
+    secretariaId: "",
+    autoridadeCompetenteId: "",
+    objeto: "",
+    valorEstimado: "",
+    criterioJulgamento: "",
+    modoDisputa: "",
+    escopoDisputa: "",
+  });
+  const [editDataErrors, setEditDataErrors] = useState<Record<string, string>>({});
   const [moveForm, setMoveForm] = useState({
     moduloDestino: "PLANEJAMENTO",
     situacao: "RASCUNHO",
@@ -100,6 +111,19 @@ export function WorkflowPage() {
       etapaAtual: detail.estado.etapaAtual,
       descricao: current.descricao || `Processo movido para ${detail.estado.moduloAtual}`,
     }));
+
+    // Preencher formulário de edição de dados
+    // @ts-ignore - tipo será atualizado após compilação do servidor
+    setEditDataForm((current) => ({
+      ...current,
+      secretariaId: String(detail.processo?.secretariaId ?? ""),
+      autoridadeCompetenteId: String(detail.processo?.autoridadeCompetenteId ?? ""),
+      objeto: detail.processo?.objeto ?? "",
+      valorEstimado: detail.processo?.valorEstimado ? String(detail.processo.valorEstimado) : "",
+      criterioJulgamento: detail.processo?.criterioJulgamento ?? "",
+      modoDisputa: detail.processo?.modoDisputa ?? "",
+      escopoDisputa: detail.processo?.escopoDisputa ?? "",
+    }));
   }, [detailQuery.data]);
 
   const moveMutation = trpc.workflow.move.useMutation({
@@ -142,6 +166,27 @@ export function WorkflowPage() {
     },
   });
 
+  const updateDataMutation = trpc.processos.updateData.useMutation({
+    onSuccess: async (result) => {
+      await Promise.all([
+        utils.processos.overview.invalidate({ processoId: result.id }),
+        utils.workflow.byProcesso.invalidate({ processoId: result.id }),
+        utils.processos.list.invalidate(),
+        utils.workflow.list.invalidate(),
+        utils.workflow.summary.invalidate(),
+        utils.dashboard.summary.invalidate(),
+      ]);
+      setFeedback("Dados do processo atualizados com sucesso.");
+      setErrorMessage(null);
+      setEditDataErrors({});
+      setOpenEditDataModal(false);
+    },
+    onError: (error) => {
+      setFeedback(null);
+      setErrorMessage(error.message);
+    },
+  });
+
   async function handleMoveProcesso(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedProcessId) return;
@@ -167,6 +212,29 @@ export function WorkflowPage() {
 
     setFieldErrors({});
     await moveMutation.mutateAsync(parsed.data);
+  }
+
+  async function handleEditData(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProcessId) return;
+
+    setFeedback(null);
+    setErrorMessage(null);
+    setEditDataErrors({});
+
+    const updatePayload: any = {
+      processoId: selectedProcessId,
+    };
+
+    if (editDataForm.secretariaId) updatePayload.secretariaId = Number(editDataForm.secretariaId);
+    if (editDataForm.autoridadeCompetenteId) updatePayload.autoridadeCompetenteId = Number(editDataForm.autoridadeCompetenteId);
+    if (editDataForm.objeto?.trim()) updatePayload.objeto = editDataForm.objeto.trim();
+    if (editDataForm.valorEstimado?.trim()) updatePayload.valorEstimado = Number(editDataForm.valorEstimado);
+    if (editDataForm.criterioJulgamento?.trim()) updatePayload.criterioJulgamento = editDataForm.criterioJulgamento.trim();
+    if (editDataForm.modoDisputa) updatePayload.modoDisputa = editDataForm.modoDisputa;
+    if (editDataForm.escopoDisputa) updatePayload.escopoDisputa = editDataForm.escopoDisputa;
+
+    await updateDataMutation.mutateAsync(updatePayload);
   }
 
   return (
@@ -364,6 +432,10 @@ export function WorkflowPage() {
                 <Button type="button" size="sm" variant="outline" onClick={() => setOpenDocumentsModal(true)}>
                   <FileStack className="mr-2 h-4 w-4" />
                   Documentos do processo
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setOpenEditDataModal(true)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Editar dados do processo
                 </Button>
                 {detailQuery.data?.processo ? (
                   <Button
@@ -669,6 +741,116 @@ export function WorkflowPage() {
             </Table>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={openEditDataModal}
+        onClose={() => setOpenEditDataModal(false)}
+        title="Editar dados do processo"
+        description="Atualize informações do processo como secretaria responsável, autoridade competente e outros dados operacionais."
+        size="xl"
+      >
+        <form className="space-y-4" onSubmit={handleEditData}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField label="Secretaria responsável" error={editDataErrors.secretariaId}>
+              <Select
+                value={editDataForm.secretariaId}
+                error={Boolean(editDataErrors.secretariaId)}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, secretariaId: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                {catalogQuery.data?.secretarias.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.sigla} - {item.nome}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Autoridade competente" error={editDataErrors.autoridadeCompetenteId}>
+              <Select
+                value={editDataForm.autoridadeCompetenteId}
+                error={Boolean(editDataErrors.autoridadeCompetenteId)}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, autoridadeCompetenteId: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                {catalogQuery.data?.pessoas.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                    {item.cargo ? ` - ${item.cargo}` : ""}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
+
+          <FormField label="Objeto do processo" error={editDataErrors.objeto}>
+            <Textarea
+              rows={4}
+              value={editDataForm.objeto}
+              error={Boolean(editDataErrors.objeto)}
+              onChange={(event) => setEditDataForm((current) => ({ ...current, objeto: event.target.value }))}
+            />
+          </FormField>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField label="Valor estimado" error={editDataErrors.valorEstimado}>
+              <Input
+                value={editDataForm.valorEstimado}
+                error={Boolean(editDataErrors.valorEstimado)}
+                placeholder="0,00"
+                onChange={(event) => setEditDataForm((current) => ({ ...current, valorEstimado: event.target.value }))}
+              />
+            </FormField>
+            <FormField label="Critério de julgamento" error={editDataErrors.criterioJulgamento}>
+              <Input
+                value={editDataForm.criterioJulgamento}
+                error={Boolean(editDataErrors.criterioJulgamento)}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, criterioJulgamento: event.target.value }))}
+              />
+            </FormField>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField label="Modo de disputa" error={editDataErrors.modoDisputa}>
+              <Select
+                value={editDataForm.modoDisputa}
+                error={Boolean(editDataErrors.modoDisputa)}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, modoDisputa: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                {catalogQuery.data?.modoDisputa.map((item) => (
+                  <option key={item.codigo} value={item.codigo}>
+                    {item.nome}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Escopo da disputa" error={editDataErrors.escopoDisputa}>
+              <Select
+                value={editDataForm.escopoDisputa}
+                error={Boolean(editDataErrors.escopoDisputa)}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, escopoDisputa: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                <option value="GLOBAL">Global</option>
+                <option value="LOTE">Lote</option>
+                <option value="ITEM">Item</option>
+              </Select>
+            </FormField>
+          </div>
+
+          {feedback ? <Alert variant="success">{feedback}</Alert> : null}
+          {errorMessage ? <Alert variant="error">{errorMessage}</Alert> : null}
+
+          <div className="flex justify-end gap-3 border-t border-[rgba(204,225,255,0.92)] pt-4">
+            <Button type="button" variant="outline" onClick={() => setOpenEditDataModal(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={updateDataMutation.isPending}>
+              {updateDataMutation.isPending ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

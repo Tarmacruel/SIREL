@@ -57,14 +57,18 @@ export function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchStatusId, setSearchStatusId] = useState("");
   const [searchModalidadeId, setSearchModalidadeId] = useState("");
+  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const deferredSearch = useDeferredValue(searchTerm.trim());
 
-  const summaryQuery = trpc.dashboard.summary.useQuery(undefined, {
-    retry: false,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
-  });
+  const summaryQuery = trpc.dashboard.summary.useQuery(
+    { ano: filterYear },
+    {
+      retry: false,
+      refetchInterval: 30_000,
+      refetchOnWindowFocus: true,
+    }
+  );
   const recentProcesses = trpc.processos.list.useQuery(
     { page: 1, pageSize: 6 },
     { retry: false, refetchInterval: 30_000, refetchOnWindowFocus: true },
@@ -110,6 +114,26 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Year Filter */}
+      <div className="flex items-center gap-4 rounded-[24px] border border-[rgba(204,225,255,0.9)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.7))] px-4 py-4 shadow-sm">
+        <label className="flex items-center gap-3 whitespace-nowrap">
+          <span className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--color-primary-600)]">Filtrar por ano</span>
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(Number(e.target.value))}
+            className="rounded-[16px] border border-[var(--color-primary-200)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-neutral-900)] transition hover:border-[var(--color-primary-400)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
+          >
+            {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 9 + i).map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex-1" />
+        <p className="text-xs text-[var(--color-neutral-500)]">Dados do ano selecionado</p>
+      </div>
+
       <SectionCard
         title="Alertas críticos de prazo"
         description="Prazos do dia e da janela de 48 horas que precisam ficar visíveis logo na abertura do sistema."

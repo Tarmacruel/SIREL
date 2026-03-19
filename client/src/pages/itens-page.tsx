@@ -11,6 +11,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
+import { Tabs, type TabItem } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type ContratoItemFormState, type ItemFormState, validateContratoItemForm, validateItemForm } from "@/features/itens/form";
 import { formatCurrencyBRL, formatNumberBR, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
@@ -138,6 +139,7 @@ export function ItensPage() {
   });
 
   const selectedItem = detailQuery.data;
+  const [detailTabValue, setDetailTabValue] = useState("visao-geral");
 
   function resetItemForm() {
     setEditingItemId(null);
@@ -203,8 +205,114 @@ export function ItensPage() {
     await saveControleMutation.mutateAsync(parsed.data);
   }
 
+  const detailTabs: TabItem[] = [
+    {
+      value: "visao-geral",
+      label: "Visão Geral",
+      content: (
+        <div className="space-y-4">
+          <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="text-xl font-black text-slate-950">{selectedItem?.item.descricao}</div>
+            <div className="mt-2 text-sm text-slate-600">Unidade padrão: <span className="font-semibold text-slate-950">{selectedItem?.item.unidadePadrao}</span></div>
+            {selectedItem?.item.valorReferencia && <div className="mt-2 text-sm text-slate-600">Valor de referência: <span className="font-semibold text-slate-950">{formatCurrencyBRL(selectedItem.item.valorReferencia)}</span></div>}
+          </article>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Processos</p><p className="mt-2 text-2xl font-black text-slate-950">{selectedItem?.metrics.totalProcessos}</p></article>
+            <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Contratos</p><p className="mt-2 text-2xl font-black text-slate-950">{selectedItem?.metrics.totalContratos}</p></article>
+            <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Fornecedores</p><p className="mt-2 text-2xl font-black text-slate-950">{selectedItem?.metrics.totalFornecedores}</p></article>
+            <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Saldo</p><p className="mt-2 text-2xl font-black text-slate-950">{selectedItem?.metrics.saldoControlado ? formatNumberBR(selectedItem.metrics.saldoTotal, 3) : "-"}</p></article>
+          </div>
+        </div>
+      ),
+    },
+    {
+      value: "contratos",
+      label: "Contratos",
+      content: (
+        <div className="space-y-4">
+          <div className="flex justify-end mb-4"><Button size="sm" onClick={() => openControleDialog()}>Vincular novo saldo</Button></div>
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
+            <Table className="min-w-[700px]">
+              <TableHead><tr><TableHeaderCell>Contrato</TableHeaderCell><TableHeaderCell>Fornecedor</TableHeaderCell><TableHeaderCell>Vigência</TableHeaderCell><TableHeaderCell>Saldo</TableHeaderCell><TableHeaderCell>Ações</TableHeaderCell></tr></TableHead>
+              <TableBody>
+                {selectedItem?.contratos.map((row) => (
+                  <TableRow key={`${row.contratoId}-${row.controleSaldoId ?? "base"}`}>
+                    <TableCell><div className="font-semibold text-slate-950">{row.numeroContrato}</div><div className="text-xs text-slate-500">{row.processoNumeroSirel}</div></TableCell>
+                    <TableCell>{row.fornecedor ?? "Sem fornecedor"}</TableCell>
+                    <TableCell>{row.dataVigenciaInicio ? `${formatShortDateBR(row.dataVigenciaInicio)} a ${formatShortDateBR(row.dataVigenciaFim)}` : "Não informada"}</TableCell>
+                    <TableCell>{row.saldoAtual === null ? "Não controlado" : formatNumberBR(row.saldoAtual, 3)}</TableCell>
+                    <TableCell><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => openControleDialog(row)}>{row.controleSaldoId ? "Editar" : "Vincular"}</Button>{row.controleSaldoId ? <Button variant="destructive" size="sm" onClick={() => deleteControleMutation.mutate({ contratoItemId: row.controleSaldoId!, itemId: selectedItem.item.id })}>Remover</Button> : null}</div></TableCell>
+                  </TableRow>
+                ))}
+                {!selectedItem?.contratos.length ? <TableRow><TableCell colSpan={5} className="text-center text-slate-500">Nenhum contrato relacionado a este item.</TableCell></TableRow> : null}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ),
+    },
+    {
+      value: "processos",
+      label: "Processos",
+      content: (
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
+            <Table className="min-w-[760px]">
+              <TableHead><tr><TableHeaderCell>Processo</TableHeaderCell><TableHeaderCell>Secretaria</TableHeaderCell><TableHeaderCell>Quantidade</TableHeaderCell><TableHeaderCell>Workflow</TableHeaderCell><TableHeaderCell>Parado há</TableHeaderCell></tr></TableHead>
+              <TableBody>
+                {selectedItem?.processos.map((row) => (
+                  <TableRow key={row.itemProcessoId}>
+                    <TableCell><div className="font-semibold text-slate-950">{row.numeroSirel}</div><div className="text-xs text-slate-500">Item {row.numeroItem}</div></TableCell>
+                    <TableCell>{row.secretaria}</TableCell>
+                    <TableCell>{formatNumberBR(row.quantidade, 3)} {row.unidade}</TableCell>
+                    <TableCell><div className="font-semibold text-slate-950">{row.moduloAtual ?? "Sem workflow"}</div><div className="text-xs text-slate-500">{row.etapaAtual ?? "Sem etapa"}</div></TableCell>
+                    <TableCell>{row.diasParado} dia(s)</TableCell>
+                  </TableRow>
+                ))}
+                {!selectedItem?.processos.length ? <TableRow><TableCell colSpan={5} className="text-center text-slate-500">Este item ainda não está vinculado a nenhum processo.</TableCell></TableRow> : null}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      ),
+    },
+    {
+      value: "fornecedores",
+      label: "Fornecedores",
+      content: (
+        <div className="space-y-3">
+          {selectedItem?.fornecedores.map((row) => (
+            <article key={`${row.documento ?? row.nome}-${row.origem}`} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="font-semibold text-slate-950">{row.nome}</div>
+              <div className="text-xs text-slate-500">{row.documento ?? "Sem documento"} | {row.origem}</div>
+              <div className="mt-2 text-xs text-slate-500">Ocorrências: {row.totalOcorrencias} | Última: {formatShortDateBR(row.ultimaReferencia)}</div>
+            </article>
+          ))}
+          {!selectedItem?.fornecedores.length ? <Alert variant="info">Nenhum fornecedor identificado até o momento.</Alert> : null}
+        </div>
+      ),
+    },
+    {
+      value: "rastreabilidade",
+      label: "Rastreabilidade",
+      content: (
+        <div className="space-y-3">
+          {selectedItem?.rastreabilidade.map((row) => (
+            <article key={row.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="font-semibold text-slate-950">{row.numeroSirel}</div>
+              <div className="text-sm text-slate-600">{row.descricao}</div>
+              <div className="mt-2 text-xs text-slate-500">{row.moduloDestino} | {formatShortDateTimeBR(row.criadoEm)}</div>
+            </article>
+          ))}
+          {!selectedItem?.rastreabilidade.length ? <Alert variant="info">Sem movimentações recentes para este item.</Alert> : null}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* SUMMARY SECTION */}
       <SectionCard title="Itens" description="Catálogo central com rastreabilidade por processo, contrato, fornecedores e saldo controlado.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {[
@@ -226,190 +334,144 @@ export function ItensPage() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
+      {/* MASTER-DETAIL LAYOUT */}
+      <div className="grid gap-6 xl:grid-cols-[1fr_1.5fr]">
+        {/* LEFT: LIST & FILTERS */}
         <SectionCard
-          title="Consulta do catálogo"
-          description="Filtre itens ativos, vigentes e com saldo para acompanhar a utilização ao longo dos processos."
-          action={
-            <div className="flex flex-wrap gap-2">
-              <div className="relative min-w-[220px]">
+          title="Catálogo"
+          description="Filtre e selecione itens para visualizar detalhes completos."
+        >
+          <div className="space-y-4">
+            {/* FILTERS */}
+            <div className="space-y-3 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+              <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar item" className="pl-9" />
+                <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar item..." className="pl-9" />
               </div>
-              <Select value={ativoFiltro} onChange={(event) => setAtivoFiltro(event.target.value as typeof ativoFiltro)} className="max-w-[150px]">
-                <option value="">Todos</option>
-                <option value="true">Ativos</option>
-                <option value="false">Inativos</option>
-              </Select>
-              <Select value={vigenteFiltro} onChange={(event) => setVigenteFiltro(event.target.value as typeof vigenteFiltro)} className="max-w-[180px]">
-                <option value="">Qualquer vigência</option>
-                <option value="true">Com vigência</option>
-                <option value="false">Sem vigência</option>
-              </Select>
-              <Select value={saldoFiltro} onChange={(event) => setSaldoFiltro(event.target.value as typeof saldoFiltro)} className="max-w-[160px]">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Select value={ativoFiltro} onChange={(event) => setAtivoFiltro(event.target.value as typeof ativoFiltro)}>
+                  <option value="">Todos</option>
+                  <option value="true">Ativos</option>
+                  <option value="false">Inativos</option>
+                </Select>
+                <Select value={vigenteFiltro} onChange={(event) => setVigenteFiltro(event.target.value as typeof vigenteFiltro)}>
+                  <option value="">Qualquer vigência</option>
+                  <option value="true">Com vigência</option>
+                  <option value="false">Sem vigência</option>
+                </Select>
+              </div>
+              <Select value={saldoFiltro} onChange={(event) => setSaldoFiltro(event.target.value as typeof saldoFiltro)}>
                 <option value="">Qualquer saldo</option>
                 <option value="true">Com saldo</option>
                 <option value="false">Sem saldo</option>
               </Select>
             </div>
-          }
-        >
-          <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
-            <Table className="min-w-[860px]">
-              <TableHead>
-                <tr>
-                  <TableHeaderCell>Item</TableHeaderCell>
-                  <TableHeaderCell>Unidade</TableHeaderCell>
-                  <TableHeaderCell>Processos</TableHeaderCell>
-                  <TableHeaderCell>Contratos</TableHeaderCell>
-                  <TableHeaderCell>Fornecedores</TableHeaderCell>
-                  <TableHeaderCell>Saldo</TableHeaderCell>
-                  <TableHeaderCell>Vigência</TableHeaderCell>
-                </tr>
-              </TableHead>
-              <TableBody>
-                {listQuery.isLoading
-                  ? Array.from({ length: 5 }).map((_, index) => (
-                      <TableRow key={index}>
-                        <TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell>
-                      </TableRow>
-                    ))
-                  : rows.map((row) => (
-                      <TableRow key={row.id} onClick={() => setSelectedItemId(row.id)} className={row.id === selectedItemId ? "cursor-pointer bg-sky-50/80" : "cursor-pointer transition hover:bg-slate-50"}>
-                        <TableCell>
-                          <div className="font-bold text-slate-950">{row.descricao}</div>
-                          <div className="text-xs text-slate-500">Ref.: {row.valorReferencia ? formatCurrencyBRL(row.valorReferencia) : "Não informada"}</div>
-                        </TableCell>
-                        <TableCell>{row.unidadePadrao}</TableCell>
-                        <TableCell>{row.totalProcessos}</TableCell>
-                        <TableCell>{row.totalContratos}</TableCell>
-                        <TableCell>{row.totalFornecedores}</TableCell>
-                        <TableCell>{row.saldoControlado ? formatNumberBR(row.saldoTotal, 3) : "Não controlado"}</TableCell>
-                        <TableCell>{row.vigente ? "Vigente" : "Sem vigência"}</TableCell>
-                      </TableRow>
-                    ))}
-                {!listQuery.isLoading && !rows.length ? <TableRow><TableCell colSpan={7} className="text-center text-slate-500">Nenhum item encontrado.</TableCell></TableRow> : null}
-              </TableBody>
-            </Table>
-          </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-600">Exibindo <span className="font-bold text-slate-950">{rows.length}</span> de <span className="font-bold text-slate-950">{total}</span> itens.</p>
-            <div className="flex items-center gap-3">
-              <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))} className="max-w-[140px]">
-                {[10, 20, 40].map((option) => <option key={option} value={option}>{option} por página</option>)}
-              </Select>
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            {/* LIST TABLE */}
+            <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
+              <Table className="min-w-[600px]">
+                <TableHead>
+                  <tr>
+                    <TableHeaderCell>Item</TableHeaderCell>
+                    <TableHeaderCell>Unit.</TableHeaderCell>
+                    <TableHeaderCell>Proc.</TableHeaderCell>
+                  </tr>
+                </TableHead>
+                <TableBody>
+                  {listQuery.isLoading
+                    ? Array.from({ length: 8 }).map((_, index) => (
+                        <TableRow key={index}>
+                          <TableCell colSpan={3}><Skeleton className="h-12 w-full" /></TableCell>
+                        </TableRow>
+                      ))
+                    : rows.map((row) => (
+                        <TableRow key={row.id} onClick={() => setSelectedItemId(row.id)} className={row.id === selectedItemId ? "cursor-pointer bg-sky-50/80 font-semibold" : "cursor-pointer transition hover:bg-slate-50"}>
+                          <TableCell>
+                            <div className="font-semibold text-slate-950 truncate">{row.descricao}</div>
+                            <div className="text-xs text-slate-500">{row.valorReferencia ? formatCurrencyBRL(row.valorReferencia) : "s/ ref."}</div>
+                          </TableCell>
+                          <TableCell className="text-center text-sm">{row.unidadePadrao}</TableCell>
+                          <TableCell className="text-center text-sm font-semibold">{row.totalProcessos}</TableCell>
+                        </TableRow>
+                      ))}
+                  {!listQuery.isLoading && !rows.length ? <TableRow><TableCell colSpan={3} className="text-center text-slate-500 py-8">Nenhum item encontrado.</TableCell></TableRow> : null}
+                </TableBody>
+              </Table>
             </div>
-          </div>
-        </SectionCard>
 
-        <div className="space-y-6">
-          <SectionCard
-            title="Painel do item"
-            description="Rastreabilidade, contratos relacionados e operações de manutenção do cadastro."
-            action={selectedItem?.item ? <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={startEditingSelectedItem}><PencilLine className="h-4 w-4" />Editar</Button><Button variant={selectedItem.item.ativo ? "secondary" : "default"} size="sm" onClick={() => toggleItemMutation.mutate({ itemId: selectedItem.item.id, ativo: !selectedItem.item.ativo })}>{selectedItem.item.ativo ? "Desativar" : "Reativar"}</Button><Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" />Excluir</Button></div> : null}
-          >
-            {!selectedItemId ? (
-              <Alert variant="info">Selecione um item para visualizar a rastreabilidade.</Alert>
-            ) : detailQuery.isLoading ? (
-              <div className="space-y-3">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-20" />)}</div>
-            ) : detailQuery.error ? (
-              <Alert variant="error">Falha ao carregar o detalhe do item selecionado.</Alert>
-            ) : !selectedItem ? (
-              <Alert variant="warning">O item selecionado não foi encontrado.</Alert>
-            ) : (
-              <div className="space-y-4">
-                <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  <div className="text-xl font-black text-slate-950">{selectedItem.item.descricao}</div>
-                  <div className="mt-2 text-sm text-slate-600">Unidade padrão: <span className="font-semibold text-slate-950">{selectedItem.item.unidadePadrao}</span></div>
-                </article>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Processos</p><p className="mt-2 text-2xl font-black text-slate-950">{selectedItem.metrics.totalProcessos}</p></article>
-                  <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4"><p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Saldo total</p><p className="mt-2 text-2xl font-black text-slate-950">{selectedItem.metrics.saldoControlado ? formatNumberBR(selectedItem.metrics.saldoTotal, 3) : "-"}</p></article>
-                </div>
-                <div className="flex justify-end"><Button size="sm" onClick={() => openControleDialog()}>Controlar saldo por contrato</Button></div>
-                <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
-                  <Table className="min-w-[700px]">
-                    <TableHead><tr><TableHeaderCell>Contrato</TableHeaderCell><TableHeaderCell>Fornecedor</TableHeaderCell><TableHeaderCell>Vigência</TableHeaderCell><TableHeaderCell>Saldo</TableHeaderCell><TableHeaderCell>Ações</TableHeaderCell></tr></TableHead>
-                    <TableBody>
-                      {selectedItem.contratos.map((row) => (
-                        <TableRow key={`${row.contratoId}-${row.controleSaldoId ?? "base"}`}>
-                          <TableCell><div className="font-semibold text-slate-950">{row.numeroContrato}</div><div className="text-xs text-slate-500">{row.processoNumeroSirel}</div></TableCell>
-                          <TableCell>{row.fornecedor ?? "Sem fornecedor"}</TableCell>
-                          <TableCell>{row.dataVigenciaInicio ? `${formatShortDateBR(row.dataVigenciaInicio)} a ${formatShortDateBR(row.dataVigenciaFim)}` : "Não informada"}</TableCell>
-                          <TableCell>{row.saldoAtual === null ? "Não controlado" : formatNumberBR(row.saldoAtual, 3)}</TableCell>
-                          <TableCell><div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={() => openControleDialog(row)}>{row.controleSaldoId ? "Editar saldo" : "Vincular saldo"}</Button>{row.controleSaldoId ? <Button variant="destructive" size="sm" onClick={() => deleteControleMutation.mutate({ contratoItemId: row.controleSaldoId!, itemId: selectedItem.item.id })}>Remover</Button> : null}</div></TableCell>
-                        </TableRow>
-                      ))}
-                      {!selectedItem.contratos.length ? <TableRow><TableCell colSpan={5} className="text-center text-slate-500">Ainda não há contratos relacionados a este item.</TableCell></TableRow> : null}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div className="overflow-x-auto rounded-[24px] border border-slate-200 bg-white">
-                  <Table className="min-w-[760px]">
-                    <TableHead><tr><TableHeaderCell>Processo</TableHeaderCell><TableHeaderCell>Secretaria</TableHeaderCell><TableHeaderCell>Quantidade</TableHeaderCell><TableHeaderCell>Workflow</TableHeaderCell><TableHeaderCell>Parado há</TableHeaderCell></tr></TableHead>
-                    <TableBody>
-                      {selectedItem.processos.map((row) => (
-                        <TableRow key={row.itemProcessoId}>
-                          <TableCell><div className="font-semibold text-slate-950">{row.numeroSirel}</div><div className="text-xs text-slate-500">Item {row.numeroItem}</div></TableCell>
-                          <TableCell>{row.secretaria}</TableCell>
-                          <TableCell>{formatNumberBR(row.quantidade, 3)} {row.unidade}</TableCell>
-                          <TableCell><div className="font-semibold text-slate-950">{row.moduloAtual ?? "Sem workflow"}</div><div className="text-xs text-slate-500">{row.etapaAtual ?? "Sem etapa"}</div></TableCell>
-                          <TableCell>{row.diasParado} dia(s)</TableCell>
-                        </TableRow>
-                      ))}
-                      {!selectedItem.processos.length ? <TableRow><TableCell colSpan={5} className="text-center text-slate-500">Este item ainda não está vinculado a processos.</TableCell></TableRow> : null}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <SectionCard title="Fornecedores" description="Base consolidada das pesquisas relacionadas ao item.">
-                    <div className="space-y-3">
-                      {selectedItem.fornecedores.map((row) => <article key={`${row.documento ?? row.nome}-${row.origem}`} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3"><div className="font-semibold text-slate-950">{row.nome}</div><div className="text-xs text-slate-500">{row.documento ?? "Sem documento informado"} | {row.origem}</div><div className="mt-2 text-xs text-slate-500">Ocorrências: {row.totalOcorrencias} | Última referência: {formatShortDateBR(row.ultimaReferencia)}</div></article>)}
-                      {!selectedItem.fornecedores.length ? <Alert variant="info">Nenhum fornecedor identificado até o momento.</Alert> : null}
-                    </div>
-                  </SectionCard>
-                  <SectionCard title="Rastreabilidade recente" description="Últimas movimentações dos processos que utilizam este item.">
-                    <div className="space-y-3">
-                      {selectedItem.rastreabilidade.map((row) => <article key={row.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3"><div className="font-semibold text-slate-950">{row.numeroSirel}</div><div className="text-sm text-slate-600">{row.descricao}</div><div className="mt-2 text-xs text-slate-500">{row.moduloDestino} | {formatShortDateTimeBR(row.criadoEm)}</div></article>)}
-                      {!selectedItem.rastreabilidade.length ? <Alert variant="info">Sem movimentações recentes para este item.</Alert> : null}
-                    </div>
-                  </SectionCard>
+            {/* PAGINATION */}
+            {total > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+                <p className="text-xs text-slate-600">
+                  <span className="font-bold text-slate-950">{rows.length}</span> de <span className="font-bold text-slate-950">{total}</span> itens
+                </p>
+                <div className="flex items-center gap-2">
+                  <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))} className="max-w-[120px] text-xs">
+                    {[10, 20, 40].map((option) => <option key={option} value={option}>{option}</option>)}
+                  </Select>
+                  <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
                 </div>
               </div>
             )}
-          </SectionCard>
+          </div>
+        </SectionCard>
 
-          <SectionCard title={editingItemId ? "Editar item do catálogo" : "Novo item do catálogo"} description="Cadastro mestre reutilizado em processos, contratos e rotinas administrativas.">
-            <form className="space-y-4" onSubmit={handleSubmitItem}>
-              <FormField label="Descrição" error={itemErrors.descricao}>
-                <Textarea rows={4} value={itemForm.descricao} error={Boolean(itemErrors.descricao)} onChange={(event) => setItemForm((current) => ({ ...current, descricao: event.target.value }))} />
-              </FormField>
-              <div className="grid gap-3 md:grid-cols-3">
-                <FormField label="Unidade padrão" error={itemErrors.unidadePadrao}>
-                  <Input value={itemForm.unidadePadrao} error={Boolean(itemErrors.unidadePadrao)} onChange={(event) => setItemForm((current) => ({ ...current, unidadePadrao: event.target.value.toUpperCase() }))} />
-                </FormField>
-                <FormField label="Valor de referência" error={itemErrors.valorReferencia}>
-                  <Input value={itemForm.valorReferencia} error={Boolean(itemErrors.valorReferencia)} placeholder="0,00" onChange={(event) => setItemForm((current) => ({ ...current, valorReferencia: event.target.value }))} />
-                </FormField>
-                <FormField label="Situação">
-                  <Select value={itemForm.ativo ? "true" : "false"} onChange={(event) => setItemForm((current) => ({ ...current, ativo: event.target.value === "true" }))}>
-                    <option value="true">Ativo</option>
-                    <option value="false">Inativo</option>
-                  </Select>
-                </FormField>
-              </div>
-              {itemMessage ? <Alert variant="success">{itemMessage}</Alert> : null}
-              {itemErrorMessage ? <Alert variant="error">{itemErrorMessage}</Alert> : null}
-              <div className="flex flex-wrap gap-3">
-                <Button type="submit" disabled={saveItemMutation.isPending}>{saveItemMutation.isPending ? "Salvando item..." : editingItemId ? "Salvar alterações" : "Cadastrar item"}</Button>
-                <Button type="button" variant="outline" onClick={resetItemForm}>Limpar formulário</Button>
-              </div>
-            </form>
-          </SectionCard>
-        </div>
+        {/* RIGHT: DETAIL PANEL */}
+        <SectionCard
+          title="Detalhes do item"
+          description="Informações completas, relacionamentos e histórico."
+          action={selectedItem?.item ? (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={startEditingSelectedItem}><PencilLine className="h-4 w-4" />Editar</Button>
+              <Button variant={selectedItem.item.ativo ? "secondary" : "default"} size="sm" onClick={() => toggleItemMutation.mutate({ itemId: selectedItem.item.id, ativo: !selectedItem.item.ativo })}>{selectedItem.item.ativo ? "Desativar" : "Reativar"}</Button>
+              <Button variant="destructive" size="sm" onClick={() => setDeleteDialogOpen(true)}><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          ) : null}
+        >
+          {!selectedItemId ? (
+            <Alert variant="info">Selecione um item da lista para visualizar detalhes.</Alert>
+          ) : detailQuery.isLoading ? (
+            <div className="space-y-3">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-16" />)}</div>
+          ) : detailQuery.error ? (
+            <Alert variant="error">Erro ao carregar detalhes do item.</Alert>
+          ) : !selectedItem ? (
+            <Alert variant="warning">Item não encontrado.</Alert>
+          ) : (
+            <Tabs items={detailTabs} value={detailTabValue} onValueChange={setDetailTabValue} />
+          )}
+        </SectionCard>
       </div>
+
+      {/* EDIT/CREATE FORM */}
+      {editingItemId || (selectedItemId && !selectedItem?.item) ? (
+        <SectionCard title={editingItemId ? "Editar item" : "Novo item"} description="Cadastro mestre em catálogo centralizado.">
+          <form className="space-y-4" onSubmit={handleSubmitItem}>
+            <FormField label="Descrição" error={itemErrors.descricao}>
+              <Textarea rows={4} value={itemForm.descricao} error={Boolean(itemErrors.descricao)} onChange={(event) => setItemForm((current) => ({ ...current, descricao: event.target.value }))} />
+            </FormField>
+            <div className="grid gap-3 md:grid-cols-3">
+              <FormField label="Unidade padrão" error={itemErrors.unidadePadrao}>
+                <Input value={itemForm.unidadePadrao} error={Boolean(itemErrors.unidadePadrao)} onChange={(event) => setItemForm((current) => ({ ...current, unidadePadrao: event.target.value.toUpperCase() }))} />
+              </FormField>
+              <FormField label="Valor de referência" error={itemErrors.valorReferencia}>
+                <Input value={itemForm.valorReferencia} error={Boolean(itemErrors.valorReferencia)} placeholder="0,00" onChange={(event) => setItemForm((current) => ({ ...current, valorReferencia: event.target.value }))} />
+              </FormField>
+              <FormField label="Situação">
+                <Select value={itemForm.ativo ? "true" : "false"} onChange={(event) => setItemForm((current) => ({ ...current, ativo: event.target.value === "true" }))}>
+                  <option value="true">Ativo</option>
+                  <option value="false">Inativo</option>
+                </Select>
+              </FormField>
+            </div>
+            {itemMessage ? <Alert variant="success">{itemMessage}</Alert> : null}
+            {itemErrorMessage ? <Alert variant="error">{itemErrorMessage}</Alert> : null}
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={saveItemMutation.isPending}>{saveItemMutation.isPending ? "Salvando..." : editingItemId ? "Salvar alterações" : "Cadastrar item"}</Button>
+              <Button type="button" variant="outline" onClick={resetItemForm}>Limpar</Button>
+            </div>
+          </form>
+        </SectionCard>
+      ) : null}
 
       <AlertDialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} onConfirm={() => selectedItem?.item && deleteItemMutation.mutate({ itemId: selectedItem.item.id })} title="Excluir item do catálogo" description="A exclusão só é permitida quando o item ainda não tem rastreabilidade em processos ou contratos." confirmLabel="Excluir item" loading={deleteItemMutation.isPending}>
         <p className="text-sm text-slate-600">Se este item já estiver em uso, o sistema bloqueará a exclusão e recomendará a desativação.</p>

@@ -6,6 +6,7 @@ import {
   processoCreateInputSchema,
   processoListInputSchema,
   processoSetAtivoInputSchema,
+  processoUpdateDataInputSchema,
 } from "@sirel/shared/schemas/processos";
 
 import { logAuditoria } from "../db/auditoria.js";
@@ -364,6 +365,44 @@ export const processosRouter = router({
       numeroSirel: updated.numeroSirel,
       ativo: updated.ativo,
     };
+  }),
+
+  updateData: gestorProcedure.input(processoUpdateDataInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [before] = await db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1);
+
+    if (!before) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo não encontrado." });
+    }
+
+    const updateData: any = {
+      atualizadoEm: new Date(),
+    };
+
+    if (input.secretariaId) updateData.secretariaId = input.secretariaId;
+    if (input.autoridadeCompetenteId) updateData.autoridadeCompetenteId = input.autoridadeCompetenteId;
+    if (input.objeto) updateData.objeto = input.objeto;
+    if (input.valorEstimado !== undefined) updateData.valorEstimado = input.valorEstimado.toFixed(2);
+    if (input.criterioJulgamento) updateData.criterioJulgamento = input.criterioJulgamento;
+    if (input.modoDisputa) updateData.modoDisputa = input.modoDisputa;
+    if (input.escopoDisputa) updateData.escopoDisputa = input.escopoDisputa;
+
+    const [updated] = await db
+      .update(processos)
+      .set(updateData)
+      .where(eq(processos.id, input.processoId))
+      .returning();
+
+    await logAuditoria(ctx, {
+      tabela: "processos",
+      registroId: updated.id,
+      acao: "UPDATE",
+      dadosAnteriores: before,
+      dadosNovos: updated,
+      descricao: `Processo ${updated.numeroSirel} atualizado - Dados do processo editados via workflow`,
+    });
+
+    return updated;
   }),
 
   timeline: publicProcedure.input(z.object({ numeroSirel: z.string().min(1) })).query(async ({ input }) => {

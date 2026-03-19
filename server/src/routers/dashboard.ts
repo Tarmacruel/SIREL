@@ -1,4 +1,5 @@
 ﻿import { and, count, desc, eq, gte, inArray, isNull, lte, or, sql, sum } from "drizzle-orm";
+import { z } from "zod";
 
 import { requireDb } from "../db/client.js";
 import {
@@ -28,7 +29,13 @@ function addDays(date: Date, days: number) {
 }
 
 export const dashboardRouter = router({
-  summary: protectedProcedure.query(async ({ ctx }) => {
+  summary: protectedProcedure
+    .input(
+      z.object({
+        ano: z.number().int().min(2000).max(2100).optional(),
+      }).optional()
+    )
+    .query(async ({ ctx, input }) => {
     const db = requireDb();
     const userId = ctx.user?.id;
     if (!userId) {
@@ -38,12 +45,17 @@ export const dashboardRouter = router({
     await syncOperationalNotifications(userId);
 
     const now = new Date();
+    const filterYear = input?.ano ?? now.getFullYear();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const recentMovementWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const today = formatDateString(todayStart);
     const limit24h = formatDateString(addDays(todayStart, 1));
     const limit48h = formatDateString(addDays(todayStart, 2));
     const monthWindowStart = new Date(todayStart.getFullYear(), todayStart.getMonth() - 5, 1);
+    
+    // If filtering by year that's not current, adjust the date ranges
+    const filterYearStart = new Date(filterYear, 0, 1);
+    const filterYearEnd = new Date(filterYear, 11, 31);
 
     const [
       processosAtivosRow,
@@ -63,9 +75,34 @@ export const dashboardRouter = router({
       agendaCriticaRows,
       movimentacoesRecentesRows,
     ] = await Promise.all([
-      db.select({ total: count() }).from(processos).where(eq(processos.finalizado, false)).then((rows) => rows[0]),
+      // Processos ativos (filter by year if not current)
+      db
+        .select({ total: count() })
+        .from(processos)
+        .where(
+          filterYear !== now.getFullYear()
+            ? and(
+                eq(processos.finalizado, false),
+                gte(processos.criadoEm, filterYearStart),
+                lte(processos.criadoEm, filterYearEnd),
+              )
+            : eq(processos.finalizado, false)
+        )
+        .then((rows) => rows[0]),
       db.select({ total: count() }).from(contratos).where(eq(contratos.status, "ATIVO")).then((rows) => rows[0]),
-      db.select({ total: sum(processos.valorEstimado) }).from(processos).then((rows) => rows[0]),
+      // Valor global (filter by year if not current)
+      db
+        .select({ total: sum(processos.valorEstimado) })
+        .from(processos)
+        .where(
+          filterYear !== now.getFullYear()
+            ? and(
+                gte(processos.criadoEm, filterYearStart),
+                lte(processos.criadoEm, filterYearEnd),
+              )
+            : undefined
+        )
+        .then((rows) => rows[0]),
       db
         .select({ total: count() })
         .from(prazosProcessuais)
@@ -122,7 +159,15 @@ export const dashboardRouter = router({
         .select({ secretaria: secretarias.nome, total: count() })
         .from(processos)
         .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
-        .where(eq(processos.finalizado, false))
+        .where(
+          filterYear !== now.getFullYear()
+            ? and(
+                eq(processos.finalizado, false),
+                gte(processos.criadoEm, filterYearStart),
+                lte(processos.criadoEm, filterYearEnd),
+              )
+            : eq(processos.finalizado, false)
+        )
         .groupBy(secretarias.nome)
         .orderBy(desc(count()), secretarias.nome)
         .limit(6),
@@ -130,6 +175,14 @@ export const dashboardRouter = router({
         .select({ modalidade: modalidades.nome, total: count() })
         .from(processos)
         .leftJoin(modalidades, eq(modalidades.id, processos.modalidadeId))
+        .where(
+          filterYear !== now.getFullYear()
+            ? and(
+                gte(processos.criadoEm, filterYearStart),
+                lte(processos.criadoEm, filterYearEnd),
+              )
+            : undefined
+        )
         .groupBy(modalidades.nome)
         .orderBy(desc(count()), modalidades.nome)
         .limit(6),
@@ -140,7 +193,14 @@ export const dashboardRouter = router({
           total: count(),
         })
         .from(processos)
-        .where(gte(processos.criadoEm, monthWindowStart))
+        .where(
+          filterYear !== now.getFullYear()
+            ? and(
+                gte(processos.criadoEm, filterYearStart),
+                lte(processos.criadoEm, filterYearEnd),
+              )
+            : gte(processos.criadoEm, monthWindowStart)
+        )
         .groupBy(sql`date_trunc('month', ${processos.criadoEm})`)
         .orderBy(sql`date_trunc('month', ${processos.criadoEm})`),
       db
