@@ -274,10 +274,10 @@ export const workflowRouter = router({
     const [currentProcess] = await db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1);
 
     if (!currentProcess) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo não encontrado." });
     }
     if (currentState?.moduloAtual !== "LICITACAO") {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "A publicacao so pode ocorrer para processos em Licitacao." });
+      throw new TRPCError({ code: "BAD_REQUEST", message: "A publicação só pode ocorrer para processos em Licitação." });
     }
     if (!currentProcess.modalidadeId) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "Defina a modalidade antes de publicar o processo." });
@@ -285,7 +285,7 @@ export const workflowRouter = router({
 
     const [modalidade] = await db.select({ codigo: modalidades.codigo }).from(modalidades).where(eq(modalidades.id, currentProcess.modalidadeId)).limit(1);
     if (!modalidade?.codigo) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Modalidade invalida para gerar o numero do edital." });
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Modalidade inválida para gerar o número do edital." });
     }
 
     const numeroEdital = currentProcess.numeroEdital ?? (await getNextNumeroEdital(db, currentProcess.anoReferencia, modalidade.codigo));

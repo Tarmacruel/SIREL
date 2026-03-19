@@ -7,6 +7,7 @@ import { clearStoredSession, loadStoredSession, saveStoredSession, type AuthSess
 import { queryClient } from "@/lib/query-client";
 import { trpc, trpcClient } from "@/lib/trpc";
 
+const AuditoriaPage = lazy(() => import("@/pages/auditoria-page").then((module) => ({ default: module.AuditoriaPage })));
 const ContratosPage = lazy(() => import("@/pages/contratos-page").then((module) => ({ default: module.ContratosPage })));
 const ConsultasPage = lazy(() => import("@/pages/consultas-page").then((module) => ({ default: module.ConsultasPage })));
 const DashboardPage = lazy(() => import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
@@ -14,6 +15,9 @@ const DocumentosPage = lazy(() => import("@/pages/documentos-page").then((module
 const ItensPage = lazy(() => import("@/pages/itens-page").then((module) => ({ default: module.ItensPage })));
 const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ default: module.LoginPage })));
 const LicitacaoPage = lazy(() => import("@/pages/licitacao-page").then((module) => ({ default: module.LicitacaoPage })));
+const LicitacaoProcessoPage = lazy(() =>
+  import("@/pages/licitacao-processo-page").then((module) => ({ default: module.LicitacaoProcessoPage })),
+);
 const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage })));
 const PlanejamentoCotacoesPage = lazy(() =>
   import("@/pages/planejamento-cotacoes-page").then((module) => ({ default: module.PlanejamentoCotacoesPage })),
@@ -30,6 +34,7 @@ const PlanejamentoTrPage = lazy(() =>
 const PlanejamentoPage = lazy(() => import("@/pages/planejamento-page").then((module) => ({ default: module.PlanejamentoPage })));
 const PrazosPage = lazy(() => import("@/pages/prazos-page").then((module) => ({ default: module.PrazosPage })));
 const ProcessosPage = lazy(() => import("@/pages/processos-page").then((module) => ({ default: module.ProcessosPage })));
+const RelatoriosPage = lazy(() => import("@/pages/relatorios-page").then((module) => ({ default: module.RelatoriosPage })));
 const UsuariosPage = lazy(() => import("@/pages/usuarios-page").then((module) => ({ default: module.UsuariosPage })));
 const WorkflowPage = lazy(() => import("@/pages/workflow-page").then((module) => ({ default: module.WorkflowPage })));
 
@@ -79,6 +84,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
         <Switch>
           <Route path="/" component={DashboardPage} />
           <Route path="/consultas" component={ConsultasPage} />
+          <Route path="/relatorios" component={RelatoriosPage} />
           <Route path="/prazos" component={PrazosPage} />
           <Route path="/planejamento/dfd/:processoId">
             {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}
@@ -96,10 +102,14 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           <Route path="/planejamento" component={PlanejamentoPage} />
           <Route path="/compras">{() => <PlaceholderPage title="Módulo de Compras" />}</Route>
           <Route path="/processos" component={ProcessosPage} />
+          <Route path="/licitacao/:processoId">
+            {(params) => <LicitacaoProcessoPage processoId={Number(params.processoId)} />}
+          </Route>
           <Route path="/licitacao" component={LicitacaoPage} />
           <Route path="/documentos" component={DocumentosPage} />
           <Route path="/contratos" component={ContratosPage} />
           <Route path="/workflow" component={WorkflowPage} />
+          <Route path="/auditoria" component={AuditoriaPage} />
           <Route path="/usuarios" component={UsuariosPage} />
           <Route component={NotFoundPage} />
         </Switch>

@@ -1,4 +1,13 @@
-﻿import { AlertTriangle, ArrowRight, BriefcaseBusiness, FolderOpenDot, Landmark } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  BellRing,
+  BriefcaseBusiness,
+  CalendarClock,
+  FileClock,
+  FolderOpenDot,
+  Landmark,
+} from "lucide-react";
 import { Link } from "wouter";
 
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -7,107 +16,363 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
+import { formatCurrencyBRL, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 
-const currencyFormatter = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const notificationTypeLabels = {
+  PRAZO: "Prazo",
+  MOVIMENTACAO: "Movimentação",
+  DOCUMENTO: "Documento",
+  SISTEMA: "Sistema",
+} as const;
 
 export function DashboardPage() {
-  const summary = trpc.dashboard.summary.useQuery(undefined, { retry: false });
-  const recentProcesses = trpc.processos.list.useQuery({ page: 1, pageSize: 5 }, { retry: false });
+  const utils = trpc.useUtils();
+  const summaryQuery = trpc.dashboard.summary.useQuery(undefined, {
+    retry: false,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+  });
+  const recentProcesses = trpc.processos.list.useQuery(
+    { page: 1, pageSize: 6 },
+    { retry: false, refetchInterval: 30_000, refetchOnWindowFocus: true },
+  );
   const catalogos = trpc.cadastros.formOptions.useQuery(undefined, { retry: false });
-  const data = summary.data ?? { processosAtivos: 0, contratosVigentes: 0, alertasPendentes: 0, valorGlobalEstimado: 0, porModulo: [] };
+  const markReadMutation = trpc.dashboard.markNotificationRead.useMutation({
+    onSuccess: async () => {
+      await utils.dashboard.summary.invalidate();
+    },
+  });
+  const markAllMutation = trpc.dashboard.markAllNotificationsRead.useMutation({
+    onSuccess: async () => {
+      await utils.dashboard.summary.invalidate();
+    },
+  });
+
+  const data =
+    summaryQuery.data ?? {
+      processosAtivos: 0,
+      contratosVigentes: 0,
+      valorGlobalEstimado: 0,
+      prazosHoje: 0,
+      prazos48h: 0,
+      prazosAtrasados: 0,
+      prazosSemana: 0,
+      notificacoesPendentes: 0,
+      porModulo: [],
+      agendaHoje: [],
+      notifications: [],
+    };
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard title="Processos ativos" value={String(data.processosAtivos)} hint="Monitoramento em tempo real da operação do beta." icon={<FolderOpenDot className="h-5 w-5" />} />
-        <KpiCard title="Contratos vigentes" value={String(data.contratosVigentes)} hint="Contratos vinculados aos processos recriados na nova base." icon={<BriefcaseBusiness className="h-5 w-5" />} />
-        <KpiCard title="Alertas pendentes" value={String(data.alertasPendentes)} hint="Prazos, vencimentos e exigências documentais futuras." icon={<AlertTriangle className="h-5 w-5" />} />
-        <KpiCard title="Valor global" value={currencyFormatter.format(data.valorGlobalEstimado)} hint="Soma dos valores estimados em processos cadastrados no beta." icon={<Landmark className="h-5 w-5" />} />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <KpiCard
+          title="Processos ativos"
+          value={String(data.processosAtivos)}
+          hint="Processos em andamento na base Beta 2.0."
+          icon={<FolderOpenDot className="h-5 w-5" />}
+        />
+        <KpiCard
+          title="Contratos vigentes"
+          value={String(data.contratosVigentes)}
+          hint="Contratos vinculados a processos já formalizados."
+          icon={<BriefcaseBusiness className="h-5 w-5" />}
+        />
+        <KpiCard
+          title="Prazos hoje"
+          value={String(data.prazosHoje)}
+          hint="Eventos processuais que vencem hoje."
+          icon={<CalendarClock className="h-5 w-5" />}
+        />
+        <KpiCard
+          title="Próximas 48h"
+          value={String(data.prazos48h)}
+          hint="Prazos pendentes ou críticos no curto prazo."
+          icon={<FileClock className="h-5 w-5" />}
+        />
+        <KpiCard
+          title="Em atraso"
+          value={String(data.prazosAtrasados)}
+          hint="Prazos que exigem atuação imediata."
+          icon={<AlertTriangle className="h-5 w-5" />}
+        />
+        <KpiCard
+          title="Notificações"
+          value={String(data.notificacoesPendentes)}
+          hint="Alertas e movimentações recentes priorizadas."
+          icon={<BellRing className="h-5 w-5" />}
+        />
+        <KpiCard
+          title="Valor global"
+          value={formatCurrencyBRL(data.valorGlobalEstimado)}
+          hint="Soma dos valores estimados cadastrados."
+          icon={<Landmark className="h-5 w-5" />}
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <SectionCard title="Pronto para teste" description="A Beta 2.0 agora opera sem dependência contínua do legado.">
-          <div className="grid gap-3 md:grid-cols-3">
-            {[
-              { label: "Secretarias", value: catalogos.data?.secretarias.length },
-              { label: "Modalidades", value: catalogos.data?.modalidades.length },
-              { label: "Pessoas", value: catalogos.data?.pessoas.length },
-            ].map((item) => (
-              <article key={item.label} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                {catalogos.isLoading ? <Skeleton className="mt-3 h-10 w-20" /> : <p className="mt-2 text-2xl font-black text-slate-950">{item.value ?? 0}</p>}
-              </article>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-[28px] border border-slate-200 bg-white px-5 py-5">
-            <p className="text-sm font-semibold text-slate-900">Roteiro rápido de validação</p>
-            <ol className="mt-3 space-y-3 text-sm text-slate-600">
-              <li>1. Cadastre um processo novo no módulo de Processos.</li>
-              <li>2. Inicie a DFD no módulo de Planejamento.</li>
-              <li>3. Conclua ETP, cotações preliminares e TR.</li>
-              <li>4. Movimente o processo no Workflow até a etapa de Licitação.</li>
-              <li>5. Execute a publicidade e os controles da fase no módulo de Licitação.</li>
-            </ol>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link href="/planejamento"><Button variant="outline">Ir para Planejamento<ArrowRight className="h-4 w-4" /></Button></Link>
-              <Link href="/processos"><Button>Ir para Processos<ArrowRight className="h-4 w-4" /></Button></Link>
-              <Link href="/workflow"><Button variant="outline">Ir para Workflow<ArrowRight className="h-4 w-4" /></Button></Link>
-              <Link href="/licitacao"><Button variant="outline">Ir para Licitação<ArrowRight className="h-4 w-4" /></Button></Link>
+        <SectionCard
+          title="Painel operacional"
+          description="Acompanhe a distribuição da carga por módulo e execute as ações mais recorrentes."
+          action={
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-emerald-800">
+              <BellRing className="h-4 w-4" />
+              Atualização a cada 30s
             </div>
-          </div>
+          }
+        >
+          {summaryQuery.error ? (
+            <Alert variant="warning">Não foi possível carregar os indicadores em tempo real.</Alert>
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-3">
+              {[
+                { label: "Secretarias", value: catalogos.data?.secretarias.length ?? 0 },
+                { label: "Modalidades", value: catalogos.data?.modalidades.length ?? 0 },
+                { label: "Pessoas", value: catalogos.data?.pessoas.length ?? 0 },
+              ].map((item) => (
+                  <article key={item.label} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
+                    {catalogos.isLoading ? <Skeleton className="mt-3 h-10 w-20" /> : <p className="mt-2 text-2xl font-black text-slate-950">{item.value}</p>}
+                  </article>
+                ))}
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-2">
+                <article className="rounded-[28px] border border-slate-200 bg-white px-5 py-5">
+                  <p className="text-sm font-semibold text-slate-900">Roteiro rápido de validação</p>
+                  <ol className="mt-3 space-y-2 text-sm text-slate-600">
+                    <li>1. Cadastre um processo novo no módulo de Processos.</li>
+                    <li>2. Conclua DFD, ETP, cotações e TR no Planejamento.</li>
+                    <li>3. Movimente o processo no Workflow até a Licitação.</li>
+                    <li>4. Controle cronograma, documentos e atos no módulo de Licitação.</li>
+                  </ol>
+                </article>
+
+                <article className="rounded-[28px] border border-slate-200 bg-white px-5 py-5">
+                  <p className="text-sm font-semibold text-slate-900">Distribuição por módulo</p>
+                  {summaryQuery.isLoading ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <Skeleton key={index} className="h-20 w-full" />
+                      ))}
+                    </div>
+                  ) : data.porModulo.length ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {data.porModulo.map((item) => (
+                        <div key={item.modulo} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                          <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">{item.modulo}</p>
+                          <p className="mt-2 text-2xl font-black text-slate-950">{item.total}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <Alert variant="info" className="mt-3">
+                      Nenhum processo em workflow no momento.
+                    </Alert>
+                  )}
+                </article>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href="/processos">
+                  <Button>
+                    Ir para Processos
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/prazos">
+                  <Button variant="outline">
+                    Ir para Prazos
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/relatorios">
+                  <Button variant="outline">
+                    Ir para Relatórios
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/auditoria">
+                  <Button variant="outline">
+                    Ir para Auditoria
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </>
+          )}
         </SectionCard>
 
-        <SectionCard title="Distribuição operacional" description="Carga atual por módulo do workflow e aderência do beta à operação real.">
-          {summary.error ? (
-            <Alert variant="warning">Falha ao consultar os indicadores do PostgreSQL.</Alert>
-          ) : summary.isLoading ? (
-            <div className="grid gap-3 md:grid-cols-2">{Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-24" />)}</div>
-          ) : data.porModulo.length ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {data.porModulo.map((item) => (
-                <div key={item.modulo} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">{item.modulo}</p>
-                  <p className="mt-2 text-2xl font-black text-slate-950">{item.total}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Alert variant="info">Nenhum processo operacional ainda. O painel será preenchido conforme os novos processos forem cadastrados.</Alert>
-          )}
+        <SectionCard
+          title="Notificações em tempo real"
+          description="Feed operacional com prazos críticos, movimentações recentes e novos documentos."
+          action={
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void markAllMutation.mutateAsync()}
+              disabled={markAllMutation.isPending || !data.notifications.some((item) => !item.read)}
+            >
+              Marcar todas como lidas
+            </Button>
+          }
+        >
+          <div className="space-y-3">
+            {summaryQuery.isLoading
+              ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-24 w-full rounded-[24px]" />)
+              : data.notifications.map((item) => (
+                  <article key={item.id} className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={[
+                              "rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]",
+                              item.priority === "URGENTE" || item.priority === "ALTA"
+                                ? "bg-rose-100 text-rose-800"
+                                : item.priority === "MEDIA"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-sky-100 text-sky-800",
+                            ].join(" ")}
+                          >
+                            {notificationTypeLabels[item.type as keyof typeof notificationTypeLabels] ?? item.type}
+                          </span>
+                          {item.read ? (
+                            <span className="rounded-full bg-slate-200 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-700">
+                              Lida
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-3 text-sm font-bold text-slate-950">{item.title}</p>
+                        <p className="mt-1 text-sm text-slate-600">{item.message}</p>
+                        <p className="mt-2 text-xs text-slate-500">{formatShortDateTimeBR(item.createdAt)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Link href={item.href ?? "/"}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (!item.read) {
+                                void markReadMutation.mutateAsync({ notificationId: item.id });
+                              }
+                            }}
+                          >
+                            Abrir
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        {!item.read ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => void markReadMutation.mutateAsync({ notificationId: item.id })}
+                            disabled={markReadMutation.isPending}
+                          >
+                            Marcar como lida
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+
+            {!summaryQuery.isLoading && !data.notifications.length ? (
+              <Alert variant="info">Nenhuma notificação pendente no momento.</Alert>
+            ) : null}
+          </div>
         </SectionCard>
       </div>
 
-      <SectionCard title="Processos recentes" description="Amostra operacional da nova base para conferência rápida.">
-        <div className="overflow-hidden rounded-[28px] border border-slate-200">
-          <Table>
-            <TableHead>
-              <tr>
-                <TableHeaderCell>Processo</TableHeaderCell>
-                <TableHeaderCell>Secretaria</TableHeaderCell>
-                <TableHeaderCell>Módulo</TableHeaderCell>
-                <TableHeaderCell>Valor estimado</TableHeaderCell>
-              </tr>
-            </TableHead>
-            <TableBody>
-              {recentProcesses.isLoading ? Array.from({ length: 5 }).map((_, index) => <TableRow key={index}><TableCell colSpan={4}><Skeleton className="h-12 w-full" /></TableCell></TableRow>) : null}
-              {recentProcesses.data?.items.map((row) => (
-                <TableRow key={row.id} className="transition hover:bg-slate-50">
-                  <TableCell>
-                    <div className="font-bold text-slate-950">{row.numeroSirel}</div>
-                    <div className="text-xs text-slate-500">{row.numeroEdital ?? "Sem edital"}</div>
-                  </TableCell>
-                  <TableCell>{row.secretaria}</TableCell>
-                  <TableCell>{row.moduloAtual ?? "Sem workflow"}</TableCell>
-                  <TableCell>{row.valorEstimado ? currencyFormatter.format(Number(row.valorEstimado)) : "-"}</TableCell>
-                </TableRow>
-              ))}
-              {!recentProcesses.isLoading && !recentProcesses.data?.items.length ? <TableRow><TableCell colSpan={4} className="text-slate-500">Nenhum processo criado ainda. Inicie a operação em Processos.</TableCell></TableRow> : null}
-            </TableBody>
-          </Table>
-        </div>
-      </SectionCard>
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <SectionCard title="Agenda crítica da operação" description="Prazos que vencem hoje ou dentro das próximas 48 horas.">
+          <div className="overflow-hidden rounded-[28px] border border-slate-200">
+            <Table>
+              <TableHead>
+                <tr>
+                  <TableHeaderCell>Processo</TableHeaderCell>
+                  <TableHeaderCell>Prazo</TableHeaderCell>
+                  <TableHeaderCell>Data prevista</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                </tr>
+              </TableHead>
+              <TableBody>
+                {summaryQuery.isLoading
+                  ? Array.from({ length: 4 }).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell colSpan={4}>
+                          <Skeleton className="h-12 w-full" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : data.agendaHoje.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <div className="font-bold text-slate-950">{item.numeroSirel}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-semibold text-slate-900">{item.titulo}</div>
+                          <div className="text-xs text-slate-500">{item.tipo}</div>
+                        </TableCell>
+                        <TableCell>{formatShortDateBR(item.dataPrevista)}</TableCell>
+                        <TableCell>{item.status}</TableCell>
+                      </TableRow>
+                    ))}
+                {!summaryQuery.isLoading && !data.agendaHoje.length ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-slate-500">
+                      Nenhum prazo crítico na janela monitorada.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Processos recentes" description="Amostra operacional dos últimos processos cadastrados ou atualizados.">
+          <div className="overflow-hidden rounded-[28px] border border-slate-200">
+            <Table>
+              <TableHead>
+                <tr>
+                  <TableHeaderCell>Processo</TableHeaderCell>
+                  <TableHeaderCell>Módulo</TableHeaderCell>
+                  <TableHeaderCell>Valor estimado</TableHeaderCell>
+                </tr>
+              </TableHead>
+              <TableBody>
+                {recentProcesses.isLoading
+                  ? Array.from({ length: 5 }).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell colSpan={3}>
+                          <Skeleton className="h-12 w-full" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  : recentProcesses.data?.items.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <div className="font-bold text-slate-950">{row.numeroSirel}</div>
+                          <div className="text-xs text-slate-500">{row.secretaria}</div>
+                        </TableCell>
+                        <TableCell>{row.moduloAtual ?? "Sem workflow"}</TableCell>
+                        <TableCell>{row.valorEstimado ? formatCurrencyBRL(Number(row.valorEstimado)) : "-"}</TableCell>
+                      </TableRow>
+                    ))}
+                {!recentProcesses.isLoading && !recentProcesses.data?.items.length ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-slate-500">
+                      Nenhum processo criado ainda na base Beta 2.0.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
+      </div>
     </div>
   );
 }

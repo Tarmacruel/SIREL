@@ -1,4 +1,5 @@
 import { router } from "../trpc.js";
+import { auditoriaRouter } from "./auditoria.js";
 import { authRouter } from "./auth.js";
 import { cadastrosRouter } from "./cadastros.js";
 import { consultasRouter } from "./consultas.js";
@@ -11,12 +12,14 @@ import { licitacaoRouter } from "./licitacao.js";
 import { planejamentoRouter } from "./planejamento.js";
 import { prazosRouter } from "./prazos.js";
 import { processosRouter } from "./processos.js";
+import { relatoriosRouter } from "./relatorios.js";
 import { usuariosRouter } from "./usuarios.js";
 import { workflowRouter } from "./workflow.js";
 
 export const appRouter = router({
   health: healthRouter,
   auth: authRouter,
+  auditoria: auditoriaRouter,
   dashboard: dashboardRouter,
   cadastros: cadastrosRouter,
   consultas: consultasRouter,
@@ -25,6 +28,7 @@ export const appRouter = router({
   planejamento: planejamentoRouter,
   prazos: prazosRouter,
   processos: processosRouter,
+  relatorios: relatoriosRouter,
   documentos: documentosRouter,
   contratos: contratosRouter,
   workflow: workflowRouter,

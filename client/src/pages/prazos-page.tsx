@@ -27,6 +27,18 @@ const initialForm = {
   lembretes: "7,3,1",
 };
 
+function toDateInputValue(value: string | Date | null | undefined) {
+  if (!value) return "";
+  if (typeof value === "string") {
+    return value.slice(0, 10);
+  }
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function parseLembretes(value: string) {
   return Array.from(
     new Set(
@@ -138,7 +150,7 @@ export function PrazosPage() {
       processoId: String(item.processoId),
       tipo: item.tipo,
       titulo: item.titulo,
-      dataPrevista: new Date(item.dataPrevista).toISOString().slice(0, 10),
+      dataPrevista: toDateInputValue(item.dataPrevista),
       observacao: item.observacao ?? "",
       lembretes: Array.isArray(item.alertasConfig?.lembretes) ? item.alertasConfig.lembretes.join(",") : "7,3,1",
     });

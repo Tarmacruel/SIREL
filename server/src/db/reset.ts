@@ -7,6 +7,7 @@ const RESET_TABLES = [
   "auditoria_log",
   "prazos_processuais",
   "alertas",
+  "notificacoes_usuario",
   "aditivos_contratos",
   "contrato_itens",
   "contratos",

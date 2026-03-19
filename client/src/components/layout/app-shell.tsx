@@ -2,6 +2,7 @@
 import { Link, useLocation } from "wouter";
 import {
   Bell,
+  BarChart3,
   Boxes,
   Clock3,
   FileText,
@@ -14,6 +15,7 @@ import {
   PanelLeftOpen,
   Search,
   ScrollText,
+  ShieldCheck,
   Users,
   Workflow,
   X,
@@ -25,6 +27,7 @@ import type { AuthUser } from "@/lib/auth-session";
 const icons: Record<string, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
   consultas: Search,
+  relatorios: BarChart3,
   prazos: Clock3,
   itens: Boxes,
   planejamento: FolderKanban,
@@ -33,6 +36,7 @@ const icons: Record<string, typeof LayoutDashboard> = {
   documentos: FileText,
   contratos: Bell,
   workflow: Workflow,
+  auditoria: ShieldCheck,
   usuarios: Users,
 };
 

@@ -4,6 +4,7 @@
   buildPrintableShell,
   buildTrHtml,
 } from "@sirel/shared/document-templates/planejamento";
+import { resolveServerAssetUrl } from "@/lib/document-upload";
 
 export { buildDfdHtml, buildMapaComparativoHtml, buildPrintableShell, buildTrHtml };
 
@@ -44,7 +45,7 @@ export function renderPreviewWindowMessage(previewWindow: Window, title: string,
 }
 
 export function navigatePreviewWindow(previewWindow: Window, url: string) {
-  previewWindow.location.replace(url);
+  previewWindow.location.replace(resolveServerAssetUrl(url) ?? url);
   previewWindow.focus();
 }
 

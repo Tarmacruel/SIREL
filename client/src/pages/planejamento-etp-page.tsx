@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { type EtpFormState, validateEtpForm } from "@/features/planejamento/form";
-import { deletePlanejamentoDocumento, uploadPlanejamentoDocumento } from "@/lib/document-upload";
+import { deletePlanejamentoDocumento, resolveServerAssetUrl, uploadPlanejamentoDocumento } from "@/lib/document-upload";
 import { formatCurrencyBRL, formatIntegerBR, formatShortDateTimeBR } from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
@@ -419,7 +419,7 @@ export function PlanejamentoEtpPage({ processoId }: PlanejamentoEtpPageProps) {
                           <TableCell className="align-top text-slate-600">{formatShortDateTimeBR(documento.criadoEm)}</TableCell>
                           <TableCell className="align-top">
                             <div className="flex justify-end gap-2">
-                              <Button type="button" variant="outline" size="sm" onClick={() => window.open(documento.arquivoUrl ?? "#", "_blank", "noopener,noreferrer")}>
+                              <Button type="button" variant="outline" size="sm" onClick={() => window.open(resolveServerAssetUrl(documento.arquivoUrl) ?? "#", "_blank", "noopener,noreferrer")}>
                                 Baixar
                               </Button>
                               <Button type="button" variant="ghost" size="sm" onClick={() => void handleDeleteDocumento(documento.id)}>
@@ -495,7 +495,7 @@ export function PlanejamentoEtpPage({ processoId }: PlanejamentoEtpPageProps) {
                           <TableCell className="align-top text-slate-600">{formatShortDateTimeBR(documento.criadoEm)}</TableCell>
                           <TableCell className="align-top">
                             <div className="flex justify-end gap-2">
-                              <Button type="button" variant="outline" size="sm" onClick={() => window.open(documento.arquivoUrl ?? "#", "_blank", "noopener,noreferrer")}>
+                              <Button type="button" variant="outline" size="sm" onClick={() => window.open(resolveServerAssetUrl(documento.arquivoUrl) ?? "#", "_blank", "noopener,noreferrer")}>
                                 Baixar
                               </Button>
                               <Button type="button" variant="ghost" size="sm" onClick={() => void handleDeleteDocumento(documento.id)}>

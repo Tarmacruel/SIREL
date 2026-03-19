@@ -19,6 +19,10 @@ function normalizeKeywords(values: string[] | null | undefined) {
   return Array.from(new Set((values ?? []).map((item) => item.trim()).filter(Boolean)));
 }
 
+function buildDocumentoUrl(documentoId: number) {
+  return `/api/planejamento/documentos/${documentoId}/download`;
+}
+
 export const documentosRouter = router({
   summary: publicProcedure.query(async () => {
     const db = requireDb();
@@ -99,7 +103,11 @@ export const documentosRouter = router({
       page: input.page,
       pageSize: input.pageSize,
       total: Number(totalRow?.total ?? 0),
-      items: items.map((item) => ({ ...item, palavrasChave: normalizeKeywords(item.palavrasChave as string[] | null | undefined) })),
+      items: items.map((item) => ({
+        ...item,
+        arquivoUrl: buildDocumentoUrl(item.id),
+        palavrasChave: normalizeKeywords(item.palavrasChave as string[] | null | undefined),
+      })),
     };
   }),
 
@@ -157,9 +165,10 @@ export const documentosRouter = router({
 
     return {
       ...documento,
+      arquivoUrl: buildDocumentoUrl(documento.id),
       palavrasChave: normalizeKeywords(documento.palavrasChave as string[] | null | undefined),
       restritoA: normalizeKeywords(documento.restritoA as string[] | null | undefined),
-      related,
+      related: related.map((item) => ({ ...item, arquivoUrl: buildDocumentoUrl(item.id) })),
     };
   }),
 
@@ -204,7 +213,11 @@ export const documentosRouter = router({
       .from(documentos)
       .where(eq(documentos.processoId, input.processoId))
       .orderBy(asc(documentos.criadoEm), asc(documentos.id));
-    return rows.map((row) => ({ ...row, palavrasChave: normalizeKeywords(row.palavrasChave as string[] | null | undefined) }));
+    return rows.map((row) => ({
+      ...row,
+      arquivoUrl: buildDocumentoUrl(row.id),
+      palavrasChave: normalizeKeywords(row.palavrasChave as string[] | null | undefined),
+    }));
   }),
 
   createVersion: operadorProcedure.input(z.object({

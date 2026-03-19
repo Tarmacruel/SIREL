@@ -52,6 +52,29 @@ export const licitacaoStatusOptions = [
   "CANCELADA",
 ] as const;
 
+export const licitacaoInternalDocumentCategories = [
+  "LICITACAO_DECRETO_COMISSAO",
+  "LICITACAO_DECRETO_EQUIPE_APOIO",
+  "LICITACAO_COMUNICACAO_RESERVA_ORCAMENTARIA",
+  "LICITACAO_RESERVA_ORCAMENTARIA",
+  "LICITACAO_DECRETO_ORDENADOR_DESPESAS",
+  "LICITACAO_ATO_AUTORIZACAO_AUTORIDADE",
+  "LICITACAO_DECLARACAO_NAO_FRACIONAMENTO",
+  "LICITACAO_MINUTA_AVISO",
+  "LICITACAO_COMUNICACAO_PARECER_JURIDICO",
+  "LICITACAO_PARECER_JURIDICO",
+  "LICITACAO_AVISO",
+  "LICITACAO_TERMO_AUTUACAO",
+  "LICITACAO_DECRETO_AGENTE_CONTRATACAO",
+] as const;
+
+export const licitacaoPublicationChannels = [
+  "PORTAL",
+  "PNCP",
+  "DOU",
+  "JORNAL",
+] as const;
+
 export const habilitacaoStatusOptions = [
   "PENDENTE",
   "HABILITADO",
@@ -174,6 +197,11 @@ export const prazoProcessualStatusLabels: Record<(typeof prazoProcessualStatusOp
 
 export const licitacaoStepCatalog = [
   {
+    key: "PREPARACAO_INTERNA",
+    label: "Preparação interna",
+    description: "Checklist documental interno obrigatório antes da publicidade.",
+  },
+  {
     key: "PUBLICACAO",
     label: "Publicação",
     description: "Edital, aviso e cronograma oficial da licitação.",
@@ -210,6 +238,101 @@ export const licitacaoStepCatalog = [
   },
 ] as const;
 
+export const licitacaoInternalDocumentChecklist = [
+  {
+    category: "LICITACAO_DECRETO_COMISSAO",
+    label: "Decreto da comissão",
+    description: "Documento de designação da comissão aplicável à fase licitatória.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_DECRETO_EQUIPE_APOIO",
+    label: "Decreto da equipe de apoio",
+    description: "Ato da equipe de apoio vinculada ao processo.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_COMUNICACAO_RESERVA_ORCAMENTARIA",
+    label: "Comunicação interna para solicitar reserva orçamentária",
+    description: "Comunicação formal para abertura da reserva orçamentária.",
+    tipo: "COMUNICACAO_INTERNA",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_RESERVA_ORCAMENTARIA",
+    label: "Reserva orçamentária",
+    description: "Comprovante da reserva orçamentária do processo.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_DECRETO_ORDENADOR_DESPESAS",
+    label: "Decreto do Ordenador de Despesas",
+    description: "Ato do Ordenador de Despesas aplicável ao processo.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_ATO_AUTORIZACAO_AUTORIDADE",
+    label: "Ato de autorização da autoridade competente",
+    description: "Autorização formal da autoridade competente para o prosseguimento.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_DECLARACAO_NAO_FRACIONAMENTO",
+    label: "Declaração de não fracionamento de despesa",
+    description: "Obrigatória apenas quando a dispensa exigir essa declaração.",
+    tipo: "OUTRO",
+    obrigatorio: false,
+    condicional: "DECLARACAO_NAO_FRACIONAMENTO",
+  },
+  {
+    category: "LICITACAO_MINUTA_AVISO",
+    label: "Minuta do aviso de licitação",
+    description: "Minuta interna do aviso antes da publicação oficial.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_COMUNICACAO_PARECER_JURIDICO",
+    label: "Comunicação para solicitar parecer jurídico",
+    description: "Solicitação formal de manifestação jurídica.",
+    tipo: "COMUNICACAO_INTERNA",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_PARECER_JURIDICO",
+    label: "Parecer jurídico",
+    description: "Parecer jurídico emitido para a fase interna.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_AVISO",
+    label: "Aviso de licitação",
+    description: "Versão final do aviso preparada para publicação.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_TERMO_AUTUACAO",
+    label: "Termo de autuação pelo agente de contratação/pregoeiro",
+    description: "Registro formal de autuação da fase licitatória.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_DECRETO_AGENTE_CONTRATACAO",
+    label: "Decreto do Agente de Contratação",
+    description: "Ato de designação do agente de contratação/pregoeiro.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+] as const;
+
 export const modalidadeCatalog = [
   { codigo: "CONCORRENCIA_ELETRONICA", nome: "Concorr\u00eancia Eletr\u00f4nica", siglaEdital: "CE" },
   { codigo: "CONCORRENCIA_PRESENCIAL", nome: "Concorr\u00eancia Presencial", siglaEdital: "CP" },
@@ -227,9 +350,22 @@ export const modalidadeCodes = modalidadeCatalog.map((item) => item.codigo) as [
   ...(typeof modalidadeCatalog)[number]["codigo"][],
 ];
 
+export const licitacaoPrazoBasePorModalidade: Record<(typeof modalidadeCatalog)[number]["codigo"], number> = {
+  CONCORRENCIA_ELETRONICA: 10,
+  CONCORRENCIA_PRESENCIAL: 10,
+  CREDENCIAMENTO: 15,
+  DISPENSA_SIMPLIFICADA: 3,
+  DISPENSA_ELETRONICA: 3,
+  INEXIGIBILIDADE: 3,
+  LEILAO_ELETRONICO: 15,
+  PREGAO_ELETRONICO: 8,
+  PREGAO_PRESENCIAL: 8,
+};
+
 export const appModules = [
   { key: "dashboard", label: "Dashboard", href: "/" },
   { key: "consultas", label: "Consultas", href: "/consultas" },
+  { key: "relatorios", label: "Relatórios", href: "/relatorios" },
   { key: "prazos", label: "Prazos", href: "/prazos" },
   { key: "itens", label: "Itens", href: "/itens" },
   { key: "planejamento", label: "Planejamento", href: "/planejamento" },
@@ -238,5 +374,22 @@ export const appModules = [
   { key: "documentos", label: "Documentos", href: "/documentos" },
   { key: "contratos", label: "Contratos", href: "/contratos" },
   { key: "workflow", label: "Workflow", href: "/workflow" },
+  { key: "auditoria", label: "Auditoria", href: "/auditoria" },
   { key: "usuarios", label: "Usu\u00e1rios", href: "/usuarios" },
 ] as const;
+
+export const relatorioTipoOptions = [
+  "PROCESSOS_POR_STATUS",
+  "PRAZOS_CRITICOS",
+  "VALORES_POR_SECRETARIA",
+  "DOCUMENTOS_POR_TIPO",
+  "ATIVIDADE_USUARIOS",
+] as const;
+
+export const relatorioTipoLabels: Record<(typeof relatorioTipoOptions)[number], string> = {
+  PROCESSOS_POR_STATUS: "Processos por status",
+  PRAZOS_CRITICOS: "Prazos críticos",
+  VALORES_POR_SECRETARIA: "Valores por secretaria",
+  DOCUMENTOS_POR_TIPO: "Documentos por tipo",
+  ATIVIDADE_USUARIOS: "Atividade dos usuários",
+};

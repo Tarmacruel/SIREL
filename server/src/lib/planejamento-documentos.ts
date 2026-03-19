@@ -370,7 +370,7 @@ export async function saveGeneratedPlanejamentoDocumento({
     atualizadoEm: new Date(),
   }).returning();
 
-  const arquivoUrl = `${baseUrl}/api/planejamento/documentos/${created.id}/download`;
+  const arquivoUrl = `/api/planejamento/documentos/${created.id}/download`;
   await db.update(documentos).set({ arquivoUrl, atualizadoEm: new Date() }).where(eq(documentos.id, created.id));
 
   return {

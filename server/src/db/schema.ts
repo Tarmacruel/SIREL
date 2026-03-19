@@ -24,6 +24,8 @@ export const workflowSituacaoEnum = pgEnum("workflow_situacao", ["RASCUNHO", "EM
 export const contratoStatusEnum = pgEnum("contrato_status", ["ATIVO", "ENCERRADO", "SUSPENSO", "RESCINDIDO"]);
 export const alertaTipoEnum = pgEnum("alerta_tipo", ["VENCIMENTO", "PRAZO", "APROVACAO", "DOCUMENTACAO"]);
 export const auditoriaAcaoEnum = pgEnum("auditoria_acao", ["CREATE", "UPDATE", "DELETE"]);
+export const notificacaoTipoEnum = pgEnum("notificacao_tipo", ["PRAZO", "MOVIMENTACAO", "DOCUMENTO", "SISTEMA"]);
+export const notificacaoPrioridadeEnum = pgEnum("notificacao_prioridade", ["BAIXA", "MEDIA", "ALTA", "URGENTE"]);
 export const authEventTypeEnum = pgEnum("auth_event_type", [
   "LOGIN_SUCCESS",
   "LOGIN_FAILURE",
@@ -359,6 +361,9 @@ export const licitacoes = pgTable("licitacoes", {
   id: serial("id").primaryKey(),
   processoId: integer("processo_id").notNull().unique().references(() => processos.id, { onDelete: "cascade" }),
   statusLicitacao: licitacaoStatusEnum("status_licitacao").notNull().default("PREPARACAO"),
+  exigeDeclaracaoNaoFracionamento: boolean("exige_declaracao_nao_fracionamento").notNull().default(false),
+  publicarNoDou: boolean("publicar_no_dou").notNull().default(false),
+  publicarEmJornal: boolean("publicar_em_jornal").notNull().default(false),
   dataPublicacaoEdital: timestamp("data_publicacao_edital", { withTimezone: true }),
   dataRecebimentoPropostasInicio: timestamp("data_recebimento_propostas_inicio", { withTimezone: true }),
   dataRecebimentoPropostasFim: timestamp("data_recebimento_propostas_fim", { withTimezone: true }),
@@ -546,6 +551,31 @@ export const alertas = pgTable("alertas", {
 }, (table) => ({
   idxProcesso: index("alertas_processo_idx").on(table.processoId),
   idxContrato: index("alertas_contrato_idx").on(table.contratoId)
+}));
+
+export const notificacoesUsuario = pgTable("notificacoes_usuario", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  processoId: integer("processo_id").references(() => processos.id, { onDelete: "cascade" }),
+  documentoId: integer("documento_id").references(() => documentos.id, { onDelete: "cascade" }),
+  prazoId: integer("prazo_id").references(() => prazosProcessuais.id, { onDelete: "cascade" }),
+  tipo: notificacaoTipoEnum("tipo").notNull().default("SISTEMA"),
+  prioridade: notificacaoPrioridadeEnum("prioridade").notNull().default("BAIXA"),
+  chave: varchar("chave", { length: 255 }).notNull(),
+  titulo: varchar("titulo", { length: 255 }).notNull(),
+  mensagem: text("mensagem").notNull(),
+  href: varchar("href", { length: 255 }),
+  acaoRelacionada: jsonb("acao_relacionada"),
+  origemAutomatica: boolean("origem_automatica").notNull().default(true),
+  lida: boolean("lida").notNull().default(false),
+  criadoEm: timestamp("criado_em", { withTimezone: true }).notNull().defaultNow(),
+  atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  dataExpiracao: timestamp("data_expiracao", { withTimezone: true }),
+}, (table) => ({
+  idxUser: index("notificacoes_usuario_user_idx").on(table.userId),
+  idxLida: index("notificacoes_usuario_lida_idx").on(table.lida),
+  idxExpiracao: index("notificacoes_usuario_expiracao_idx").on(table.dataExpiracao),
+  uqChavePorUsuario: uniqueIndex("notificacoes_usuario_user_chave_uq").on(table.userId, table.chave),
 }));
 
 export const authLog = pgTable("auth_log", {

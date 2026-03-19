@@ -1,6 +1,11 @@
-import { TRPCError } from "@trpc/server";
+﻿import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 
+import {
+  licitacaoInternalDocumentChecklist,
+  licitacaoPrazoBasePorModalidade,
+  prazoProcessualTipoLabels,
+} from "@sirel/shared/const";
 import {
   licitacaoAdvanceStageInputSchema,
   licitacaoDetailInputSchema,
@@ -30,6 +35,7 @@ import {
   modalidades,
   movimentacoesWorkflow,
   pessoas,
+  prazosProcessuais,
   processos,
   propostasLicitacao,
   recursosLicitacao,
@@ -66,6 +72,40 @@ function nowDateString() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function startOfDay(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addBusinessDays(source: Date, businessDays: number) {
+  const cursor = startOfDay(source);
+  let remaining = businessDays;
+
+  while (remaining > 0) {
+    cursor.setDate(cursor.getDate() + 1);
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) {
+      remaining -= 1;
+    }
+  }
+
+  return cursor;
+}
+
+function combineDateAndTime(date: Date, hours = 8, minutes = 0) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0);
+}
+
+function extractTimeParts(source?: Date | null) {
+  if (!source) {
+    return { hours: 8, minutes: 30 };
+  }
+
+  return {
+    hours: source.getHours(),
+    minutes: source.getMinutes(),
+  };
+}
+
 function toNullableText(value?: string | null) {
   return value?.trim() ? value.trim() : null;
 }
@@ -80,8 +120,154 @@ function formatCnpj(value: string) {
   return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
+function buildDocumentoUrl(documentoId: number) {
+  return `/api/planejamento/documentos/${documentoId}/download`;
+}
+
 function supportsLances(modalidadeCodigo?: string | null) {
   return Boolean(modalidadeCodigo && /(PREGAO|LEILAO)/.test(modalidadeCodigo));
+}
+
+function getPublicationExtraDays(publicarNoDou?: boolean | null, publicarEmJornal?: boolean | null) {
+  return publicarNoDou || publicarEmJornal ? 1 : 0;
+}
+
+function buildPublicationSchedule(params: {
+  modalidadeCodigo?: string | null;
+  dataPublicacaoEdital?: Date | null;
+  publicarNoDou?: boolean | null;
+  publicarEmJornal?: boolean | null;
+  dataAberturaPropostas?: Date | null;
+}) {
+  if (!params.dataPublicacaoEdital || !params.modalidadeCodigo) {
+    return null;
+  }
+
+  const baseDays = licitacaoPrazoBasePorModalidade[params.modalidadeCodigo as keyof typeof licitacaoPrazoBasePorModalidade] ?? 8;
+  const municipioExtra = 1;
+  const canaisExtra = getPublicationExtraDays(params.publicarNoDou, params.publicarEmJornal);
+  const totalBusinessDays = baseDays + municipioExtra + canaisExtra;
+  const startOffset = 1 + municipioExtra + canaisExtra;
+  const publicacaoDia = startOfDay(params.dataPublicacaoEdital);
+  const recebimentoInicial = addBusinessDays(publicacaoDia, startOffset);
+  const disputaDia = addBusinessDays(publicacaoDia, totalBusinessDays);
+  const disputeTime = extractTimeParts(params.dataAberturaPropostas);
+  const abertura = combineDateAndTime(disputaDia, disputeTime.hours, disputeTime.minutes);
+  const encerramento = new Date(abertura.getTime() - 15 * 60 * 1000);
+
+  return {
+    baseDays,
+    municipioExtra,
+    canaisExtra,
+    startOffset,
+    totalBusinessDays,
+    dataPublicacaoEdital: combineDateAndTime(publicacaoDia, 8, 0),
+    dataRecebimentoPropostasInicio: combineDateAndTime(recebimentoInicial, 8, 0),
+    dataRecebimentoPropostasFim: encerramento,
+    dataAberturaPropostas: abertura,
+  };
+}
+
+async function getChecklistDocuments(db: DbClient, processoId: number) {
+  const rows = await db
+    .select({
+      id: documentos.id,
+      categoria: documentos.categoria,
+      titulo: documentos.titulo,
+      arquivoUrl: documentos.arquivoUrl,
+      criadoEm: documentos.criadoEm,
+    })
+    .from(documentos)
+    .where(eq(documentos.processoId, processoId))
+    .orderBy(desc(documentos.criadoEm), desc(documentos.id));
+
+  return rows.map((item) => ({ ...item, arquivoUrl: buildDocumentoUrl(item.id) }));
+}
+
+async function buildInternalChecklist(db: DbClient, processoId: number, exigeDeclaracaoNaoFracionamento: boolean) {
+  const docs = await getChecklistDocuments(db, processoId);
+  const byCategory = new Map<string, (typeof docs)[number][]>();
+
+  docs.forEach((documento) => {
+    const category = documento.categoria?.trim();
+    if (!category) return;
+    byCategory.set(category, [...(byCategory.get(category) ?? []), documento]);
+  });
+
+  const itens = licitacaoInternalDocumentChecklist
+    .filter((item) => !("condicional" in item) || item.condicional !== "DECLARACAO_NAO_FRACIONAMENTO" || exigeDeclaracaoNaoFracionamento)
+    .map((item) => {
+      const documentosCategoria = byCategory.get(item.category) ?? [];
+      return {
+        ...item,
+        concluido: documentosCategoria.length > 0,
+        documentos: documentosCategoria,
+      };
+    });
+
+  return {
+    itens,
+    obrigatoriosPendentes: itens.filter((item) => item.obrigatorio && !item.concluido),
+  };
+}
+
+async function syncPublicationDeadlines(
+  db: DbClient,
+  processoId: number,
+  schedule: ReturnType<typeof buildPublicationSchedule>,
+  userId?: number | null,
+) {
+  if (!schedule) return;
+
+  const deadlineItems = [
+    {
+      tipo: "PUBLICACAO_EDITAL" as const,
+      titulo: prazoProcessualTipoLabels.PUBLICACAO_EDITAL,
+      dataPrevista: schedule.dataPublicacaoEdital.toISOString().slice(0, 10),
+    },
+    {
+      tipo: "RECEBIMENTO_PROPOSTAS" as const,
+      titulo: prazoProcessualTipoLabels.RECEBIMENTO_PROPOSTAS,
+      dataPrevista: schedule.dataRecebimentoPropostasFim.toISOString().slice(0, 10),
+    },
+    {
+      tipo: "SESSAO_PUBLICA" as const,
+      titulo: prazoProcessualTipoLabels.SESSAO_PUBLICA,
+      dataPrevista: schedule.dataAberturaPropostas.toISOString().slice(0, 10),
+    },
+  ];
+
+  for (const item of deadlineItems) {
+    const [existing] = await db
+      .select()
+      .from(prazosProcessuais)
+      .where(and(eq(prazosProcessuais.processoId, processoId), eq(prazosProcessuais.tipo, item.tipo)))
+      .limit(1);
+
+    if (existing) {
+      await db
+        .update(prazosProcessuais)
+        .set({
+          titulo: item.titulo,
+          dataPrevista: item.dataPrevista,
+          atualizadoEm: new Date(),
+        })
+        .where(eq(prazosProcessuais.id, existing.id));
+      continue;
+    }
+
+    await db.insert(prazosProcessuais).values({
+      processoId,
+      tipo: item.tipo,
+      titulo: item.titulo,
+      dataPrevista: item.dataPrevista,
+      status: new Date(`${item.dataPrevista}T00:00:00`) < startOfDay() ? "EM_ATRASO" : "PENDENTE",
+      alertasConfig: { lembretes: [7, 3, 1], canais: ["sistema"] },
+      criadoPor: userId ?? null,
+      criadoEm: new Date(),
+      atualizadoEm: new Date(),
+    });
+  }
 }
 
 async function ensureLicitacao(db: DbClient, processoId: number) {
@@ -469,6 +655,9 @@ export const licitacaoRouter = router({
         : {
             processoId: input.processoId,
             statusLicitacao: "PREPARACAO" as LicitacaoStatus,
+            exigeDeclaracaoNaoFracionamento: false,
+            publicarNoDou: false,
+            publicarEmJornal: false,
             dataPublicacaoEdital: null,
             dataRecebimentoPropostasInicio: null,
             dataRecebimentoPropostasFim: null,
@@ -495,7 +684,19 @@ export const licitacaoRouter = router({
       lances: lancesRows,
       recursos: recursosRows,
       historico,
-      documentos: docs,
+      documentos: docs.map((item) => ({ ...item, arquivoUrl: buildDocumentoUrl(item.id) })),
+      checklistInterno: await buildInternalChecklist(
+        db,
+        input.processoId,
+        Boolean(licitacao?.exigeDeclaracaoNaoFracionamento),
+      ),
+      calendarioPublicacao: buildPublicationSchedule({
+        modalidadeCodigo: processo.modalidadeCodigo,
+        dataPublicacaoEdital: licitacao?.dataPublicacaoEdital ?? null,
+        publicarNoDou: licitacao?.publicarNoDou ?? false,
+        publicarEmJornal: licitacao?.publicarEmJornal ?? false,
+        dataAberturaPropostas: licitacao?.dataAberturaPropostas ?? null,
+      }),
       resumo: {
         totalItens: itens.length,
         totalLicitantes: licitantesRows.length,
@@ -514,11 +715,23 @@ export const licitacaoRouter = router({
     }
 
     const licitacao = await ensureLicitacao(db, input.processoId);
+    const configuredPublicationDate = parseOptionalTimestamp(input.dataPublicacaoEdital);
+    const configuredDisputeDate = parseOptionalTimestamp(input.dataAberturaPropostas);
+    const schedule = buildPublicationSchedule({
+      modalidadeCodigo: processo.modalidadeCodigo,
+      dataPublicacaoEdital: configuredPublicationDate,
+      publicarNoDou: input.publicarNoDou,
+      publicarEmJornal: input.publicarEmJornal,
+      dataAberturaPropostas: configuredDisputeDate,
+    });
     const patch = {
-      dataPublicacaoEdital: parseOptionalTimestamp(input.dataPublicacaoEdital),
-      dataRecebimentoPropostasInicio: parseOptionalTimestamp(input.dataRecebimentoPropostasInicio),
-      dataRecebimentoPropostasFim: parseOptionalTimestamp(input.dataRecebimentoPropostasFim),
-      dataAberturaPropostas: parseOptionalTimestamp(input.dataAberturaPropostas),
+      exigeDeclaracaoNaoFracionamento: Boolean(input.exigeDeclaracaoNaoFracionamento),
+      publicarNoDou: Boolean(input.publicarNoDou),
+      publicarEmJornal: Boolean(input.publicarEmJornal),
+      dataPublicacaoEdital: schedule?.dataPublicacaoEdital ?? configuredPublicationDate,
+      dataRecebimentoPropostasInicio: schedule?.dataRecebimentoPropostasInicio ?? parseOptionalTimestamp(input.dataRecebimentoPropostasInicio),
+      dataRecebimentoPropostasFim: schedule?.dataRecebimentoPropostasFim ?? parseOptionalTimestamp(input.dataRecebimentoPropostasFim),
+      dataAberturaPropostas: schedule?.dataAberturaPropostas ?? parseOptionalTimestamp(input.dataAberturaPropostas),
       dataInicioLances: parseOptionalTimestamp(input.dataInicioLances),
       dataFimLances: parseOptionalTimestamp(input.dataFimLances),
       dataJulgamento: parseOptionalTimestamp(input.dataJulgamento),
@@ -532,7 +745,8 @@ export const licitacaoRouter = router({
       modoDisputa: toNullableText(input.modoDisputa),
       atualizadoEm: new Date(),
     }).where(eq(processos.id, input.processoId));
-    await syncWorkflowStep(db, input.processoId, "Licitação / configuração da fase");
+    await syncWorkflowStep(db, input.processoId, "Licitação / preparação interna e publicidade");
+    await syncPublicationDeadlines(db, input.processoId, schedule, ctx.user?.id ?? null);
     await appendMovement(db, {
       processoId: input.processoId,
       usuarioId: ctx.user?.id ?? null,
@@ -565,13 +779,32 @@ export const licitacaoRouter = router({
     }
 
     const licitacao = await ensureLicitacao(db, input.processoId);
+    const checklist = await buildInternalChecklist(db, input.processoId, Boolean(licitacao.exigeDeclaracaoNaoFracionamento));
+    if (checklist.obrigatoriosPendentes.length) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Conclua todos os documentos obrigatórios da fase interna antes de publicar o processo.",
+      });
+    }
+
+    const schedule = buildPublicationSchedule({
+      modalidadeCodigo: processo.modalidadeCodigo,
+      dataPublicacaoEdital: parseOptionalTimestamp(input.dataPublicacaoEdital) ?? licitacao.dataPublicacaoEdital ?? new Date(),
+      publicarNoDou: licitacao.publicarNoDou,
+      publicarEmJornal: licitacao.publicarEmJornal,
+      dataAberturaPropostas: parseOptionalTimestamp(input.dataAberturaPropostas) ?? licitacao.dataAberturaPropostas ?? null,
+    });
+    if (!schedule) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a data prevista de publicação para gerar o cronograma automático." });
+    }
+
     const numeroEdital = processo.numeroEdital ?? await getNextNumeroEdital(db, processo.anoReferencia, processo.modalidadeCodigo);
     const licitacaoPatch = {
       statusLicitacao: "RECEBIMENTO_PROPOSTAS" as LicitacaoStatus,
-      dataPublicacaoEdital: parseOptionalTimestamp(input.dataPublicacaoEdital) ?? new Date(),
-      dataRecebimentoPropostasInicio: parseOptionalTimestamp(input.dataRecebimentoPropostasInicio),
-      dataRecebimentoPropostasFim: parseOptionalTimestamp(input.dataRecebimentoPropostasFim),
-      dataAberturaPropostas: parseOptionalTimestamp(input.dataAberturaPropostas),
+      dataPublicacaoEdital: schedule.dataPublicacaoEdital,
+      dataRecebimentoPropostasInicio: schedule.dataRecebimentoPropostasInicio,
+      dataRecebimentoPropostasFim: schedule.dataRecebimentoPropostasFim,
+      dataAberturaPropostas: schedule.dataAberturaPropostas,
       dataInicioLances: parseOptionalTimestamp(input.dataInicioLances),
       dataFimLances: parseOptionalTimestamp(input.dataFimLances),
       atualizadoEm: new Date(),
@@ -586,6 +819,7 @@ export const licitacaoRouter = router({
       atualizadoEm: new Date(),
     }).where(eq(processos.id, input.processoId));
     await syncWorkflowStep(db, input.processoId, "Divulgação / edital publicado");
+    await syncPublicationDeadlines(db, input.processoId, schedule, ctx.user?.id ?? null);
     await appendMovement(db, {
       processoId: input.processoId,
       usuarioId: ctx.user?.id ?? null,
@@ -598,11 +832,21 @@ export const licitacaoRouter = router({
       registroId: input.processoId,
       acao: "UPDATE",
       dadosAnteriores: processo,
-      dadosNovos: { numeroEdital, condutorProcessoId: input.condutorProcessoId, publicado: true },
+      dadosNovos: {
+        numeroEdital,
+        condutorProcessoId: input.condutorProcessoId,
+        publicado: true,
+        dataRecebimentoPropostasFim: schedule.dataRecebimentoPropostasFim,
+        dataAberturaPropostas: schedule.dataAberturaPropostas,
+      },
       descricao: `Processo ${processo.numeroSirel} publicado na fase de licitação`,
     });
 
-    return { success: true, numeroEdital };
+    return {
+      success: true,
+      numeroEdital,
+      calendarioPublicacao: schedule,
+    };
   }),
 
   saveLicitante: operadorProcedure.input(licitacaoSaveLicitanteInputSchema).mutation(async ({ ctx, input }) => {
@@ -995,3 +1239,4 @@ export const licitacaoRouter = router({
     return { success: true };
   }),
 });
+

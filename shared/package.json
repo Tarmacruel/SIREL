@@ -58,6 +58,14 @@
       "types": "./dist/schemas/licitacao.d.ts",
       "import": "./dist/schemas/licitacao.js"
     },
+    "./schemas/relatorios": {
+      "types": "./dist/schemas/relatorios.d.ts",
+      "import": "./dist/schemas/relatorios.js"
+    },
+    "./schemas/auditoria": {
+      "types": "./dist/schemas/auditoria.d.ts",
+      "import": "./dist/schemas/auditoria.js"
+    },
     "./document-templates/planejamento": {
       "types": "./dist/document-templates/planejamento.d.ts",
       "import": "./dist/document-templates/planejamento.js"

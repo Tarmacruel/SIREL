@@ -22,10 +22,24 @@ const port = Number(process.env.PORT ?? 3030);
 const host = process.env.HOST ?? "0.0.0.0";
 const clientUrl = process.env.CLIENT_URL ?? "http://localhost:5173";
 const currentDir = dirname(fileURLToPath(import.meta.url));
-const uploadsRoot = resolve(currentDir, "../../../storage/uploads");
+const uploadsRoot = resolve(currentDir, "../../storage/uploads");
+const legacyUploadsRoot = resolve(currentDir, "../../../storage/uploads");
 
 if (!existsSync(uploadsRoot)) {
   mkdirSync(uploadsRoot, { recursive: true });
+}
+
+function resolveDocumentoPath(arquivoChave: string) {
+  const normalizedKey = arquivoChave.replace(/\\/g, "/").replace(/^\/+/, "");
+  const candidates = Array.from(
+    new Set([
+      join(uploadsRoot, normalizedKey),
+      join(legacyUploadsRoot, normalizedKey),
+      normalizedKey,
+    ]),
+  );
+
+  return candidates.find((candidate) => existsSync(candidate)) ?? join(uploadsRoot, normalizedKey);
 }
 
 function slugifyFileName(value: string) {
@@ -205,7 +219,7 @@ app.post("/api/planejamento/documentos/upload", upload.single("arquivo"), async 
       atualizadoEm: new Date(),
     }).returning();
 
-    const downloadUrl = `${req.protocol}://${req.get("host")}/api/planejamento/documentos/${created.id}/download`;
+    const downloadUrl = `/api/planejamento/documentos/${created.id}/download`;
     await db.update(documentos).set({ arquivoUrl: downloadUrl, atualizadoEm: new Date() }).where(eq(documentos.id, created.id));
 
     await logAuditoria({ user } as any, {
@@ -229,13 +243,13 @@ app.get("/api/planejamento/documentos/:documentoId/download", async (req, res) =
     const documentoId = Number(req.params.documentoId ?? 0);
     const [documento] = await db.select().from(documentos).where(eq(documentos.id, documentoId)).limit(1);
     if (!documento?.arquivoChave) {
-      res.status(404).json({ message: "Documento nao encontrado." });
+      res.status(404).json({ message: "Documento não encontrado." });
       return;
     }
 
-    const absolutePath = join(uploadsRoot, documento.arquivoChave);
+    const absolutePath = resolveDocumentoPath(documento.arquivoChave);
     if (!existsSync(absolutePath)) {
-      res.status(404).json({ message: "Arquivo fisico nao encontrado." });
+      res.status(404).json({ message: "Arquivo físico não encontrado." });
       return;
     }
 
@@ -263,12 +277,12 @@ app.delete("/api/planejamento/documentos/:documentoId", async (req, res) => {
     const documentoId = Number(req.params.documentoId ?? 0);
     const [documento] = await db.select().from(documentos).where(eq(documentos.id, documentoId)).limit(1);
     if (!documento) {
-      res.status(404).json({ message: "Documento nao encontrado." });
+      res.status(404).json({ message: "Documento não encontrado." });
       return;
     }
 
     if (documento.arquivoChave) {
-      const absolutePath = join(uploadsRoot, documento.arquivoChave);
+      const absolutePath = resolveDocumentoPath(documento.arquivoChave);
       if (existsSync(absolutePath)) {
         rmSync(absolutePath, { force: true });
       }

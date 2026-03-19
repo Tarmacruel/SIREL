@@ -15,9 +15,28 @@ export interface UploadProcessoDocumentoInput {
   arquivo: File;
 }
 
-function resolveServerBaseUrl() {
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3030/api/trpc";
-  return apiUrl.replace(/\/api\/trpc\/?$/, "");
+export function resolveServerBaseUrl() {
+  const configuredUrl = String(import.meta.env.VITE_API_URL ?? "").trim();
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/api\/trpc\/?$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    const protocol = window.location.protocol || "http:";
+    const hostname = window.location.hostname || "localhost";
+    const port = String(import.meta.env.VITE_API_PORT ?? "3030").trim() || "3030";
+    return `${protocol}//${hostname}:${port}`;
+  }
+
+  return "http://localhost:3030";
+}
+
+export function resolveServerAssetUrl(url: string | null | undefined) {
+  if (!url?.trim()) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+
+  const baseUrl = resolveServerBaseUrl();
+  return `${baseUrl}${url.startsWith("/") ? url : `/${url}`}`;
 }
 
 function buildAuthHeaders() {

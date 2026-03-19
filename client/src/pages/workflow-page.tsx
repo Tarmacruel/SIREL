@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { Textarea } from "@/components/ui/textarea";
 import { validateWorkflowMoveForm } from "@/features/workflow/form";
 import { formatCurrencyBRL, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
+import { resolveServerAssetUrl } from "@/lib/document-upload";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -179,51 +180,50 @@ export function WorkflowPage() {
       <SectionCard
         title="Workflow operacional"
         description="Fila consolidada com filtros, linha do tempo e movimentação manual entre módulos."
-        action={
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px_150px]">
-            <FormField label="Buscar" className="w-full">
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                <Search className="h-4 w-4 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Processo, objeto ou secretaria"
-                  className="w-full border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
-                />
-              </div>
-            </FormField>
-            <FormField label="Módulo">
-              <Select value={moduloAtual} onChange={(event) => setModuloAtual(event.target.value)}>
-                <option value="">Todos os módulos</option>
-                {summaryQuery.data?.porModulo.map((item) => (
-                  <option key={item.modulo} value={item.modulo}>
-                    {item.modulo}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Situação">
-              <Select value={situacao} onChange={(event) => setSituacao(event.target.value)}>
-                <option value="">Todas as situações</option>
-                {summaryQuery.data?.porSituacao.map((item) => (
-                  <option key={item.situacao} value={item.situacao}>
-                    {item.situacao}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-            <FormField label="Por página">
-              <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))}>
-                {[12, 24, 48, 96].map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-            </FormField>
-          </div>
-        }
       >
+        <div className="mb-4 grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_220px_150px]">
+          <FormField label="Buscar" className="w-full">
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+              <Search className="h-4 w-4 text-slate-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Processo, objeto, etapa ou secretaria"
+                className="w-full border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </FormField>
+          <FormField label="Módulo">
+            <Select value={moduloAtual} onChange={(event) => setModuloAtual(event.target.value)}>
+              <option value="">Todos os módulos</option>
+              {summaryQuery.data?.porModulo.map((item) => (
+                <option key={item.modulo} value={item.modulo}>
+                  {item.modulo}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Situação">
+            <Select value={situacao} onChange={(event) => setSituacao(event.target.value)}>
+              <option value="">Todas as situações</option>
+              {summaryQuery.data?.porSituacao.map((item) => (
+                <option key={item.situacao} value={item.situacao}>
+                  {item.situacao}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Por página">
+            <Select value={String(pageSize)} onChange={(event) => setPageSize(Number(event.target.value))}>
+              {[12, 24, 48, 96].map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        </div>
+
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
           <div className="space-y-4">
             <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
@@ -235,6 +235,7 @@ export function WorkflowPage() {
                     <TableHeaderCell>Situação</TableHeaderCell>
                     <TableHeaderCell>Módulo</TableHeaderCell>
                     <TableHeaderCell>Última movimentação</TableHeaderCell>
+                    <TableHeaderCell className="text-right">Documentos</TableHeaderCell>
                   </tr>
                 </TableHead>
                 <TableBody>
@@ -278,12 +279,27 @@ export function WorkflowPage() {
                             "Sem movimentação registrada"
                           )}
                         </TableCell>
+                        <TableCell className="align-top text-right">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedProcessId(row.processoId);
+                              setOpenDocumentsModal(true);
+                            }}
+                          >
+                            <FileStack className="mr-2 h-4 w-4" />
+                            Documentos
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                   {!rows.length ? (
                     <TableRow>
-                      <TableCell className="py-8 text-center text-slate-500" colSpan={5}>
+                      <TableCell className="py-8 text-center text-slate-500" colSpan={6}>
                         {listQuery.isFetching ? "Carregando workflows..." : "Nenhum workflow encontrado."}
                       </TableCell>
                     </TableRow>
@@ -306,9 +322,17 @@ export function WorkflowPage() {
               title="Painel do fluxo"
               description="Resumo do processo selecionado, com linha do tempo e movimentação manual."
               action={
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
-                  <Workflow className="h-4 w-4" />
-                  Operação guiada
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {selectedProcessId ? (
+                    <Button type="button" size="sm" variant="outline" onClick={() => setOpenDocumentsModal(true)}>
+                      <FileStack className="mr-2 h-4 w-4" />
+                      Documentos do processo
+                    </Button>
+                  ) : null}
+                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
+                    <Workflow className="h-4 w-4" />
+                    Operação guiada
+                  </div>
                 </div>
               }
             >
@@ -366,7 +390,11 @@ export function WorkflowPage() {
                     <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
                       <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Documentos</p>
                       <p className="mt-2 text-lg font-black text-slate-950">{detailQuery.data?.documentos ?? 0}</p>
-                      <p className="mt-1 text-sm text-slate-600">Itens já registrados para este processo.</p>
+                      <p className="mt-1 text-sm text-slate-600">Acervo já vinculado ao processo.</p>
+                      <Button type="button" size="sm" variant="outline" className="mt-4" onClick={() => setOpenDocumentsModal(true)}>
+                        <FileStack className="mr-2 h-4 w-4" />
+                        Abrir documentos
+                      </Button>
                     </article>
                   </div>
 
@@ -467,10 +495,10 @@ export function WorkflowPage() {
                       Quando o processo chegar à Licitação, a publicidade, o condutor e a geração automática do edital passam a ser tratados no módulo de Licitação.
                       <div className="mt-4">
                         <Link
-                          href="/licitacao"
+                          href={selectedProcessId ? `/licitacao/${selectedProcessId}` : "/licitacao"}
                           className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-sky-800 transition hover:border-sky-300 hover:text-sky-900"
                         >
-                          Abrir módulo de Licitação
+                          Abrir fase da Licitação
                         </Link>
                       </div>
                     </Alert>
@@ -560,7 +588,7 @@ export function WorkflowPage() {
                     <TableCell>{formatShortDateTimeBR(item.criadoEm)}</TableCell>
                     <TableCell className="text-right">
                       {item.arquivoUrl ? (
-                        <a href={item.arquivoUrl} target="_blank" rel="noreferrer">
+                        <a href={resolveServerAssetUrl(item.arquivoUrl) ?? "#"} target="_blank" rel="noreferrer">
                           <Button type="button" size="sm" variant="outline">
                             Abrir
                           </Button>

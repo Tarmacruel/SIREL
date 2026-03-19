@@ -16,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { Tabs } from "@/components/ui/tabs";
 import { deleteProcessoDocumento, uploadProcessoDocumento, type DocumentoTipo } from "@/lib/document-upload";
 import { formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
+import { resolveServerAssetUrl } from "@/lib/document-upload";
 import { trpc } from "@/lib/trpc";
 
 const pillars = [
@@ -427,7 +428,7 @@ export function DocumentosPage() {
                         <div className="flex flex-wrap gap-2">
                           <Button type="submit" disabled={updateMetadataMutation.isPending}>{updateMetadataMutation.isPending ? "Salvando..." : "Salvar metadados"}</Button>
                           {detailQuery.data.arquivoUrl ? (
-                            <a href={detailQuery.data.arquivoUrl} target="_blank" rel="noreferrer">
+                            <a href={resolveServerAssetUrl(detailQuery.data.arquivoUrl) ?? "#"} target="_blank" rel="noreferrer">
                               <Button type="button" variant="outline">Abrir arquivo</Button>
                             </a>
                           ) : null}
