@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNotNull, or } from "drizzle-orm";
 
 import {
   cadastroBulkStatusInputSchema,
@@ -54,7 +54,7 @@ function itemCodeFromId(id: number) {
   return `ITM-${new Date().getFullYear()}-${String(id).padStart(5, "0")}`;
 }
 
-function entityTableName(entity: "itens" | "fornecedores" | "secretarias" | "departamentos" | "usuarios" | "parametros") {
+function entityTableName(entity: "itens" | "fornecedores" | "secretarias" | "pessoas" | "servidores" | "departamentos" | "usuarios" | "parametros") {
   switch (entity) {
     case "itens":
       return "catalogo_itens";
@@ -62,6 +62,9 @@ function entityTableName(entity: "itens" | "fornecedores" | "secretarias" | "dep
       return "fornecedores";
     case "secretarias":
       return "secretarias";
+    case "pessoas":
+    case "servidores":
+      return "pessoas";
     case "departamentos":
       return "departamentos";
     case "usuarios":
@@ -179,6 +182,16 @@ export const cadastrosRouter = router({
         case "secretarias": {
           const [totalRow] = await db.select({ total: count() }).from(secretarias);
           const [ativosRow] = await db.select({ total: count() }).from(secretarias).where(eq(secretarias.ativo, true));
+          return { total: Number(totalRow?.total ?? 0), ativos: Number(ativosRow?.total ?? 0) };
+        }
+        case "pessoas": {
+          const [totalRow] = await db.select({ total: count() }).from(pessoas);
+          const [ativosRow] = await db.select({ total: count() }).from(pessoas).where(eq(pessoas.ativo, true));
+          return { total: Number(totalRow?.total ?? 0), ativos: Number(ativosRow?.total ?? 0) };
+        }
+        case "servidores": {
+          const [totalRow] = await db.select({ total: count() }).from(pessoas).where(isNotNull(pessoas.secretariaId));
+          const [ativosRow] = await db.select({ total: count() }).from(pessoas).where(and(eq(pessoas.ativo, true), isNotNull(pessoas.secretariaId)));
           return { total: Number(totalRow?.total ?? 0), ativos: Number(ativosRow?.total ?? 0) };
         }
         case "departamentos": {
@@ -373,6 +386,64 @@ export const cadastrosRouter = router({
             responsavel: row.responsavel,
             email: row.email,
             telefone: row.telefone,
+            status: row.ativo ? "ativo" : "inativo",
+            atualizadoEm: row.atualizadoEm,
+          })),
+        };
+      }
+
+      case "pessoas":
+      case "servidores": {
+        const onlyServidores = input.entity === "servidores";
+        const filters = [
+          buildAtivoFilter(input.status, pessoas.ativo),
+          input.search
+            ? or(
+                ilike(pessoas.nome, `%${input.search}%`),
+                ilike(pessoas.cpf, `%${input.search}%`),
+                ilike(pessoas.cargo, `%${input.search}%`),
+                ilike(secretarias.nome, `%${input.search}%`),
+              )
+            : undefined,
+          input.secretariaId ? eq(pessoas.secretariaId, input.secretariaId) : undefined,
+          onlyServidores ? isNotNull(pessoas.secretariaId) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+
+        const [totalRows, rows] = await Promise.all([
+          db.select({ total: count() }).from(pessoas).leftJoin(secretarias, eq(secretarias.id, pessoas.secretariaId)).where(whereClause),
+          db
+            .select({
+              id: pessoas.id,
+              nome: pessoas.nome,
+              cpf: pessoas.cpf,
+              cargo: pessoas.cargo,
+              secretariaId: pessoas.secretariaId,
+              secretariaNome: secretarias.nome,
+              ativo: pessoas.ativo,
+              atualizadoEm: pessoas.atualizadoEm,
+            })
+            .from(pessoas)
+            .leftJoin(secretarias, eq(secretarias.id, pessoas.secretariaId))
+            .where(whereClause)
+            .orderBy(asc(pessoas.nome))
+            .limit(pagination.limit)
+            .offset(pagination.offset),
+        ]);
+
+        const total = Number(totalRows[0]?.total ?? 0);
+        return {
+          page: input.page,
+          pageSize: input.pageSize,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / input.pageSize)),
+          items: rows.map((row) => ({
+            id: row.id,
+            nome: row.nome,
+            cpf: row.cpf,
+            cargo: row.cargo,
+            secretariaId: row.secretariaId,
+            secretariaNome: row.secretariaNome,
             status: row.ativo ? "ativo" : "inativo",
             atualizadoEm: row.atualizadoEm,
           })),
@@ -627,6 +698,53 @@ export const cadastrosRouter = router({
           responsavel: row.responsavel,
           email: row.email,
           telefone: row.telefone,
+          status: row.ativo ? "ativo" : "inativo",
+          atualizadoEm: row.atualizadoEm,
+        }));
+      }
+
+      case "pessoas":
+      case "servidores": {
+        const onlyServidores = input.entity === "servidores";
+        const filters = [
+          buildAtivoFilter(input.status, pessoas.ativo),
+          input.search
+            ? or(
+                ilike(pessoas.nome, `%${input.search}%`),
+                ilike(pessoas.cpf, `%${input.search}%`),
+                ilike(pessoas.cargo, `%${input.search}%`),
+                ilike(secretarias.nome, `%${input.search}%`),
+              )
+            : undefined,
+          input.secretariaId ? eq(pessoas.secretariaId, input.secretariaId) : undefined,
+          input.ids?.length ? inArray(pessoas.id, input.ids) : undefined,
+          onlyServidores ? isNotNull(pessoas.secretariaId) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db
+          .select({
+            id: pessoas.id,
+            nome: pessoas.nome,
+            cpf: pessoas.cpf,
+            cargo: pessoas.cargo,
+            secretariaId: pessoas.secretariaId,
+            secretariaNome: secretarias.nome,
+            ativo: pessoas.ativo,
+            atualizadoEm: pessoas.atualizadoEm,
+          })
+          .from(pessoas)
+          .leftJoin(secretarias, eq(secretarias.id, pessoas.secretariaId))
+          .where(whereClause)
+          .orderBy(asc(pessoas.nome))
+          .limit(5000);
+
+        return rows.map((row) => ({
+          id: row.id,
+          nome: row.nome,
+          cpf: row.cpf,
+          cargo: row.cargo,
+          secretariaId: row.secretariaId,
+          secretariaNome: row.secretariaNome,
           status: row.ativo ? "ativo" : "inativo",
           atualizadoEm: row.atualizadoEm,
         }));
@@ -891,6 +1009,51 @@ export const cadastrosRouter = router({
         return created;
       }
 
+      case "pessoas":
+      case "servidores": {
+        const normalizedCpf = input.data.cpf ? input.data.cpf.replace(/\D/g, "") : null;
+        if (normalizedCpf) {
+          const existing = await db.select({ id: pessoas.id }).from(pessoas).where(eq(pessoas.cpf, normalizedCpf));
+          if (existing.some((row) => row.id !== input.data.id)) {
+            throw new TRPCError({ code: "CONFLICT", message: "Já existe pessoa cadastrada com este CPF." });
+          }
+        }
+
+        const payload = {
+          nome: input.data.nome,
+          cpf: normalizedCpf,
+          cargo: toNullableString(input.data.cargo),
+          secretariaId: input.data.secretariaId ?? null,
+          ativo: input.data.ativo,
+          atualizadoEm: new Date(),
+        };
+
+        if (input.data.id) {
+          const [before] = await db.select().from(pessoas).where(eq(pessoas.id, input.data.id)).limit(1);
+          const [updated] = await db.update(pessoas).set(payload).where(eq(pessoas.id, input.data.id)).returning();
+          if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: "Pessoa não encontrada." });
+          await logAuditoria(ctx, {
+            tabela: "pessoas",
+            registroId: updated.id,
+            acao: "UPDATE",
+            dadosAnteriores: before,
+            dadosNovos: updated,
+            descricao: `Cadastro de ${input.entity === "servidores" ? "servidor" : "pessoa"} ${updated.nome} atualizado`,
+          });
+          return updated;
+        }
+
+        const [created] = await db.insert(pessoas).values({ ...payload, criadoEm: new Date() }).returning();
+        await logAuditoria(ctx, {
+          tabela: "pessoas",
+          registroId: created.id,
+          acao: "CREATE",
+          dadosNovos: created,
+          descricao: `Cadastro de ${input.entity === "servidores" ? "servidor" : "pessoa"} ${created.nome} criado`,
+        });
+        return created;
+      }
+
       case "departamentos": {
         const payload = {
           nome: input.data.nome,
@@ -1082,6 +1245,21 @@ export const cadastrosRouter = router({
         });
         return { success: true };
       }
+      case "pessoas":
+      case "servidores": {
+        const [before] = await db.select().from(pessoas).where(eq(pessoas.id, input.id)).limit(1);
+        const [updated] = await db.update(pessoas).set({ ativo: false, atualizadoEm: new Date() }).where(eq(pessoas.id, input.id)).returning();
+        if (!updated) throw new TRPCError({ code: "NOT_FOUND", message: input.entity === "servidores" ? "Servidor não encontrado." : "Pessoa não encontrada." });
+        await logAuditoria(ctx, {
+          tabela: "pessoas",
+          registroId: updated.id,
+          acao: "DELETE",
+          dadosAnteriores: before,
+          dadosNovos: updated,
+          descricao: `Cadastro de ${input.entity === "servidores" ? "servidor" : "pessoa"} ${updated.nome} inativado`,
+        });
+        return { success: true };
+      }
       case "departamentos": {
         const [before] = await db.select().from(departamentos).where(eq(departamentos.id, input.id)).limit(1);
         const [updated] = await db.update(departamentos).set({ ativo: false, atualizadoEm: new Date() }).where(eq(departamentos.id, input.id)).returning();
@@ -1194,6 +1372,27 @@ export const cadastrosRouter = router({
             dadosAnteriores: previous,
             dadosNovos: row,
             descricao: `Cadastro da secretaria ${row.nome} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
+      }
+      case "pessoas":
+      case "servidores": {
+        const before = await db.select().from(pessoas).where(inArray(pessoas.id, input.ids));
+        const updated = await db
+          .update(pessoas)
+          .set({ ativo: input.ativo, atualizadoEm: new Date() })
+          .where(inArray(pessoas.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "pessoas",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Cadastro de ${input.entity === "servidores" ? "servidor" : "pessoa"} ${row.nome} ${input.ativo ? "reativado" : "inativado"} em lote`,
           });
         }
         return { updated: updated.length };

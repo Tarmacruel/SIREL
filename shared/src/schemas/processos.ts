@@ -12,6 +12,7 @@ export const processoListInputSchema = z.object({
   situacao: z.string().optional(),
   foraDoFluxo: z.boolean().optional(),
   paradosHaMaisDeSeteDias: z.boolean().optional(),
+  ativo: z.boolean().optional(),
 });
 
 export const processoCreateInputSchema = z
@@ -50,5 +51,11 @@ export const processoCreateInputSchema = z
     }
   });
 
+export const processoSetAtivoInputSchema = z.object({
+  processoId: z.number().int().positive(),
+  ativo: z.boolean(),
+});
+
 export type ProcessoListInput = z.infer<typeof processoListInputSchema>;
 export type ProcessoCreateInput = z.infer<typeof processoCreateInputSchema>;
+export type ProcessoSetAtivoInput = z.infer<typeof processoSetAtivoInputSchema>;

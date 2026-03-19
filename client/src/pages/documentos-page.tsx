@@ -193,7 +193,7 @@ export function DocumentosPage() {
   }
 
   return (
-    <SectionCard title="Central de Documentos" description="Acervo único da Beta 2.0 com metadados, filtros operacionais, upload local e edição do documento selecionado.">
+    <SectionCard title="Central de Documentos" description="Acervo único da SIREL com metadados, filtros operacionais, upload local e edição do documento selecionado.">
       <Tabs
         items={[
           {

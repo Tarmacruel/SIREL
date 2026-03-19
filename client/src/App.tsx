@@ -46,7 +46,7 @@ const WorkflowPage = lazy(() => import("@/pages/workflow-page").then((module) =>
 function PlaceholderPage({ title }: { title: string }) {
   return (
     <div className="rounded-[28px] border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-      {title} será detalhado nas próximas iterações da Beta 2.0.
+      {title} será detalhado nas próximas iterações da SIREL.
     </div>
   );
 }

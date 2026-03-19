@@ -1,4 +1,5 @@
-﻿import { metodologiaCotacaoLabels } from "../const.js";
+﻿import { systemFooterText, prefeituraLines, buildPrefeituraLogoSvg } from "../branding.js";
+import { metodologiaCotacaoLabels } from "../const.js";
 
 export function escapeHtml(value: string | number | null | undefined) {
   return String(value ?? "")
@@ -67,6 +68,11 @@ export function buildPrintableShell(title: string, bodyHtml: string) {
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
         padding: 18mm 16mm 18mm;
       }
+      .brand-top { display:flex; align-items:flex-start; gap:16px; border-bottom: 3px solid var(--brand); padding-bottom: 12px; margin-bottom: 18px; }
+      .brand-mark { width: 180px; min-width: 180px; }
+      .brand-copy { display:grid; gap:4px; }
+      .brand-copy .org { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--brand); }
+      .brand-copy .meta { font-size: 11px; color: var(--muted); }
       .header { border-bottom: 3px solid var(--brand); padding-bottom: 12px; margin-bottom: 18px; }
       .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; color: var(--brand); }
       h1 { margin: 8px 0 0; font-size: 28px; line-height: 1.15; }
@@ -90,7 +96,17 @@ export function buildPrintableShell(title: string, bodyHtml: string) {
     </style>
   </head>
   <body>
-    <main class="page">${bodyHtml}</main>
+    <main class="page">
+      <section class="brand-top">
+        <div class="brand-mark">${buildPrefeituraLogoSvg()}</div>
+        <div class="brand-copy">
+          <div class="org">${prefeituraLines[0]}</div>
+          <div class="org">${prefeituraLines[1]}</div>
+          <div class="meta">${prefeituraLines[2]}</div>
+          <div class="meta">${prefeituraLines[3]}</div>
+        </div>
+      </section>
+      ${bodyHtml}</main>
   </body>
 </html>`;
 }
@@ -194,7 +210,7 @@ export function buildDfdHtml(detail: any) {
         : "-"
     }</p>
 
-    <div class="footer">Documento gerado pelo SIREL Beta 2.0 em ${escapeHtml(formatShortDateBR(new Date()))}.</div>
+    <div class="footer">${escapeHtml(systemFooterText)} ? Documento gerado em ${escapeHtml(formatShortDateBR(new Date()))}.</div>
   `;
 }
 
@@ -264,7 +280,7 @@ export function buildMapaComparativoHtml(detail: any, metodologiaLabel: string) 
       </tbody>
     </table>
 
-    <div class="footer">Documento gerado pelo SIREL Beta 2.0 em ${escapeHtml(formatShortDateBR(new Date()))}.</div>
+    <div class="footer">${escapeHtml(systemFooterText)} ? Documento gerado em ${escapeHtml(formatShortDateBR(new Date()))}.</div>
   `;
 }
 
@@ -355,7 +371,7 @@ export function buildTrHtml(detail: any) {
       </tbody>
     </table>
 
-    <div class="footer">Documento gerado pelo SIREL Beta 2.0 em ${escapeHtml(formatShortDateBR(new Date()))}.</div>
+    <div class="footer">${escapeHtml(systemFooterText)} ? Documento gerado em ${escapeHtml(formatShortDateBR(new Date()))}.</div>
   `;
 }
 

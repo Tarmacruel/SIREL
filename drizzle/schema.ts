@@ -339,6 +339,7 @@ export const processos = pgTable(
     ),
     dataAbertura: date("data_abertura"),
     dataEncerramento: date("data_encerramento"),
+    ativo: boolean("ativo").notNull().default(true),
     publicado: boolean("publicado").notNull().default(false),
     homologado: boolean("homologado").notNull().default(false),
     finalizado: boolean("finalizado").notNull().default(false),
@@ -354,6 +355,7 @@ export const processos = pgTable(
     idxNumero: index("processos_numero_idx").on(table.numeroSirel),
     idxSecretaria: index("processos_secretaria_idx").on(table.secretariaId),
     idxStatus: index("processos_status_idx").on(table.statusId),
+    idxAtivo: index("processos_ativo_idx").on(table.ativo),
   }),
 );
 

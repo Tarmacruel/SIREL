@@ -1,7 +1,12 @@
+﻿import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 
-import { processoCreateInputSchema, processoListInputSchema } from "@sirel/shared/schemas/processos";
+import {
+  processoCreateInputSchema,
+  processoListInputSchema,
+  processoSetAtivoInputSchema,
+} from "@sirel/shared/schemas/processos";
 
 import { logAuditoria } from "../db/auditoria.js";
 import { requireDb } from "../db/client.js";
@@ -123,6 +128,7 @@ export const processosRouter = router({
       .select({
         id: processos.id,
         foraDoFluxo: processos.foraDoFluxo,
+        ativo: processos.ativo,
         publicado: processos.publicado,
         homologado: processos.homologado,
         finalizado: processos.finalizado,
@@ -134,6 +140,8 @@ export const processosRouter = router({
 
     const porModulo = new Map<string, number>();
     let foraDoFluxo = 0;
+    let ativos = 0;
+    let inativos = 0;
     let publicados = 0;
     let homologados = 0;
     let finalizados = 0;
@@ -144,6 +152,8 @@ export const processosRouter = router({
       const modulo = row.moduloAtual ?? "SEM_WORKFLOW";
       porModulo.set(modulo, (porModulo.get(modulo) ?? 0) + 1);
       if (row.foraDoFluxo) foraDoFluxo += 1;
+      if (row.ativo) ativos += 1;
+      else inativos += 1;
       if (row.publicado) publicados += 1;
       if (row.homologado) homologados += 1;
       if (row.finalizado) finalizados += 1;
@@ -157,6 +167,8 @@ export const processosRouter = router({
 
     return {
       total: rows.length,
+      ativos,
+      inativos,
       emFluxo: rows.length - foraDoFluxo,
       foraDoFluxo,
       publicados,
@@ -177,6 +189,7 @@ export const processosRouter = router({
     if (input.moduloAtual) filters.push(eq(workflowProcesso.moduloAtual, input.moduloAtual as never));
     if (input.situacao) filters.push(eq(workflowProcesso.situacao, input.situacao as never));
     if (typeof input.foraDoFluxo === "boolean") filters.push(eq(processos.foraDoFluxo, input.foraDoFluxo));
+    if (typeof input.ativo === "boolean") filters.push(eq(processos.ativo, input.ativo));
     if (input.search) {
       filters.push(
         or(
@@ -209,6 +222,7 @@ export const processosRouter = router({
         valorEstimado: processos.valorEstimado,
         dataAbertura: processos.dataAbertura,
         foraDoFluxo: processos.foraDoFluxo,
+        ativo: processos.ativo,
         publicado: processos.publicado,
         homologado: processos.homologado,
         finalizado: processos.finalizado,
@@ -319,6 +333,39 @@ export const processosRouter = router({
     return created;
   }),
 
+  setAtivo: gestorProcedure.input(processoSetAtivoInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+    const [before] = await db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1);
+
+    if (!before) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nÃ£o encontrado." });
+    }
+
+    const [updated] = await db
+      .update(processos)
+      .set({
+        ativo: input.ativo,
+        atualizadoEm: new Date(),
+      })
+      .where(eq(processos.id, input.processoId))
+      .returning();
+
+    await logAuditoria(ctx, {
+      tabela: "processos",
+      registroId: updated.id,
+      acao: "UPDATE",
+      dadosAnteriores: before,
+      dadosNovos: updated,
+      descricao: `Processo ${updated.numeroSirel} ${input.ativo ? "reativado" : "inativado"}`,
+    });
+
+    return {
+      id: updated.id,
+      numeroSirel: updated.numeroSirel,
+      ativo: updated.ativo,
+    };
+  }),
+
   timeline: publicProcedure.input(z.object({ numeroSirel: z.string().min(1) })).query(async ({ input }) => {
     const db = requireDb();
     return db
@@ -398,33 +445,33 @@ export const processosRouter = router({
     const diasParado = daysSince(baseRow.workflow?.atualizadoEm ?? baseRow.processo.criadoEm);
 
     const etapas = [
-      { chave: "cadastro", label: "Cadastro do processo", status: "CONCLUIDO", detalhe: "Processo criado e identificado no beta." },
+      { chave: "cadastro", label: "Cadastro do processo", status: "CONCLUIDO", detalhe: "Processo criado e identificado no sistema." },
       {
         chave: "dfd",
         label: "DFD",
         status: dfdRow ? (dfdRow.concluido ? "CONCLUIDO" : "EM_ANDAMENTO") : "PENDENTE",
-        detalhe: dfdRow ? "Documento de Formalização da Demanda registrado." : "Etapa ainda não iniciada.",
+        detalhe: dfdRow ? "Documento de FormalizaÃ§Ã£o da Demanda registrado." : "Etapa ainda nÃ£o iniciada.",
       },
       {
         chave: "etp",
         label: "ETP",
         status: etpRow ? (etpRow.concluido ? "CONCLUIDO" : "EM_ANDAMENTO") : "PENDENTE",
-        detalhe: etpRow ? "Estudo Técnico Preliminar controlado no Planejamento." : "Etapa ainda não iniciada.",
+        detalhe: etpRow ? "Estudo TÃ©cnico Preliminar controlado no Planejamento." : "Etapa ainda nÃ£o iniciada.",
       },
       {
         chave: "cotacoes",
-        label: "Cotações preliminares",
+        label: "CotaÃ§Ãµes preliminares",
         status: Number(cotacaoRow?.total ?? 0) > 0 ? "CONCLUIDO" : etpRow ? "EM_ANDAMENTO" : "PENDENTE",
         detalhe:
           Number(cotacaoRow?.total ?? 0) > 0
-            ? `${Number(cotacaoRow?.total ?? 0)} registro(s) na composição do mapa comparativo.`
-            : "Ainda sem registros válidos para estimativa de valor.",
+            ? `${Number(cotacaoRow?.total ?? 0)} registro(s) na composiÃ§Ã£o do mapa comparativo.`
+            : "Ainda sem registros vÃ¡lidos para estimativa de valor.",
       },
       {
         chave: "tr",
         label: "TR",
         status: trRow ? (trRow.concluido ? "CONCLUIDO" : "EM_ANDAMENTO") : "PENDENTE",
-        detalhe: trRow ? "Etapa do Termo de Referência controlada no Planejamento." : "Termo de Referência ainda não registrado.",
+        detalhe: trRow ? "Etapa do Termo de ReferÃªncia controlada no Planejamento." : "Termo de ReferÃªncia ainda nÃ£o registrado.",
       },
       {
         chave: "publicacao",
@@ -432,21 +479,22 @@ export const processosRouter = router({
         status: baseRow.processo.publicado ? "CONCLUIDO" : baseRow.workflow?.moduloAtual === "LICITACAO" ? "EM_ANDAMENTO" : "PENDENTE",
         detalhe: baseRow.processo.publicado
           ? `Publicado${baseRow.processo.numeroEdital ? ` sob o edital ${baseRow.processo.numeroEdital}` : ""}.`
-          : "A publicação será controlada na Licitação.",
+          : "A publicaÃ§Ã£o serÃ¡ controlada na LicitaÃ§Ã£o.",
       },
       {
         chave: "contrato",
-        label: "Contratação",
+        label: "ContrataÃ§Ã£o",
         status: contratosRows.length ? "CONCLUIDO" : "PENDENTE",
         detalhe: contratosRows.length
           ? `${contratosRows.length} contrato(s) associado(s), sendo ${contratosAtivos} ativo(s).`
-          : "Ainda não há contratos vinculados.",
+          : "Ainda nÃ£o hÃ¡ contratos vinculados.",
       },
     ];
 
     return {
       processo: {
         ...baseRow.processo,
+        ativo: baseRow.processo.ativo,
         valorEstimado: baseRow.processo.valorEstimado ? toNumber(baseRow.processo.valorEstimado) : null,
         valorHomologado: baseRow.processo.valorHomologado ? toNumber(baseRow.processo.valorHomologado) : null,
         secretaria: baseRow.secretaria,
@@ -470,3 +518,4 @@ export const processosRouter = router({
     };
   }),
 });
+

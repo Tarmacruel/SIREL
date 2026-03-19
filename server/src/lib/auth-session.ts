@@ -23,7 +23,7 @@ function base64UrlDecode(value: string) {
 }
 
 function getSecret() {
-  return process.env.JWT_SECRET || "sirel-beta-secret";
+  return process.env.JWT_SECRET || "sirel-secret";
 }
 
 function signPayload(payload: SessionPayload) {

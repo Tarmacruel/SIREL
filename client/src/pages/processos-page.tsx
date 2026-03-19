@@ -32,6 +32,7 @@ interface ProcessosPageProps {
 }
 
 export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
+  const utils = trpc.useUtils();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(12);
   const [search, setSearch] = useState("");
@@ -39,10 +40,11 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
   const [statusId, setStatusId] = useState("");
   const [moduloAtual, setModuloAtual] = useState("");
   const [origemFluxo, setOrigemFluxo] = useState<"" | "fluxo" | "fora">("");
+  const [ativoFilter, setAtivoFilter] = useState<"ativos" | "inativos" | "todos">("ativos");
   const [somenteParados, setSomenteParados] = useState(false);
   const [selectedProcessId, setSelectedProcessId] = useState<number | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [pageFeedback, setPageFeedback] = useState<string | null>(null);
+  const [pageFeedback, setPageFeedback] = useState<{ variant: "success" | "error"; message: string } | null>(null);
 
   const deferredSearch = useDeferredValue(search.trim());
   const filters = useMemo(
@@ -55,8 +57,9 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
       moduloAtual: moduloAtual || undefined,
       foraDoFluxo: origemFluxo === "" ? undefined : origemFluxo === "fora",
       paradosHaMaisDeSeteDias: somenteParados || undefined,
+      ativo: ativoFilter === "todos" ? undefined : ativoFilter === "ativos",
     }),
-    [deferredSearch, moduloAtual, origemFluxo, page, pageSize, secretariaId, somenteParados, statusId],
+    [ativoFilter, deferredSearch, moduloAtual, origemFluxo, page, pageSize, secretariaId, somenteParados, statusId],
   );
 
   const catalogQuery = trpc.cadastros.formOptions.useQuery(undefined, { retry: false });
@@ -68,7 +71,7 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
 
   useEffect(() => {
     setPage(1);
-  }, [deferredSearch, moduloAtual, origemFluxo, pageSize, secretariaId, somenteParados, statusId]);
+  }, [ativoFilter, deferredSearch, moduloAtual, origemFluxo, pageSize, secretariaId, somenteParados, statusId]);
 
   useEffect(() => {
     if (processoId && processoId > 0) {
@@ -85,6 +88,24 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
   }, [processoId, rows, selectedProcessId]);
 
   const overviewQuery = trpc.processos.overview.useQuery({ processoId: selectedProcessId ?? 0 }, { enabled: Boolean(selectedProcessId), retry: false });
+  const setAtivoMutation = trpc.processos.setAtivo.useMutation({
+    onSuccess: async (result) => {
+      await Promise.all([
+        utils.processos.summary.invalidate(),
+        utils.processos.list.invalidate(),
+        utils.processos.overview.invalidate({ processoId: result.id }),
+        utils.workflow.summary.invalidate(),
+        utils.workflow.list.invalidate(),
+        utils.dashboard.summary.invalidate(),
+        utils.consultas.search.invalidate(),
+      ]);
+      setPageFeedback({
+        variant: "success",
+        message: `Processo ${result.numeroSirel} ${result.ativo ? "reativado" : "inativado"} com sucesso.`,
+      });
+    },
+    onError: (error) => setPageFeedback({ variant: "error", message: error.message }),
+  });
 
   return (
     <div className="space-y-6">
@@ -112,7 +133,7 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
             </article>
           ))}
         </div>
-        {pageFeedback ? <Alert className="mt-4" variant="success">{pageFeedback}</Alert> : null}
+        {pageFeedback ? <Alert className="mt-4" variant={pageFeedback.variant}>{pageFeedback.message}</Alert> : null}
       </SectionCard>
 
       <SectionCard
@@ -141,6 +162,11 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
               <option value="fluxo">No fluxo</option>
               <option value="fora">Fora do fluxo</option>
             </Select>
+            <Select value={ativoFilter} onChange={(event) => setAtivoFilter(event.target.value as typeof ativoFilter)} className="max-w-[170px]">
+              <option value="ativos">Somente ativos</option>
+              <option value="inativos">Somente inativos</option>
+              <option value="todos">Todos</option>
+            </Select>
             <label className="flex items-center gap-2 rounded-[18px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2 text-sm text-[var(--color-neutral-700)]">
               <Checkbox checked={somenteParados} onChange={(event) => setSomenteParados(event.target.checked)} />
               Somente parados há mais de 7 dias
@@ -156,6 +182,7 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
                 <TableHeaderCell>Secretaria</TableHeaderCell>
                 <TableHeaderCell>Módulo</TableHeaderCell>
                 <TableHeaderCell>Etapa</TableHeaderCell>
+                <TableHeaderCell>Cadastro</TableHeaderCell>
                 <TableHeaderCell>Parado há</TableHeaderCell>
                 <TableHeaderCell>Documentos</TableHeaderCell>
                 <TableHeaderCell>Contratos</TableHeaderCell>
@@ -165,7 +192,7 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
               {listQuery.isLoading
                 ? Array.from({ length: 6 }).map((_, index) => (
                     <TableRow key={index}>
-                      <TableCell colSpan={7}><Skeleton className="h-12 w-full" /></TableCell>
+                      <TableCell colSpan={8}><Skeleton className="h-12 w-full" /></TableCell>
                     </TableRow>
                   ))
                 : rows.map((row) => (
@@ -181,12 +208,17 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
                         <div className="text-xs text-[var(--color-neutral-500)]">{row.situacao ?? "Sem situação"}</div>
                       </TableCell>
                       <TableCell>{row.etapaAtual ?? "Cadastro inicial"}</TableCell>
+                      <TableCell>
+                        <span className={["inline-flex rounded-full px-3 py-1 text-xs font-bold", row.ativo ? "bg-emerald-100 text-emerald-800" : "bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]"].join(" ")}>
+                          {row.ativo ? "Ativo" : "Inativo"}
+                        </span>
+                      </TableCell>
                       <TableCell><div className="font-semibold text-[var(--color-primary-900)]">{row.diasParado} dia(s)</div><div className="text-xs text-[var(--color-neutral-500)]">{row.ultimaMovimentacao?.descricao ?? "Sem movimentação"}</div></TableCell>
                       <TableCell>{row.documentos}</TableCell>
                       <TableCell>{row.contratosAtivos}/{row.contratos}</TableCell>
                     </TableRow>
                   ))}
-              {!listQuery.isLoading && !rows.length ? <TableRow><TableCell colSpan={7} className="text-center text-[var(--color-neutral-500)]">Nenhum processo encontrado para os filtros aplicados.</TableCell></TableRow> : null}
+              {!listQuery.isLoading && !rows.length ? <TableRow><TableCell colSpan={8} className="text-center text-[var(--color-neutral-500)]">Nenhum processo encontrado para os filtros aplicados.</TableCell></TableRow> : null}
             </TableBody>
           </Table>
         </div>
@@ -203,7 +235,26 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
       </SectionCard>
 
       {selectedProcessId ? (
-        <SectionCard title="Painel do processo" description="Resumo executivo da situação atual do processo selecionado, agora em largura total para facilitar a leitura.">
+        <SectionCard
+          title="Painel do processo"
+          description="Resumo executivo da situação atual do processo selecionado, agora em largura total para facilitar a leitura."
+          action={
+            overviewQuery.data?.processo ? (
+              <Button
+                variant={overviewQuery.data.processo.ativo ? "destructive" : "outline"}
+                onClick={() =>
+                  void setAtivoMutation.mutateAsync({
+                    processoId: overviewQuery.data!.processo.id,
+                    ativo: !overviewQuery.data!.processo.ativo,
+                  })
+                }
+                disabled={setAtivoMutation.isPending}
+              >
+                {overviewQuery.data.processo.ativo ? "Inativar processo" : "Reativar processo"}
+              </Button>
+            ) : null
+          }
+        >
           {overviewQuery.isLoading ? (
             <div className="space-y-3">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-20" />)}</div>
           ) : overviewQuery.error ? (
@@ -216,6 +267,9 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="text-xl font-black text-[var(--color-primary-900)]">{overviewQuery.data.processo.numeroSirel}</h4>
                   {overviewQuery.data.processo.foraDoFluxo ? <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">Fora do fluxo</span> : null}
+                  <span className={["inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]", overviewQuery.data.processo.ativo ? "bg-emerald-100 text-emerald-800" : "bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]"].join(" ")}>
+                    {overviewQuery.data.processo.ativo ? "Ativo" : "Inativo"}
+                  </span>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-[var(--color-neutral-700)]">{overviewQuery.data.processo.objeto}</p>
               </article>
@@ -284,7 +338,10 @@ export function ProcessosPage({ processoId }: ProcessosPageProps = {}) {
         onClose={() => setCreateModalOpen(false)}
         onCreated={(created) => {
           setSelectedProcessId(created.id);
-          setPageFeedback(`Processo ${created.numeroSirel} criado. O fluxo segue a partir do Planejamento ou do módulo excepcional definido.`);
+          setPageFeedback({
+            variant: "success",
+            message: `Processo ${created.numeroSirel} criado. O fluxo segue a partir do Planejamento ou do módulo excepcional definido.`,
+          });
         }}
       />
     </div>

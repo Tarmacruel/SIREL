@@ -469,5 +469,5 @@ app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext 
 
 app.listen(port, host, () => {
   startImportacoesScheduler();
-  console.log(`SIREL Beta 2.0 server listening on http://${host}:${port}`);
+  console.log(`SIREL SIREL server listening on http://${host}:${port}`);
 });

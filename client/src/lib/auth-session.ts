@@ -12,7 +12,7 @@ export interface AuthSession {
   user: AuthUser;
 }
 
-const STORAGE_KEY = "sirel.beta.session";
+const STORAGE_KEY = "sirel.session";
 
 export function loadStoredSession(): AuthSession | null {
   if (typeof window === "undefined") return null;

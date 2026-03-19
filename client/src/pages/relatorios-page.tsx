@@ -129,7 +129,7 @@ export function RelatoriosPage() {
     <div className="space-y-6">
       <SectionCard
         title="Central de Relatórios e Exportação"
-        description="Gere consolidações operacionais da Beta 2.0 com filtros de período, secretaria, modalidade e status."
+        description="Gere consolidações operacionais da SIREL com filtros de período, secretaria, modalidade e status."
         action={
           <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-primary-800)]">
             <BarChart3 className="h-4 w-4" />

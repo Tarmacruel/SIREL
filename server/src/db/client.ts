@@ -13,7 +13,7 @@ export const db = pool ? drizzle(pool) : null;
 
 export function requireDb() {
   if (!db) {
-    throw new Error("DATABASE_URL nao configurada para a Beta 2.0");
+    throw new Error("DATABASE_URL nao configurada para a SIREL");
   }
   return db;
 }

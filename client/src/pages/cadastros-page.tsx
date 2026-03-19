@@ -1,4 +1,4 @@
-import {
+﻿import {
   Boxes,
   Building2,
   CheckCheck,
@@ -34,7 +34,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { maskCnpj, maskPhone, validateCadastroForm, type CadastroFormErrors } from "@/features/cadastros/form";
+import { maskCnpj, maskCpf, maskPhone, validateCadastroForm, type CadastroFormErrors } from "@/features/cadastros/form";
 import { buildCadastroCroppedFile, buildCadastroCropPreview } from "@/lib/cadastro-image-editor";
 import { resolveCadastroAssetUrl, uploadCadastroAsset } from "@/lib/cadastros-upload";
 import { exportCadastrosToCsv, exportCadastrosToPdf, exportCadastrosToXlsx } from "@/lib/export-cadastros";
@@ -59,6 +59,8 @@ const entityMeta: Array<{ key: CadastroEntity; label: string; icon: typeof Boxes
   { key: "itens", label: "Itens", icon: Boxes, singular: "item", searchLabel: "descrição, código ou unidade" },
   { key: "fornecedores", label: "Fornecedores", icon: Building2, singular: "fornecedor", searchLabel: "razão social, CNPJ ou e-mail" },
   { key: "secretarias", label: "Secretarias", icon: Landmark, singular: "secretaria", searchLabel: "nome, sigla ou responsável" },
+  { key: "pessoas", label: "Pessoas", icon: Users, singular: "pessoa", searchLabel: "nome, CPF ou cargo" },
+  { key: "servidores", label: "Servidores", icon: UserCog, singular: "servidor", searchLabel: "nome, CPF, cargo ou secretaria" },
   { key: "departamentos", label: "Departamentos", icon: FolderTree, singular: "departamento", searchLabel: "nome, centro de custo ou secretaria" },
   { key: "usuarios", label: "Usuários", icon: Users, singular: "usuário", searchLabel: "nome, login ou e-mail" },
   { key: "parametros", label: "Parâmetros", icon: Settings2, singular: "parâmetro", searchLabel: "categoria, chave ou valor" },
@@ -108,6 +110,9 @@ function getRowLabel(entity: CadastroEntity, row: Record<string, any>) {
       return row.razaoSocial;
     case "secretarias":
       return row.nome;
+    case "pessoas":
+    case "servidores":
+      return row.nome;
     case "departamentos":
       return row.nome;
     case "usuarios":
@@ -125,6 +130,10 @@ function getDefaultForm(entity: CadastroEntity): FormState {
       return { razaoSocial: "", cnpj: "", email: "", telefone: "", cidade: "", estado: "BA", ativo: true };
     case "secretarias":
       return { sigla: "", nome: "", responsavel: "", email: "", telefone: "", descricao: "", ativo: true };
+    case "pessoas":
+      return { nome: "", cpf: "", cargo: "", secretariaId: "", ativo: true };
+    case "servidores":
+      return { nome: "", cpf: "", cargo: "", secretariaId: "", ativo: true };
     case "departamentos":
       return { nome: "", codigoCentroCusto: "", secretariaId: "", responsavelId: "", descricao: "", ativo: true };
     case "usuarios":
@@ -164,6 +173,16 @@ function mapRowToForm(entity: CadastroEntity, row: Record<string, any>): FormSta
         email: row.email ?? "",
         telefone: row.telefone ?? "",
         descricao: row.descricao ?? "",
+        ativo: row.status === "ativo",
+      };
+    case "pessoas":
+    case "servidores":
+      return {
+        id: row.id,
+        nome: row.nome ?? "",
+        cpf: row.cpf ?? "",
+        cargo: row.cargo ?? "",
+        secretariaId: row.secretariaId ? String(row.secretariaId) : "",
         ativo: row.status === "ativo",
       };
     case "departamentos":
@@ -263,6 +282,15 @@ function buildExportRows(entity: CadastroEntity, rows: Array<Record<string, any>
         Responsavel: row.responsavel ?? "",
         Email: row.email ?? "",
         Telefone: row.telefone ?? "",
+        Status: row.status,
+      }));
+    case "pessoas":
+    case "servidores":
+      return rows.map((row) => ({
+        Nome: row.nome,
+        CPF: row.cpf ?? "",
+        Cargo: row.cargo ?? "",
+        Secretaria: row.secretariaNome ?? "",
         Status: row.status,
       }));
     case "departamentos":
@@ -855,7 +883,7 @@ export function CadastrosPage() {
       );
     }
 
-    if (entity === "departamentos") {
+    if (entity === "pessoas" || entity === "servidores" || entity === "departamentos") {
       return (
         <FormField label="Secretaria">
           <Select value={secretariaId} onChange={(event) => { setPage(1); setSecretariaId(event.target.value); }}>
@@ -941,6 +969,16 @@ export function CadastrosPage() {
             </TableCell>
             <TableCell>{row.responsavel ?? "-"}</TableCell>
             <TableCell>{row.email ?? "-"}</TableCell>
+          </>
+        ) : null}
+        {entity === "pessoas" || entity === "servidores" ? (
+          <>
+            <TableCell>
+              <div className="font-semibold text-[var(--color-primary-900)]">{highlightTerm(row.nome, search)}</div>
+              <div className="text-xs font-mono text-[var(--color-neutral-500)]">{row.cpf ?? "-"}</div>
+            </TableCell>
+            <TableCell>{row.cargo ?? "-"}</TableCell>
+            <TableCell>{row.secretariaNome ?? "-"}</TableCell>
           </>
         ) : null}
         {entity === "departamentos" ? (
@@ -1342,6 +1380,28 @@ export function CadastrosPage() {
               </>
             ) : null}
 
+            {entity === "pessoas" || entity === "servidores" ? (
+              <>
+                <FormField label={entity === "servidores" ? "Nome do servidor" : "Nome da pessoa"} error={fieldError("nome")}>
+                  <Input value={formState.nome ?? ""} onChange={(event) => updateForm("nome", event.target.value)} />
+                </FormField>
+                <FormField label="CPF" error={fieldError("cpf")}>
+                  <Input value={formState.cpf ?? ""} onChange={(event) => updateForm("cpf", maskCpf(event.target.value))} placeholder="Somente números ou CPF formatado" />
+                </FormField>
+                <FormField label="Cargo" error={fieldError("cargo")}>
+                  <Input value={formState.cargo ?? ""} onChange={(event) => updateForm("cargo", event.target.value)} />
+                </FormField>
+                <FormField label="Secretaria" error={fieldError("secretariaId")}>
+                  <Select value={formState.secretariaId ?? ""} onChange={(event) => updateForm("secretariaId", event.target.value)}>
+                    <option value="">{entity === "servidores" ? "Selecione" : "Sem vínculo"}</option>
+                    {optionsQuery.data?.secretarias.map((item) => (
+                      <option key={item.id} value={item.id}>{item.sigla} - {item.nome}</option>
+                    ))}
+                  </Select>
+                </FormField>
+              </>
+            ) : null}
+
             {entity === "departamentos" ? (
               <>
                 <FormField label="Nome do departamento" error={fieldError("nome")}>
@@ -1581,3 +1641,6 @@ export function CadastrosPage() {
     </div>
   );
 }
+
+
+

@@ -17,6 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:sync-journal": "node ./scripts/sync-drizzle-journal.mjs",
+    "db:reset:production-baseline": "npm run reset:production-baseline --workspace server",
     "db:check-seeded": "npm run db:check-seeded --workspace server",
     "legacy:export": "python scripts/export_legacy_snapshot.py",
     "legacy:import": "npm run import:legacy --workspace server",

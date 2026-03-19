@@ -152,7 +152,7 @@ export function DashboardPage() {
       </SectionCard>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <KpiCard title="Processos ativos hoje" value={String(data.processosAtivos)} hint="Processos em andamento na base Beta 2.0." icon={<FolderOpenDot className="h-5 w-5" />} />
+        <KpiCard title="Processos ativos hoje" value={String(data.processosAtivos)} hint="Processos em andamento na base do SIREL." icon={<FolderOpenDot className="h-5 w-5" />} />
         <KpiCard title="Contratos vigentes" value={String(data.contratosVigentes)} hint="Contratos vinculados a processos formalizados." icon={<BriefcaseBusiness className="h-5 w-5" />} />
         <KpiCard title="Tarefas pendentes" value={String(data.tarefasPendentesUsuario)} hint="Notificações ainda não tratadas pelo usuário." icon={<CheckSquare className="h-5 w-5" />} />
         <KpiCard title="Movimentações do time" value={String(data.movimentacoesUltimas24h)} hint="Eventos registrados nas últimas 24 horas." icon={<GitCompareArrows className="h-5 w-5" />} />
@@ -321,7 +321,7 @@ export function DashboardPage() {
                     ))}
                 {!recentProcesses.isLoading && !recentProcesses.data?.items.length ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-slate-500">Nenhum processo criado ainda na base Beta 2.0.</TableCell>
+                    <TableCell colSpan={4} className="text-slate-500">Nenhum processo criado ainda na base do SIREL.</TableCell>
                   </TableRow>
                 ) : null}
               </TableBody>

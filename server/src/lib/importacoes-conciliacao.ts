@@ -263,6 +263,7 @@ async function loadInternalProcesses(search?: string) {
   const db = requireDb();
   const filters = search?.trim()
     ? [
+        eq(processos.ativo, true),
         or(
           ilike(processos.numeroSirel, `%${search}%`),
           ilike(processos.numeroAdministrativo, `%${search}%`),
@@ -270,7 +271,7 @@ async function loadInternalProcesses(search?: string) {
           ilike(processos.objeto, `%${search}%`),
         ),
       ]
-    : [];
+    : [eq(processos.ativo, true)];
 
   const rows = await db
     .select({

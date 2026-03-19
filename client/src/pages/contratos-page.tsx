@@ -40,7 +40,7 @@ export function ContratosPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <SectionCard title="Contratos" description="Base de contratos da Beta 2.0 com filtros, resumo e paginação para crescimento real da operação.">
+    <SectionCard title="Contratos" description="Base de contratos da SIREL com filtros, resumo e paginação para crescimento real da operação.">
       <Tabs
         items={[
           {

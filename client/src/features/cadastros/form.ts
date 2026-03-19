@@ -3,7 +3,9 @@
   fornecedorCadastroSchema,
   itemCadastroSchema,
   parametroCadastroSchema,
+  pessoaCadastroSchema,
   secretariaCadastroSchema,
+  servidorCadastroSchema,
   usuarioCadastroSchema,
   type CadastroEntity,
 } from "@sirel/shared/schemas/cadastros";
@@ -40,6 +42,14 @@ export function maskCep(value: string | null | undefined) {
   return digits.replace(/^(\d{5})(\d+)/, "$1-$2");
 }
 
+export function maskCpf(value: string | null | undefined) {
+  const digits = digitsOnly(value).slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, "$1.$2")
+    .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1-$2");
+}
+
 export function buildCadastroPayload(entity: CadastroEntity, form: CadastroFormState, editingId?: number | null) {
   switch (entity) {
     case "itens":
@@ -70,6 +80,16 @@ export function buildCadastroPayload(entity: CadastroEntity, form: CadastroFormS
         email: String(form.email ?? "").trim(),
         telefone: maskPhone(form.telefone),
         descricao: String(form.descricao ?? "").trim(),
+        ativo: Boolean(form.ativo),
+      };
+    case "pessoas":
+    case "servidores":
+      return {
+        id: editingId ?? undefined,
+        nome: String(form.nome ?? "").trim(),
+        cpf: digitsOnly(form.cpf),
+        cargo: String(form.cargo ?? "").trim(),
+        secretariaId: form.secretariaId ? Number(form.secretariaId) : null,
         ativo: Boolean(form.ativo),
       };
     case "departamentos":
@@ -113,6 +133,10 @@ function getSchema(entity: CadastroEntity) {
       return fornecedorCadastroSchema;
     case "secretarias":
       return secretariaCadastroSchema;
+    case "pessoas":
+      return pessoaCadastroSchema;
+    case "servidores":
+      return servidorCadastroSchema;
     case "departamentos":
       return departamentoCadastroSchema;
     case "usuarios":

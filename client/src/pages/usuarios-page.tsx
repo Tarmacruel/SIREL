@@ -270,12 +270,12 @@ export function UsuariosPage() {
 
   return (
     <div className="space-y-6">
-      <SectionCard title="Usuários e segurança" description="Gestão administrativa de usuários, perfis e proteção básica de acesso da Beta 2.0.">
+      <SectionCard title="Usuários e segurança" description="Gestão administrativa de usuários, perfis e proteção básica de acesso da SIREL.">
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
           <div className="space-y-4">
             <SectionCard
               title="Minha senha"
-              description="Altere sua senha de acesso ao ambiente beta."
+              description="Altere sua senha de acesso ao ambiente sistema."
               action={
                 <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
                   <KeyRound className="h-4 w-4" />
@@ -425,7 +425,7 @@ export function UsuariosPage() {
               >
                 <Alert variant={canAudit ? "info" : "warning"}>
                   {canAudit
-                    ? "Use o painel à direita para acompanhar logins, bloqueios temporários e trocas de senha do ambiente beta."
+                    ? "Use o painel à direita para acompanhar logins, bloqueios temporários e trocas de senha do ambiente sistema."
                     : "A gestão de usuários fica disponível apenas para administradores. Seu acesso continua habilitado para troca da própria senha."}
                 </Alert>
               </SectionCard>
@@ -437,7 +437,7 @@ export function UsuariosPage() {
               <>
                 <SectionCard
                   title="Novo usuário"
-                  description="Crie acessos locais para homologação do beta."
+                  description="Crie acessos locais para homologação do sistema."
                   action={
                     <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
                       <UserCog className="h-4 w-4" />

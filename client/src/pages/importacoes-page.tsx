@@ -23,6 +23,7 @@ import type {
   ImportacaoBllSource,
 } from "@sirel/shared/schemas/importacoes";
 
+import { ProcessoCreateModal } from "@/components/processos/processo-create-modal";
 import { Modal } from "@/components/shared/modal";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert } from "@/components/ui/alert";
@@ -93,6 +94,18 @@ function readFileAsText(file: File) {
       reject(reader.error ?? new Error("Falha ao ler arquivo."));
     reader.readAsText(file, "utf-8");
   });
+}
+
+function formatDateForInput(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function formatCurrencyForForm(value: number | null | undefined) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  return value.toFixed(2).replace(".", ",");
 }
 
 function getInternalProcessHref(
@@ -208,6 +221,7 @@ export function ImportacoesPage() {
     "" | ImportacaoBllConciliacaoStatus
   >("");
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
+  const [createProcessModalOpen, setCreateProcessModalOpen] = useState(false);
   const [manualProcessSearch, setManualProcessSearch] = useState("");
   const [feedback, setFeedback] = useState<FeedbackState>(null);
   const [csvState, setCsvState] = useState<CsvUploadState>({
@@ -352,6 +366,23 @@ export function ImportacoesPage() {
       },
     ];
   }, [summaryQuery.data]);
+
+  const createProcessInitialValues = useMemo(() => {
+    if (!detailData?.record) return undefined;
+
+    return {
+      numeroAdministrativo: detailData.record.numeroAdministrativo ?? "",
+      anoReferencia: String(
+        detailData.record.anoReferencia ?? new Date().getFullYear(),
+      ),
+      objeto: detailData.record.objeto ?? "",
+      valorEstimado: formatCurrencyForForm(
+        detailData.record.valorTotal ?? detailData.record.valorReferencia,
+      ),
+      dataAbertura: formatDateForInput(detailData.record.publicacaoEm),
+      foraDoFluxo: false,
+    };
+  }, [detailData]);
 
   async function handleCsvImport() {
     try {
@@ -1076,6 +1107,13 @@ export function ImportacoesPage() {
                       registro importado.
                     </Alert>
                     <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => setCreateProcessModalOpen(true)}
+                        icon={<Link2 className="h-4 w-4" />}
+                      >
+                        Criar processo no SIREL
+                      </Button>
                       {detailData.record.statusConciliacao === "IGNORADO" ? (
                         <Button
                           variant="outline"
@@ -1234,6 +1272,26 @@ export function ImportacoesPage() {
           </Alert>
         )}
       </Modal>
+
+      <ProcessoCreateModal
+        open={createProcessModalOpen}
+        onClose={() => setCreateProcessModalOpen(false)}
+        initialValues={createProcessInitialValues}
+        title="Criar processo interno"
+        description="Crie o processo no SIREL com base nos dados importados e vincule-o automaticamente ao registro público atual."
+        submitLabel="Criar e vincular"
+        onCreated={(created) => {
+          if (!selectedRecordId) return;
+
+          void (async () => {
+            await linkProcessoMutation.mutateAsync({
+              importedId: selectedRecordId,
+              processoId: created.id,
+            });
+            setCreateProcessModalOpen(false);
+          })();
+        }}
+      />
     </div>
   );
 }

@@ -62,6 +62,7 @@ export function WorkflowPage() {
   const catalogQuery = trpc.cadastros.formOptions.useQuery(undefined, { retry: false });
   const listQuery = trpc.workflow.list.useQuery(filters, { retry: false, placeholderData: (previous) => previous });
   const rows = listQuery.data?.items ?? [];
+  const displayedRows = selectedProcessId ? rows.filter((row) => row.processoId === selectedProcessId) : rows;
   const total = listQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
@@ -74,8 +75,8 @@ export function WorkflowPage() {
       setSelectedProcessId(null);
       return;
     }
-    if (!selectedProcessId || !rows.some((row) => row.processoId === selectedProcessId)) {
-      setSelectedProcessId(rows[0].processoId);
+    if (selectedProcessId && rows.length && !rows.some((row) => row.processoId === selectedProcessId)) {
+      setSelectedProcessId(null);
     }
   }, [rows, selectedProcessId]);
 
@@ -114,6 +115,26 @@ export function WorkflowPage() {
       setFeedback(`Workflow do processo atualizado para ${variables.moduloDestino}.`);
       setErrorMessage(null);
       setFieldErrors({});
+    },
+    onError: (error) => {
+      setFeedback(null);
+      setErrorMessage(error.message);
+    },
+  });
+  const setAtivoMutation = trpc.processos.setAtivo.useMutation({
+    onSuccess: async (result) => {
+      await Promise.all([
+        utils.processos.summary.invalidate(),
+        utils.processos.list.invalidate(),
+        utils.processos.overview.invalidate({ processoId: result.id }),
+        utils.workflow.summary.invalidate(),
+        utils.workflow.list.invalidate(),
+        utils.workflow.byProcesso.invalidate({ processoId: result.id }),
+        utils.dashboard.summary.invalidate(),
+        utils.consultas.search.invalidate(),
+      ]);
+      setFeedback(`Processo ${result.numeroSirel} ${result.ativo ? "reativado" : "inativado"} com sucesso.`);
+      setErrorMessage(null);
     },
     onError: (error) => {
       setFeedback(null);
@@ -224,9 +245,8 @@ export function WorkflowPage() {
           </FormField>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
-          <div className="space-y-4">
-            <div className="overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
               <Table className="min-w-[820px]">
                 <TableHead>
                   <tr>
@@ -239,13 +259,15 @@ export function WorkflowPage() {
                   </tr>
                 </TableHead>
                 <TableBody>
-                  {rows.map((row) => {
+                  {displayedRows.map((row) => {
                     const active = row.processoId === selectedProcessId;
 
                     return (
                       <TableRow
                         key={row.processoId}
-                        onClick={() => setSelectedProcessId(row.processoId)}
+                        onClick={() =>
+                          setSelectedProcessId((current) => (current === row.processoId ? null : row.processoId))
+                        }
                         className={["cursor-pointer transition", active ? "bg-[var(--color-primary-50)]" : "hover:bg-[rgba(230,240,255,0.45)]"].join(" ")}
                       >
                         <TableCell className="align-top">
@@ -297,7 +319,7 @@ export function WorkflowPage() {
                       </TableRow>
                     );
                   })}
-                  {!rows.length ? (
+                  {!displayedRows.length ? (
                     <TableRow>
                       <TableCell className="py-8 text-center text-[var(--color-neutral-500)]" colSpan={6}>
                         {listQuery.isFetching ? "Carregando workflows..." : "Nenhum workflow encontrado."}
@@ -308,37 +330,68 @@ export function WorkflowPage() {
               </Table>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-[var(--color-neutral-600)]">
-                Exibindo <span className="font-bold text-[var(--color-primary-900)]">{rows.length}</span> de{" "}
-                <span className="font-bold text-[var(--color-primary-900)]">{total}</span> workflows.
-              </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[var(--color-neutral-600)]">
+              {selectedProcessId ? (
+                <>
+                  Exibindo <span className="font-bold text-[var(--color-primary-900)]">1</span> workflow selecionado de{" "}
+                  <span className="font-bold text-[var(--color-primary-900)]">{total}</span>.
+                </>
+              ) : (
+                <>
+                  Exibindo <span className="font-bold text-[var(--color-primary-900)]">{displayedRows.length}</span> de{" "}
+                  <span className="font-bold text-[var(--color-primary-900)]">{total}</span> workflows.
+                </>
+              )}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              {selectedProcessId ? (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedProcessId(null)}>
+                  Limpar seleção
+                </Button>
+              ) : null}
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           </div>
+        </div>
 
-          <div className="space-y-4">
-            <SectionCard
-              title="Painel do fluxo"
-              description="Resumo do processo selecionado, com linha do tempo e movimentação manual."
-              action={
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  {selectedProcessId ? (
-                    <Button type="button" size="sm" variant="outline" onClick={() => setOpenDocumentsModal(true)}>
-                      <FileStack className="mr-2 h-4 w-4" />
-                      Documentos do processo
-                    </Button>
-                  ) : null}
-                  <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-900)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
-                    <Workflow className="h-4 w-4" />
-                    Operação guiada
-                  </div>
+        {selectedProcessId ? (
+          <SectionCard
+            title="Painel do fluxo"
+            description="Resumo do processo selecionado, com linha do tempo e movimentação manual em largura total."
+            action={
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button type="button" size="sm" variant="outline" onClick={() => setOpenDocumentsModal(true)}>
+                  <FileStack className="mr-2 h-4 w-4" />
+                  Documentos do processo
+                </Button>
+                {detailQuery.data?.processo ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={detailQuery.data.processo.ativo ? "destructive" : "secondary"}
+                    disabled={setAtivoMutation.isPending}
+                    onClick={() =>
+                      void setAtivoMutation.mutateAsync({
+                        processoId: detailQuery.data!.processo!.id,
+                        ativo: !detailQuery.data!.processo!.ativo,
+                      })
+                    }
+                  >
+                    {detailQuery.data.processo.ativo ? "Inativar processo" : "Reativar processo"}
+                  </Button>
+                ) : null}
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedProcessId(null)}>
+                  Mostrar todos
+                </Button>
+                <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-900)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
+                  <Workflow className="h-4 w-4" />
+                  Operação guiada
                 </div>
-              }
-            >
-              {!selectedProcessId ? (
-                <Alert variant="info">Selecione um workflow para visualizar o detalhe.</Alert>
-              ) : detailQuery.isLoading ? (
+              </div>
+            }
+          >
+            {detailQuery.isLoading ? (
                 <div className="space-y-3">
                   {[0, 1, 2, 3].map((item) => (
                     <Skeleton key={item} className="h-20" />
@@ -359,6 +412,16 @@ export function WorkflowPage() {
                               Fora do fluxo
                             </span>
                           ) : null}
+                          <span
+                            className={[
+                              "inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em]",
+                              detailQuery.data?.processo?.ativo
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]",
+                            ].join(" ")}
+                          >
+                            {detailQuery.data?.processo?.ativo ? "Ativo" : "Inativo"}
+                          </span>
                         </div>
                         <p className="mt-1 text-sm text-[var(--color-neutral-600)]">{detailQuery.data?.processo?.secretaria}</p>
                       </div>
@@ -532,8 +595,11 @@ export function WorkflowPage() {
                 </div>
               )}
             </SectionCard>
-          </div>
-        </div>
+        ) : (
+          <Alert variant="info">
+            Selecione um processo na fila para centralizar o fluxo operacional na tela. Ao clicar novamente no mesmo processo, a lista completa volta a ser exibida.
+          </Alert>
+        )}
       </SectionCard>
 
       <Modal

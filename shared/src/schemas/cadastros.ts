@@ -4,6 +4,8 @@ export const cadastroEntityOptions = [
   "itens",
   "fornecedores",
   "secretarias",
+  "pessoas",
+  "servidores",
   "departamentos",
   "usuarios",
   "parametros",
@@ -79,6 +81,34 @@ export const secretariaCadastroSchema = z.object({
   ativo: z.boolean().default(true),
 });
 
+export const pessoaCadastroSchema = z.object({
+  id: z.number().int().positive().optional(),
+  nome: z.string().trim().min(3, "Informe o nome da pessoa."),
+  cpf: z.string().trim().optional(),
+  cargo: z.string().trim().optional(),
+  secretariaId: z.number().int().positive().optional().nullable(),
+  ativo: z.boolean().default(true),
+}).superRefine((value, ctx) => {
+  const cpfDigits = value.cpf?.replace(/\D/g, "") ?? "";
+  if (cpfDigits && cpfDigits.length !== 11) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["cpf"],
+      message: "Informe um CPF válido com 11 dígitos.",
+    });
+  }
+});
+
+export const servidorCadastroSchema = pessoaCadastroSchema.superRefine((value, ctx) => {
+  if (!value.secretariaId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["secretariaId"],
+      message: "Vincule o servidor a uma secretaria.",
+    });
+  }
+});
+
 export const departamentoCadastroSchema = z.object({
   id: z.number().int().positive().optional(),
   nome: z.string().trim().min(3, "Informe o nome do departamento."),
@@ -137,6 +167,8 @@ export const cadastroSaveInputSchema = z.discriminatedUnion("entity", [
   z.object({ entity: z.literal("itens"), data: itemCadastroSchema }),
   z.object({ entity: z.literal("fornecedores"), data: fornecedorCadastroSchema }),
   z.object({ entity: z.literal("secretarias"), data: secretariaCadastroSchema }),
+  z.object({ entity: z.literal("pessoas"), data: pessoaCadastroSchema }),
+  z.object({ entity: z.literal("servidores"), data: servidorCadastroSchema }),
   z.object({ entity: z.literal("departamentos"), data: departamentoCadastroSchema }),
   z.object({ entity: z.literal("usuarios"), data: usuarioCadastroSchema }),
   z.object({ entity: z.literal("parametros"), data: parametroCadastroSchema }),

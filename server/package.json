@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "import:legacy": "tsx src/scripts/import-legacy-snapshot.ts",
+    "reset:production-baseline": "tsx src/scripts/reset-production-baseline.ts",
     "db:check-seeded": "tsx src/scripts/check-seeded.ts"
   },
   "dependencies": {

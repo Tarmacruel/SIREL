@@ -23,20 +23,29 @@ import { operadorProcedure, publicProcedure, router } from "../trpc.js";
 export const workflowRouter = router({
   summary: publicProcedure.query(async () => {
     const db = requireDb();
-    const [totalRow] = await db.select({ total: count() }).from(workflowProcesso);
+    const [totalRow] = await db
+      .select({ total: count() })
+      .from(workflowProcesso)
+      .innerJoin(processos, eq(processos.id, workflowProcesso.processoId))
+      .where(eq(processos.ativo, true));
     const porModulo = await db
       .select({ modulo: workflowProcesso.moduloAtual, total: count() })
       .from(workflowProcesso)
+      .innerJoin(processos, eq(processos.id, workflowProcesso.processoId))
+      .where(eq(processos.ativo, true))
       .groupBy(workflowProcesso.moduloAtual);
     const porSituacao = await db
       .select({ situacao: workflowProcesso.situacao, total: count() })
       .from(workflowProcesso)
+      .innerJoin(processos, eq(processos.id, workflowProcesso.processoId))
+      .where(eq(processos.ativo, true))
       .groupBy(workflowProcesso.situacao);
     const recentCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const [recentRow] = await db
       .select({ total: count() })
       .from(workflowProcesso)
-      .where(gte(workflowProcesso.atualizadoEm, recentCutoff));
+      .innerJoin(processos, eq(processos.id, workflowProcesso.processoId))
+      .where(and(eq(processos.ativo, true), gte(workflowProcesso.atualizadoEm, recentCutoff)));
 
     return {
       total: Number(totalRow?.total ?? 0),
@@ -65,7 +74,8 @@ export const workflowRouter = router({
       );
     }
 
-    const whereClause = filters.length ? and(...filters) : undefined;
+    filters.push(eq(processos.ativo, true));
+    const whereClause = and(...filters);
 
     const items = await db
       .select({
@@ -159,6 +169,7 @@ export const workflowRouter = router({
         valorEstimado: processos.valorEstimado,
         dataAbertura: processos.dataAbertura,
         foraDoFluxo: processos.foraDoFluxo,
+        ativo: processos.ativo,
         condutorProcessoId: processos.condutorProcessoId,
         publicado: processos.publicado,
       })
@@ -202,7 +213,7 @@ export const workflowRouter = router({
     const [currentProcess] = await db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1);
 
     if (!currentProcess) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nao encontrado." });
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo não encontrado." });
     }
 
     const nextData = {

@@ -1,3 +1,5 @@
+import { prefeituraLines, prefeituraLogoUrl, systemFooterText, systemFullName } from "@/lib/branding";
+
 interface ReportColumn {
   key: string;
   label: string;
@@ -75,6 +77,12 @@ export async function exportReportToXlsx(
   const XLSX = await import("xlsx");
   const summaryLines = buildSummaryLines(summary);
   const sheetData = [
+    [prefeituraLines[0]],
+    [prefeituraLines[1]],
+    [prefeituraLines[2]],
+    [prefeituraLines[3]],
+    [systemFullName],
+    [],
     [title],
     [`Gerado em ${new Date().toLocaleString("pt-BR")}`],
     [],
@@ -82,6 +90,8 @@ export async function exportReportToXlsx(
     ...(summaryLines.length ? [[]] : []),
     columns.map((column) => column.label),
     ...rows.map((row) => columns.map((column) => toText(row[column.key]))),
+    [],
+    [systemFooterText],
   ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
@@ -111,15 +121,25 @@ export async function exportReportToPdf(
   });
 
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(prefeituraLines[0], 40, 28);
+  doc.text(prefeituraLines[1], 40, 42);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(prefeituraLines[2], 40, 56);
+  doc.text(prefeituraLines[3], 40, 68, { maxWidth: 520 });
+  doc.text(systemFullName, 40, 82);
+
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text(title, 40, 42);
+  doc.text(title, 40, 106);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 40, 60);
+  doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 40, 122);
 
-  let currentY = 82;
+  let currentY = 144;
   if (summary.length) {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
@@ -142,7 +162,7 @@ export async function exportReportToPdf(
       : [["Nenhum registro encontrado para os filtros informados."]],
     theme: "grid",
     headStyles: {
-      fillColor: [15, 23, 42],
+      fillColor: [36, 64, 167],
       textColor: 255,
       fontStyle: "bold",
     },
@@ -157,7 +177,16 @@ export async function exportReportToPdf(
       lineWidth: 0.5,
       overflow: "linebreak",
     },
-    margin: { left: 40, right: 40, top: 40, bottom: 40 },
+    margin: { left: 40, right: 40, top: 40, bottom: 54 },
+    didDrawPage: () => {
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text(systemFooterText, 40, pageHeight - 18);
+      doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 40, pageHeight - 18, { align: "right" });
+    },
   });
 
   doc.save(filename);
@@ -178,6 +207,11 @@ export function openPrintableReport(
         <title>${escapeHtml(title)}</title>
         <style>
           body { font-family: "Segoe UI", Arial, sans-serif; margin: 24px; color: #0f172a; }
+          .brand { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 2px solid #dbeafe; }
+          .brand img { width: 220px; max-width: 36vw; height: auto; }
+          .brand-copy { display: grid; gap: 4px; }
+          .brand-copy strong { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #2440a7; }
+          .brand-copy span { font-size: 12px; color: #475569; }
           h1 { margin: 0 0 8px; font-size: 24px; }
           p { margin: 0 0 16px; color: #475569; }
           .summary { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 20px; }
@@ -190,10 +224,21 @@ export function openPrintableReport(
           tfoot td { background: #f8fafc; font-weight: 600; }
           .footer-summary { margin-top: 20px; border-top: 2px solid #cbd5e1; padding-top: 16px; display: grid; gap: 8px; }
           .footer-line { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; }
+          .system-footer { margin-top: 22px; padding-top: 16px; border-top: 2px solid #dbeafe; font-size: 12px; color: #475569; text-align: center; }
           @media print { body { margin: 12px; } }
         </style>
       </head>
       <body>
+        <section class="brand">
+          <img src="${prefeituraLogoUrl}" alt="Prefeitura Municipal de Teixeira de Freitas" />
+          <div class="brand-copy">
+            <strong>${escapeHtml(prefeituraLines[0])}</strong>
+            <strong>${escapeHtml(prefeituraLines[1])}</strong>
+            <span>${escapeHtml(prefeituraLines[2])}</span>
+            <span>${escapeHtml(prefeituraLines[3])}</span>
+            <span>${escapeHtml(systemFullName)}</span>
+          </div>
+        </section>
         <h1>${escapeHtml(title)}</h1>
         <p>Gerado em ${new Date().toLocaleString("pt-BR")}</p>
         ${
@@ -242,6 +287,7 @@ export function openPrintableReport(
                 .join("")}</section>`
             : ""
         }
+        <div class="system-footer">${escapeHtml(systemFooterText)}</div>
       </body>
     </html>
   `;

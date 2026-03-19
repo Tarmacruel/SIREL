@@ -27,6 +27,7 @@ import {
 
 import { appModules } from "@sirel/shared/const";
 import type { AuthUser } from "@/lib/auth-session";
+import { prefeituraLines, prefeituraLogoUrl, systemFooterText, systemName } from "@/lib/branding";
 import { trpc } from "@/lib/trpc";
 
 const icons: Record<string, typeof LayoutDashboard> = {
@@ -72,7 +73,7 @@ function SidebarContent({ collapsed, location, unreadNotifications, onToggleColl
     <div className={["flex h-full flex-col rounded-[28px] border border-[rgba(36,64,167,0.7)] bg-[linear-gradient(180deg,var(--color-primary-900),var(--color-primary-700))] py-6 text-white shadow-2xl shadow-[rgba(15,26,109,0.28)]", collapsed ? "px-3" : "px-5"].join(" ")}>
       <div className="mb-8">
         <div className={["flex items-center", collapsed ? "justify-center" : "justify-between gap-3"].join(" ")}>
-          {!collapsed ? <div className="inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">Beta 2.0</div> : null}
+          {!collapsed ? <div className="inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-100">{systemName}</div> : null}
           <button
             type="button"
             onClick={onToggleCollapse}
@@ -84,7 +85,7 @@ function SidebarContent({ collapsed, location, unreadNotifications, onToggleColl
         </div>
         {!collapsed ? (
           <>
-            <h1 className="mt-4 text-2xl font-black tracking-tight">SIREL Modern</h1>
+            <h1 className="mt-4 text-2xl font-black tracking-tight">{systemName}</h1>
             <p className="mt-2 text-sm leading-6 text-blue-100/85">Base executiva para licitações, documentos, contratos, workflow e auditoria.</p>
           </>
         ) : null}
@@ -126,12 +127,7 @@ function SidebarContent({ collapsed, location, unreadNotifications, onToggleColl
         })}
       </nav>
 
-      {!collapsed ? (
-        <div className="mt-8 rounded-3xl border border-white/12 bg-white/8 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-blue-100/70">Cenário de teste</p>
-          <p className="mt-2 text-sm text-blue-100/84">Cadastros básicos importados. Processos e movimentações devem ser recriados no novo sistema.</p>
-        </div>
-      ) : null}
+      {!collapsed ? <div className="mt-8 rounded-3xl border border-white/12 bg-white/8 p-4 text-xs leading-6 text-blue-100/78">{systemFooterText}</div> : null}
     </div>
   );
 }
@@ -140,7 +136,7 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("sirel.beta.sidebar.collapsed") === "1";
+    return window.localStorage.getItem("sirel.sidebar.collapsed") === "1";
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const notificationsSummary = trpc.notificacoes.summary.useQuery(undefined, {
@@ -152,7 +148,7 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem("sirel.beta.sidebar.collapsed", collapsed ? "1" : "0");
+    window.localStorage.setItem("sirel.sidebar.collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
   useEffect(() => {
@@ -206,9 +202,11 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
                   <Menu className="h-5 w-5" />
                 </button>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary-600)]">Prefeitura Municipal</p>
-                  <h2 className="mt-1 font-[var(--font-heading)] text-xl font-black tracking-tight text-[var(--color-primary-900)] md:text-2xl">SIREL - Gestão integrada de licitações</h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-neutral-600)]">Ambiente de homologação da Beta 2.0 com PostgreSQL, React, tRPC e fluxo operacional recriado do zero. A interface deve operar de forma nativa em desktop, tablet e smartphone.</p>
+                  <img src={prefeituraLogoUrl} alt="Prefeitura Municipal de Teixeira de Freitas" className="mb-3 h-14 w-auto rounded-xl bg-white/90 p-1 shadow-sm" />
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary-600)]">{prefeituraLines[0]}</p>
+                  <h2 className="mt-1 font-[var(--font-heading)] text-xl font-black tracking-tight text-[var(--color-primary-900)] md:text-2xl">{systemName} - Gestão integrada de licitações</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-neutral-600)]">{prefeituraLines[1]} · {prefeituraLines[2]}</p>
+                  <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--color-neutral-500)]">{prefeituraLines[3]}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end xl:items-center">
@@ -241,6 +239,9 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
             </div>
           </header>
           {children}
+          <footer className="rounded-[24px] border border-[rgba(204,225,255,0.95)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(230,240,255,0.7))] px-4 py-4 text-center text-sm text-[var(--color-neutral-600)]">
+            {systemFooterText}
+          </footer>
         </main>
       </div>
     </div>
