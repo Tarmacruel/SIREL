@@ -52,12 +52,20 @@ export function NotificacoesPage() {
   const notificationsQuery = trpc.notificacoes.list.useQuery(queryInput, { retry: false, placeholderData: (previous) => previous });
   const markReadMutation = trpc.notificacoes.markRead.useMutation({
     onSuccess: async () => {
-      await Promise.all([utils.notificacoes.list.invalidate(), utils.dashboard.summary.invalidate()]);
+      await Promise.all([
+        utils.notificacoes.list.invalidate(),
+        utils.notificacoes.summary.invalidate(),
+        utils.dashboard.summary.invalidate(),
+      ]);
     },
   });
   const markAllMutation = trpc.notificacoes.markAllRead.useMutation({
     onSuccess: async () => {
-      await Promise.all([utils.notificacoes.list.invalidate(), utils.dashboard.summary.invalidate()]);
+      await Promise.all([
+        utils.notificacoes.list.invalidate(),
+        utils.notificacoes.summary.invalidate(),
+        utils.dashboard.summary.invalidate(),
+      ]);
     },
   });
 

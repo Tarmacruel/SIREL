@@ -1,0 +1,88 @@
+.container {
+  width: 100%;
+  padding-inline: 1rem;
+  margin-inline: auto;
+}
+
+.card {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(209, 213, 219, 0.9);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-card);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.875rem;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  transition: 160ms ease;
+  background: var(--color-primary-500);
+  color: white;
+}
+
+.btn:hover {
+  background: var(--color-primary-600);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-inline: 1.5rem;
+    max-width: 80rem;
+  }
+
+  .card {
+    padding: 1.5rem;
+  }
+
+  .grid-2-col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-inline: 2rem;
+    max-width: 96rem;
+  }
+
+  .sidebar {
+    width: 16rem;
+    position: fixed;
+    inset-block: 0;
+  }
+
+  .main-content {
+    margin-left: 16rem;
+  }
+
+  .grid-3-col {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 4px rgba(65, 105, 225, 0.42);
+}
+
+@media (prefers-contrast: more) {
+  .btn {
+    border: 2px solid var(--color-primary-700);
+  }
+
+  .card {
+    border-color: var(--color-neutral-400);
+  }
+}

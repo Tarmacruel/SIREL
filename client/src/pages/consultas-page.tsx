@@ -70,7 +70,7 @@ export function ConsultasPage() {
         title="Central de Consultas"
         description="Busque processos por número, objeto, documentos, secretaria, modalidade e status em um único ponto de consulta."
         action={
-          <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-sky-800">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-primary-800)]">
             <Search className="h-4 w-4" />
             Busca operacional
           </div>
@@ -114,18 +114,18 @@ export function ConsultasPage() {
           </FormField>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <label className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[24px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(230,240,255,0.52),rgba(255,255,255,0.96))] px-4 py-3">
+          <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--color-neutral-700)]">
             <input
               type="checkbox"
               checked={somenteComDocumentos}
               onChange={(event) => { setPagina(1); setSomenteComDocumentos(event.target.checked); }}
-              className="h-4 w-4 rounded border-slate-300 text-sky-600"
+              className="h-4 w-4 rounded border-[var(--color-neutral-300)] text-[var(--color-primary-600)]"
             />
             Somente processos com documentos vinculados
           </label>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-slate-500">Resultados por página</span>
+            <span className="text-sm text-[var(--color-neutral-500)]">Resultados por página</span>
             <Select value={String(limite)} onChange={(event) => { setPagina(1); setLimite(Number(event.target.value)); }} className="w-[140px]">
               {[10, 20, 30].map((option) => <option key={option} value={option}>{option}</option>)}
             </Select>
@@ -140,40 +140,40 @@ export function ConsultasPage() {
           {searchQuery.isLoading
             ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-36 w-full rounded-[28px]" />)
             : rows.map((row) => (
-                <article key={row.id} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition hover:border-sky-200 hover:shadow-md">
+                <article key={row.id} className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white p-5 shadow-[0_14px_30px_-24px_rgba(15,26,109,0.24)] transition hover:border-[rgba(102,165,255,0.56)] hover:shadow-[0_20px_36px_-26px_rgba(15,26,109,0.32)]">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">{row.numeroSirel}</span>
-                        <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">{row.modalidade}</span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{row.status}</span>
-                        {row.foraDoFluxo ? <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Fora do fluxo</span> : null}
+                        <span className="rounded-full bg-[var(--color-primary-900)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">{row.numeroSirel}</span>
+                        <span className="rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-xs font-bold text-[var(--color-primary-800)]">{row.modalidade}</span>
+                        <span className="rounded-full bg-[var(--color-neutral-100)] px-3 py-1 text-xs font-bold text-[var(--color-neutral-700)]">{row.status}</span>
+                        {row.foraDoFluxo ? <span className="rounded-full bg-[rgba(245,158,11,0.16)] px-3 py-1 text-xs font-bold text-[color:var(--color-warning)]">Fora do fluxo</span> : null}
                       </div>
                       <div>
-                        <h3 className="text-lg font-black text-slate-950">{row.objetoResumo}</h3>
-                        <p className="mt-1 text-sm text-slate-600">{row.secretariaNome} · módulo atual: <span className="font-semibold text-slate-800">{row.moduloAtual}</span></p>
+                        <h3 className="text-lg font-black text-[var(--color-primary-900)]">{row.objetoResumo}</h3>
+                        <p className="mt-1 text-sm text-[var(--color-neutral-600)]">{row.secretariaNome} · módulo atual: <span className="font-semibold text-[var(--color-neutral-800)]">{row.moduloAtual}</span></p>
                       </div>
                       <div className="grid gap-3 md:grid-cols-3">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Valor estimado</p>
-                          <p className="mt-2 text-base font-bold text-slate-950">{formatCurrencyBRL(row.valorEstimado)}</p>
+                        <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Valor estimado</p>
+                          <p className="mt-2 text-base font-bold text-[var(--color-primary-900)]">{formatCurrencyBRL(row.valorEstimado)}</p>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Documentos</p>
-                          <p className="mt-2 text-base font-bold text-slate-950">{row.documentos}</p>
+                        <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Documentos</p>
+                          <p className="mt-2 text-base font-bold text-[var(--color-primary-900)]">{row.documentos}</p>
                         </div>
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Criado em</p>
-                          <p className="mt-2 text-base font-bold text-slate-950">{formatShortDateBR(row.dataCriacao)}</p>
+                        <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Criado em</p>
+                          <p className="mt-2 text-base font-bold text-[var(--color-primary-900)]">{formatShortDateBR(row.dataCriacao)}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex min-w-[280px] flex-col gap-3 rounded-[28px] border border-slate-200 bg-slate-50 p-4 xl:max-w-[360px]">
+                    <div className="flex min-w-[280px] flex-col gap-3 rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(230,240,255,0.62),rgba(255,255,255,0.96))] p-4 xl:max-w-[360px]">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Última movimentação</p>
-                        <p className="mt-2 text-sm font-semibold text-slate-800">{row.ultimaMovimentacao?.descricao ?? "Ainda sem movimentações registradas."}</p>
-                        <p className="mt-1 text-xs text-slate-500">{row.ultimaMovimentacao?.criadoEm ? formatShortDateTimeBR(row.ultimaMovimentacao.criadoEm) : "Sem data registrada"}</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Última movimentação</p>
+                        <p className="mt-2 text-sm font-semibold text-[var(--color-primary-900)]">{row.ultimaMovimentacao?.descricao ?? "Ainda sem movimentações registradas."}</p>
+                        <p className="mt-1 text-xs text-[var(--color-neutral-500)]">{row.ultimaMovimentacao?.criadoEm ? formatShortDateTimeBR(row.ultimaMovimentacao.criadoEm) : "Sem data registrada"}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Link href={resolveModuloHref(row.moduloAtual)}>
@@ -200,8 +200,8 @@ export function ConsultasPage() {
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-slate-600">
-            Total localizado: <span className="font-bold text-slate-950">{searchQuery.data?.metadados.total ?? 0}</span>
+          <p className="text-sm text-[var(--color-neutral-600)]">
+            Total localizado: <span className="font-bold text-[var(--color-primary-900)]">{searchQuery.data?.metadados.total ?? 0}</span>
           </p>
           <Pagination page={pagina} totalPages={totalPages} onPageChange={setPagina} />
         </div>

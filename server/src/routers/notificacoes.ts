@@ -17,6 +17,53 @@ function buildBaseFilters(userId: number, now: Date) {
 }
 
 export const notificacoesRouter = router({
+  summary: protectedProcedure.query(async ({ ctx }) => {
+    const db = requireDb();
+    const userId = ctx.user?.id;
+    if (!userId) {
+      throw new Error("Usuário não autenticado para notificações.");
+    }
+
+    await syncOperationalNotifications(userId);
+
+    const now = new Date();
+    const [unreadRow, urgentRow, todayRow, totalRow] = await Promise.all([
+      db
+        .select({ total: count() })
+        .from(notificacoesUsuario)
+        .where(and(...buildBaseFilters(userId, now), eq(notificacoesUsuario.lida, false)))
+        .then((result) => result[0]),
+      db
+        .select({ total: count() })
+        .from(notificacoesUsuario)
+        .where(
+          and(
+            ...buildBaseFilters(userId, now),
+            eq(notificacoesUsuario.lida, false),
+            or(eq(notificacoesUsuario.prioridade, "URGENTE"), eq(notificacoesUsuario.prioridade, "ALTA")),
+          ),
+        )
+        .then((result) => result[0]),
+      db
+        .select({ total: count() })
+        .from(notificacoesUsuario)
+        .where(and(...buildBaseFilters(userId, now), gte(notificacoesUsuario.criadoEm, new Date(now.getFullYear(), now.getMonth(), now.getDate()))))
+        .then((result) => result[0]),
+      db
+        .select({ total: count() })
+        .from(notificacoesUsuario)
+        .where(and(...buildBaseFilters(userId, now)))
+        .then((result) => result[0]),
+    ]);
+
+    return {
+      unread: Number(unreadRow?.total ?? 0),
+      urgent: Number(urgentRow?.total ?? 0),
+      today: Number(todayRow?.total ?? 0),
+      total: Number(totalRow?.total ?? 0),
+    };
+  }),
+
   list: protectedProcedure
     .input(
       z.object({

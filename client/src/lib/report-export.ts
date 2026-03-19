@@ -1,4 +1,4 @@
-﻿interface ReportColumn {
+interface ReportColumn {
   key: string;
   label: string;
 }
@@ -35,6 +35,10 @@ function downloadBlob(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
+function buildSummaryLines(summary: ReportSummaryItem[]) {
+  return summary.map((item) => `${item.label}: ${toText(item.value)}`);
+}
+
 export function exportReportToCsv(filename: string, columns: ReportColumn[], rows: Record<string, unknown>[]) {
   const lines = [
     columns.map((column) => `"${column.label.replaceAll('"', '""')}"`).join(";"),
@@ -59,6 +63,104 @@ export function exportReportToJson(
   },
 ) {
   downloadBlob(filename, new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8;" }));
+}
+
+export async function exportReportToXlsx(
+  filename: string,
+  title: string,
+  columns: ReportColumn[],
+  rows: Record<string, unknown>[],
+  summary: ReportSummaryItem[] = [],
+) {
+  const XLSX = await import("xlsx");
+  const summaryLines = buildSummaryLines(summary);
+  const sheetData = [
+    [title],
+    [`Gerado em ${new Date().toLocaleString("pt-BR")}`],
+    [],
+    ...summaryLines.map((line) => [line]),
+    ...(summaryLines.length ? [[]] : []),
+    columns.map((column) => column.label),
+    ...rows.map((row) => columns.map((column) => toText(row[column.key]))),
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+  worksheet["!cols"] = columns.map((column) => ({
+    wch: Math.max(column.label.length + 4, 20),
+  }));
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
+  XLSX.writeFile(workbook, filename);
+}
+
+export async function exportReportToPdf(
+  filename: string,
+  title: string,
+  columns: ReportColumn[],
+  rows: Record<string, unknown>[],
+  summary: ReportSummaryItem[] = [],
+) {
+  const [{ default: jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+  const autoTable = autoTableModule.default;
+
+  const doc = new jsPDF({
+    orientation: columns.length > 6 ? "landscape" : "portrait",
+    unit: "pt",
+    format: "a4",
+  });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(title, 40, 42);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")}`, 40, 60);
+
+  let currentY = 82;
+  if (summary.length) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text("Totalizadores", 40, currentY);
+    currentY += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(51, 65, 85);
+    summary.forEach((item) => {
+      doc.text(`${item.label}: ${toText(item.value)}`, 40, currentY);
+      currentY += 14;
+    });
+    currentY += 8;
+  }
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [columns.map((column) => column.label)],
+    body: rows.length
+      ? rows.map((row) => columns.map((column) => toText(row[column.key])))
+      : [["Nenhum registro encontrado para os filtros informados."]],
+    theme: "grid",
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: 255,
+      fontStyle: "bold",
+    },
+    bodyStyles: {
+      textColor: [15, 23, 42],
+      fontSize: 9,
+      cellPadding: 6,
+      valign: "top",
+    },
+    styles: {
+      lineColor: [203, 213, 225],
+      lineWidth: 0.5,
+      overflow: "linebreak",
+    },
+    margin: { left: 40, right: 40, top: 40, bottom: 40 },
+  });
+
+  doc.save(filename);
 }
 
 export function openPrintableReport(
@@ -144,21 +246,15 @@ export function openPrintableReport(
     </html>
   `;
 
-  const blob = new Blob([printableHtml], { type: "text/html;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const printWindow = window.open(url, "_blank", "noopener,noreferrer");
-  if (!printWindow) {
-    URL.revokeObjectURL(url);
-    return;
-  }
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) return;
 
-  const cleanup = () => {
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  printWindow.document.open();
+  printWindow.document.write(printableHtml);
+  printWindow.document.close();
 
-  printWindow.addEventListener("load", () => {
+  window.setTimeout(() => {
     printWindow.focus();
     printWindow.print();
-    cleanup();
-  });
+  }, 250);
 }

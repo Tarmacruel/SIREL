@@ -1,4 +1,6 @@
-﻿const palette = ["#0ea5e9", "#38bdf8", "#0284c7", "#7dd3fc", "#0369a1", "#bae6fd"];
+import { chartPalette } from "@/styles/theme";
+
+const palette = [...chartPalette];
 
 interface SimpleDonutChartItem {
   label: string;
@@ -8,7 +10,7 @@ interface SimpleDonutChartItem {
 export function SimpleDonutChart({ items }: { items: SimpleDonutChartItem[] }) {
   const total = items.reduce((acc, item) => acc + item.value, 0);
   if (!total) {
-    return <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Sem dados para exibir.</div>;
+    return <div className="rounded-3xl border border-dashed border-[rgba(204,225,255,0.9)] bg-[var(--color-primary-50)] px-4 py-8 text-center text-sm text-[var(--color-neutral-500)]">Sem dados para exibir.</div>;
   }
 
   let accumulated = 0;
@@ -26,22 +28,22 @@ export function SimpleDonutChart({ items }: { items: SimpleDonutChartItem[] }) {
     <div className="grid gap-4 md:grid-cols-[180px_1fr] md:items-center">
       <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full" style={{ background: `conic-gradient(${gradientStops})` }}>
         <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white text-center shadow-inner">
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Total</span>
-          <span className="mt-1 text-2xl font-black text-slate-950">{total.toLocaleString("pt-BR")}</span>
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-neutral-500)]">Total</span>
+          <span className="mt-1 text-2xl font-black text-[var(--color-primary-900)]">{total.toLocaleString("pt-BR")}</span>
         </div>
       </div>
       <div className="space-y-3">
         {items.map((item, index) => {
           const percentage = total ? (item.value / total) * 100 : 0;
           return (
-            <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
+            <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(204,225,255,0.85)] bg-white px-4 py-3 text-sm">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: palette[index % palette.length] }} />
-                <span className="truncate font-medium text-slate-700">{item.label}</span>
+                <span className="truncate font-medium text-[var(--color-neutral-700)]">{item.label}</span>
               </div>
               <div className="text-right">
-                <div className="font-black text-slate-950">{item.value.toLocaleString("pt-BR")}</div>
-                <div className="text-xs text-slate-500">{percentage.toFixed(1).replace(".", ",")}%</div>
+                <div className="font-black text-[var(--color-primary-900)]">{item.value.toLocaleString("pt-BR")}</div>
+                <div className="text-xs text-[var(--color-neutral-500)]">{percentage.toFixed(1).replace(".", ",")}%</div>
               </div>
             </div>
           );

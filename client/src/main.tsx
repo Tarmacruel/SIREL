@@ -7,11 +7,11 @@ import "./styles.css";
 const container = document.getElementById("root");
 
 if (!container) {
-  throw new Error("Root container n√£o encontrado");
+  throw new Error("Root container n„o encontrado");
 }
 
 createRoot(container).render(
   <StrictMode>
     <App />
-  </StrictMode>
+  </StrictMode>,
 );

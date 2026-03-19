@@ -36,27 +36,27 @@ export function Modal({ open, title, description, onClose, actions, size = "lg",
       <button
         type="button"
         onClick={onClose}
-        className="fixed inset-0 bg-slate-950/45 backdrop-blur-sm"
+        className="fixed inset-0 bg-[rgba(15,26,109,0.42)] backdrop-blur-sm"
         aria-label="Fechar modal"
       />
       <div className="relative flex min-h-full items-start justify-center md:items-center">
         <div
           className={[
-            "relative z-10 flex max-h-[calc(100vh-3rem)] w-full flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-2xl",
+            "relative z-10 flex max-h-[calc(100vh-3rem)] w-full flex-col overflow-hidden rounded-[32px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_24px_48px_-28px_rgba(15,26,109,0.5)]",
             sizeClasses[size],
           ].join(" ")}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+          <div className="flex items-start justify-between gap-4 border-b border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.76))] px-6 py-5">
             <div>
-              <h3 className="text-xl font-black tracking-tight text-slate-950">{title}</h3>
-              {description ? <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p> : null}
+              <h3 className="font-[var(--font-heading)] text-xl font-black tracking-tight text-[var(--color-primary-900)]">{title}</h3>
+              {description ? <p className="mt-1 text-sm leading-6 text-[var(--color-neutral-600)]">{description}</p> : null}
             </div>
-            <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:text-slate-900">
+            <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(204,225,255,0.92)] bg-white text-[var(--color-neutral-600)] transition hover:border-[rgba(65,105,225,0.35)] hover:text-[var(--color-primary-800)]">
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-auto px-6 py-5">{children}</div>
-          {actions ? <div className="border-t border-slate-200 px-6 py-4">{actions}</div> : null}
+          {actions ? <div className="border-t border-[rgba(204,225,255,0.92)] px-6 py-4">{actions}</div> : null}
         </div>
       </div>
     </div>,

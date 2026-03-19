@@ -53,15 +53,15 @@ function parseLembretes(value: string) {
 function alertBadge(level: string) {
   switch (level) {
     case "error":
-      return "bg-rose-100 text-rose-700";
+      return "bg-[rgba(239,68,68,0.12)] text-[color:var(--color-error)]";
     case "critical":
-      return "bg-amber-100 text-amber-800";
+      return "bg-[rgba(245,158,11,0.16)] text-[color:var(--color-warning)]";
     case "warning":
-      return "bg-orange-100 text-orange-800";
+      return "bg-[rgba(245,158,11,0.12)] text-[color:var(--color-warning)]";
     case "info":
-      return "bg-sky-100 text-sky-800";
+      return "bg-[var(--color-primary-100)] text-[var(--color-primary-800)]";
     default:
-      return "bg-slate-100 text-slate-700";
+      return "bg-[var(--color-neutral-100)] text-[var(--color-neutral-700)]";
   }
 }
 
@@ -175,7 +175,7 @@ export function PrazosPage() {
         title="Painel de Prazos e Alertas"
         description="Controle de datas críticas, vencimentos e acompanhamento semanal da operação licitatória."
         action={
-          <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[rgba(245,158,11,0.16)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[color:var(--color-warning)]">
             <Clock3 className="h-4 w-4" />
             Monitoramento ativo
           </div>
@@ -183,18 +183,18 @@ export function PrazosPage() {
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {[
-            { label: "Vencendo hoje", value: summaryQuery.data?.hoje ?? 0, icon: Siren, tone: "border-rose-200" },
-            { label: "Próximas 48h", value: summaryQuery.data?.proximas48h ?? 0, icon: Clock3, tone: "border-amber-200" },
-            { label: "Em atraso", value: summaryQuery.data?.atrasados ?? 0, icon: CalendarRange, tone: "border-orange-200" },
-            { label: "Na semana", value: summaryQuery.data?.semana ?? 0, icon: CalendarRange, tone: "border-sky-200" },
-            { label: "Concluídos", value: summaryQuery.data?.concluidosSemana ?? 0, icon: CheckCircle2, tone: "border-emerald-200" },
+            { label: "Vencendo hoje", value: summaryQuery.data?.hoje ?? 0, icon: Siren, tone: "border-[rgba(239,68,68,0.2)]" },
+            { label: "Próximas 48h", value: summaryQuery.data?.proximas48h ?? 0, icon: Clock3, tone: "border-[rgba(245,158,11,0.22)]" },
+            { label: "Em atraso", value: summaryQuery.data?.atrasados ?? 0, icon: CalendarRange, tone: "border-[rgba(245,158,11,0.24)]" },
+            { label: "Na semana", value: summaryQuery.data?.semana ?? 0, icon: CalendarRange, tone: "border-[rgba(204,225,255,0.95)]" },
+            { label: "Concluídos", value: summaryQuery.data?.concluidosSemana ?? 0, icon: CheckCircle2, tone: "border-[rgba(16,185,129,0.24)]" },
           ].map((item) => {
             const Icon = item.icon;
             return (
-              <article key={item.label} className={`rounded-[28px] border ${item.tone} bg-white px-4 py-4 shadow-sm`}>
-                <div className="inline-flex rounded-2xl bg-slate-900 p-3 text-white"><Icon className="h-4 w-4" /></div>
-                <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                {summaryQuery.isLoading ? <Skeleton className="mt-3 h-10 w-16" /> : <p className="mt-3 text-3xl font-black text-slate-950">{item.value}</p>}
+              <article key={item.label} className={`rounded-[28px] border ${item.tone} bg-white px-4 py-4 shadow-[0_12px_28px_-24px_rgba(15,26,109,0.22)]`}>
+                <div className="inline-flex rounded-2xl bg-[linear-gradient(135deg,var(--color-primary-900),var(--color-primary-700))] p-3 text-white"><Icon className="h-4 w-4" /></div>
+                <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">{item.label}</p>
+                {summaryQuery.isLoading ? <Skeleton className="mt-3 h-10 w-16" /> : <p className="mt-3 text-3xl font-black text-[var(--color-primary-900)]">{item.value}</p>}
               </article>
             );
           })}
@@ -206,13 +206,13 @@ export function PrazosPage() {
           <div className="space-y-4">
             <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px]">
               <FormField label="Busca textual" className="w-full">
-                <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                  <Search className="h-4 w-4 text-slate-400" />
+                <div className="flex items-center gap-2 rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.65))] px-3 py-2 shadow-[0_8px_18px_-18px_rgba(15,26,109,0.4)]">
+                  <Search className="h-4 w-4 text-[var(--color-primary-500)]" />
                   <input
                     value={busca}
                     onChange={(event) => { setPagina(1); setBusca(event.target.value); }}
                     placeholder="Processo, título ou secretaria"
-                    className="w-full border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                    className="w-full border-none bg-transparent text-sm text-[var(--color-neutral-700)] outline-none placeholder:text-[var(--color-neutral-400)]"
                   />
                 </div>
               </FormField>
@@ -238,8 +238,8 @@ export function PrazosPage() {
               </FormField>
             </div>
 
-            <label className="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
-              <input type="checkbox" checked={somenteCriticos} onChange={(event) => { setPagina(1); setSomenteCriticos(event.target.checked); }} className="h-4 w-4 rounded border-slate-300 text-sky-600" />
+            <label className="inline-flex items-center gap-3 rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(230,240,255,0.52),rgba(255,255,255,0.96))] px-4 py-3 text-sm font-semibold text-[var(--color-neutral-700)]">
+              <input type="checkbox" checked={somenteCriticos} onChange={(event) => { setPagina(1); setSomenteCriticos(event.target.checked); }} className="h-4 w-4 rounded border-[var(--color-neutral-300)] text-[var(--color-primary-600)]" />
               Mostrar apenas prazos críticos (atrasados ou vencendo em 48 horas)
             </label>
 
@@ -247,7 +247,7 @@ export function PrazosPage() {
             {feedback ? <Alert variant="success">{feedback}</Alert> : null}
             {error ? <Alert variant="error">{error}</Alert> : null}
 
-            <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_14px_30px_-26px_rgba(15,26,109,0.22)]">
               <Table className="min-w-[920px]">
                 <TableHead>
                   <tr>
@@ -267,12 +267,12 @@ export function PrazosPage() {
                     : rows.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>
-                            <div className="font-semibold text-slate-900">{item.titulo}</div>
-                            <div className="text-xs text-slate-500">{prazoProcessualTipoLabels[item.tipo as keyof typeof prazoProcessualTipoLabels]}</div>
+                            <div className="font-semibold text-[var(--color-primary-900)]">{item.titulo}</div>
+                            <div className="text-xs text-[var(--color-neutral-500)]">{prazoProcessualTipoLabels[item.tipo as keyof typeof prazoProcessualTipoLabels]}</div>
                           </TableCell>
                           <TableCell>
-                            <div className="font-semibold text-slate-900">{item.numeroSirel}</div>
-                            <div className="text-xs text-slate-500">{item.secretariaNome}</div>
+                            <div className="font-semibold text-[var(--color-primary-900)]">{item.numeroSirel}</div>
+                            <div className="text-xs text-[var(--color-neutral-500)]">{item.secretariaNome}</div>
                           </TableCell>
                           <TableCell>{formatShortDateBR(item.dataPrevista)}</TableCell>
                           <TableCell>
@@ -300,7 +300,7 @@ export function PrazosPage() {
                       ))}
                   {!listQuery.isLoading && !rows.length ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-8 text-center text-slate-500">Nenhum prazo encontrado com os filtros aplicados.</TableCell>
+                      <TableCell colSpan={6} className="py-8 text-center text-[var(--color-neutral-500)]">Nenhum prazo encontrado com os filtros aplicados.</TableCell>
                     </TableRow>
                   ) : null}
                 </TableBody>
@@ -308,7 +308,7 @@ export function PrazosPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-slate-600">Total monitorado: <span className="font-bold text-slate-950">{listQuery.data?.total ?? 0}</span></p>
+              <p className="text-sm text-[var(--color-neutral-600)]">Total monitorado: <span className="font-bold text-[var(--color-primary-900)]">{listQuery.data?.total ?? 0}</span></p>
               <Pagination page={pagina} totalPages={listQuery.data?.totalPages ?? 1} onPageChange={setPagina} />
             </div>
           </div>
@@ -356,12 +356,12 @@ export function PrazosPage() {
               {summaryQuery.isLoading
                 ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-20 w-full rounded-[24px]" />)
                 : summaryQuery.data?.alerts.map((item) => (
-                    <article key={item.id} className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <article key={item.id} className="rounded-[24px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(230,240,255,0.54),rgba(255,255,255,0.96))] px-4 py-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-bold text-slate-900">{item.numeroSirel}</p>
-                          <p className="mt-1 text-sm text-slate-700">{item.titulo}</p>
-                          <p className="mt-1 text-xs text-slate-500">{formatShortDateBR(item.dataPrevista)} · {prazoProcessualTipoLabels[item.tipo as keyof typeof prazoProcessualTipoLabels]}</p>
+                          <p className="text-sm font-bold text-[var(--color-primary-900)]">{item.numeroSirel}</p>
+                          <p className="mt-1 text-sm text-[var(--color-neutral-700)]">{item.titulo}</p>
+                          <p className="mt-1 text-xs text-[var(--color-neutral-500)]">{formatShortDateBR(item.dataPrevista)} · {prazoProcessualTipoLabels[item.tipo as keyof typeof prazoProcessualTipoLabels]}</p>
                         </div>
                         <span className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${alertBadge(item.alertLevel)}`}>
                           {item.status === "EM_ATRASO" ? "Atrasado" : item.daysRemaining === 0 ? "Hoje" : `${item.daysRemaining} dia(s)`}

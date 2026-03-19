@@ -1,4 +1,4 @@
-﻿import { BarChart3, FileJson, FileSpreadsheet, Printer } from "lucide-react";
+﻿import { BarChart3, FileJson, FileSpreadsheet, FileText, Printer } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { relatorioTipoLabels, relatorioTipoOptions } from "@sirel/shared/const";
@@ -12,7 +12,13 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { formatCurrencyBRL, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
-import { exportReportToCsv, exportReportToJson, openPrintableReport } from "@/lib/report-export";
+import {
+  exportReportToCsv,
+  exportReportToJson,
+  exportReportToPdf,
+  exportReportToXlsx,
+  openPrintableReport,
+} from "@/lib/report-export";
 import { trpc } from "@/lib/trpc";
 
 function formatReportValue(key: string, value: unknown) {
@@ -32,6 +38,7 @@ function formatReportValue(key: string, value: unknown) {
 
 export function RelatoriosPage() {
   const catalogQuery = trpc.cadastros.formOptions.useQuery(undefined, { retry: false });
+  const [exporting, setExporting] = useState<null | "xlsx" | "pdf" | "print">(null);
   const [filters, setFilters] = useState({
     tipo: "PROCESSOS_POR_STATUS" as (typeof relatorioTipoOptions)[number],
     dataInicial: "",
@@ -78,7 +85,44 @@ export function RelatoriosPage() {
 
   function handlePrint() {
     if (!report) return;
-    openPrintableReport(report.title, report.columns, report.rows as Record<string, unknown>[], report.summary);
+    setExporting("print");
+    try {
+      openPrintableReport(report.title, report.columns, report.rows as Record<string, unknown>[], report.summary);
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleExportXlsx() {
+    if (!report) return;
+    setExporting("xlsx");
+    try {
+      await exportReportToXlsx(
+        `sirel-${filters.tipo.toLowerCase()}.xlsx`,
+        report.title,
+        report.columns,
+        report.rows as Record<string, unknown>[],
+        report.summary,
+      );
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleExportPdf() {
+    if (!report) return;
+    setExporting("pdf");
+    try {
+      await exportReportToPdf(
+        `sirel-${filters.tipo.toLowerCase()}.pdf`,
+        report.title,
+        report.columns,
+        report.rows as Record<string, unknown>[],
+        report.summary,
+      );
+    } finally {
+      setExporting(null);
+    }
   }
 
   return (
@@ -87,7 +131,7 @@ export function RelatoriosPage() {
         title="Central de Relatórios e Exportação"
         description="Gere consolidações operacionais da Beta 2.0 com filtros de período, secretaria, modalidade e status."
         action={
-          <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-sky-800">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-primary-800)]">
             <BarChart3 className="h-4 w-4" />
             Exportação local
           </div>
@@ -146,6 +190,14 @@ export function RelatoriosPage() {
             <BarChart3 className="h-4 w-4" />
             Atualizar relatório
           </Button>
+          <Button variant="outline" onClick={() => void handleExportXlsx()} disabled={!report?.rows.length || exporting !== null}>
+            <FileSpreadsheet className="h-4 w-4" />
+            {exporting === "xlsx" ? "Gerando XLSX..." : "Exportar XLSX"}
+          </Button>
+          <Button variant="outline" onClick={() => void handleExportPdf()} disabled={!report?.rows.length || exporting !== null}>
+            <FileText className="h-4 w-4" />
+            {exporting === "pdf" ? "Gerando PDF..." : "Exportar PDF"}
+          </Button>
           <Button variant="outline" onClick={handleExportCsv} disabled={!report?.rows.length}>
             <FileSpreadsheet className="h-4 w-4" />
             Exportar CSV
@@ -154,9 +206,9 @@ export function RelatoriosPage() {
             <FileJson className="h-4 w-4" />
             Exportar JSON
           </Button>
-          <Button variant="outline" onClick={handlePrint} disabled={!report?.rows.length}>
+          <Button variant="outline" onClick={handlePrint} disabled={!report?.rows.length || exporting !== null}>
             <Printer className="h-4 w-4" />
-            Imprimir relatório
+            {exporting === "print" ? "Abrindo impressão..." : "Imprimir relatório"}
           </Button>
         </div>
       </SectionCard>
@@ -168,7 +220,7 @@ export function RelatoriosPage() {
         description="Visualização tabular pronta para conferência, impressão e exportação."
         action={
           report ? (
-            <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-700">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-neutral-100)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-neutral-700)]">
               {report.rows.length} linhas
             </div>
           ) : null
@@ -188,19 +240,19 @@ export function RelatoriosPage() {
             {report.summary?.length ? (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {report.summary.map((item) => (
-                  <article key={item.label} className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{item.label}</p>
-                    <p className="mt-2 text-xl font-black text-slate-950">{formatReportValue(item.label, item.value)}</p>
+                  <article key={item.label} className="rounded-[24px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(230,240,255,0.54),rgba(255,255,255,0.96))] px-4 py-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">{item.label}</p>
+                    <p className="mt-2 text-xl font-black text-[var(--color-primary-900)]">{formatReportValue(item.label, item.value)}</p>
                   </article>
                 ))}
               </div>
             ) : null}
 
-            <div className="rounded-[28px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Gerado em <span className="font-semibold text-slate-900">{formatShortDateTimeBR(report.generatedAt)}</span>
+            <div className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(230,240,255,0.52),rgba(255,255,255,0.96))] px-4 py-3 text-sm text-[var(--color-neutral-600)]">
+              Gerado em <span className="font-semibold text-[var(--color-primary-900)]">{formatShortDateTimeBR(report.generatedAt)}</span>
             </div>
 
-            <div className="overflow-auto rounded-[28px] border border-slate-200">
+            <div className="overflow-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_14px_30px_-26px_rgba(15,26,109,0.22)]">
               <Table>
                 <TableHead>
                   <tr>
@@ -219,7 +271,7 @@ export function RelatoriosPage() {
                   ))}
                   {!report.rows.length ? (
                     <TableRow>
-                      <TableCell colSpan={Math.max(1, report.columns.length)} className="text-slate-500">
+                      <TableCell colSpan={Math.max(1, report.columns.length)} className="text-[var(--color-neutral-500)]">
                         Nenhum registro encontrado para os filtros informados.
                       </TableCell>
                     </TableRow>
@@ -229,13 +281,13 @@ export function RelatoriosPage() {
             </div>
 
             {report.summary?.length ? (
-              <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-5 py-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Totalizadores do relatório</p>
+              <div className="rounded-[28px] border border-dashed border-[rgba(47,84,196,0.28)] bg-white px-5 py-4">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Totalizadores do relatório</p>
                 <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                   {report.summary.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                      <span className="font-semibold text-slate-700">{item.label}</span>
-                      <span className="font-black text-slate-950">{formatReportValue(item.label, item.value)}</span>
+                    <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--color-primary-50)] px-4 py-3 text-sm">
+                      <span className="font-semibold text-[var(--color-neutral-700)]">{item.label}</span>
+                      <span className="font-black text-[var(--color-primary-900)]">{formatReportValue(item.label, item.value)}</span>
                     </div>
                   ))}
                 </div>
@@ -249,3 +301,4 @@ export function RelatoriosPage() {
     </div>
   );
 }
+

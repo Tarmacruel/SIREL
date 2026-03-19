@@ -151,29 +151,29 @@ export function WorkflowPage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 xl:grid-cols-4">
-        <article className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Workflows</p>
-          <p className="mt-2 text-3xl font-black text-slate-950">{summaryQuery.data?.total ?? 0}</p>
-          <p className="mt-2 text-sm text-slate-600">Processos com rastreabilidade ativa.</p>
+        <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.78))] px-5 py-5 shadow-[0_12px_24px_-22px_rgba(15,26,109,0.2)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Workflows</p>
+          <p className="mt-2 text-3xl font-black text-[var(--color-primary-900)]">{summaryQuery.data?.total ?? 0}</p>
+          <p className="mt-2 text-sm text-[var(--color-neutral-600)]">Processos com rastreabilidade ativa.</p>
         </article>
-        <article className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Atualizados em 7 dias</p>
-          <p className="mt-2 text-3xl font-black text-slate-950">{summaryQuery.data?.atualizadosUltimos7Dias ?? 0}</p>
-          <p className="mt-2 text-sm text-slate-600">Movimentação recente.</p>
+        <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.78))] px-5 py-5 shadow-[0_12px_24px_-22px_rgba(15,26,109,0.2)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Atualizados em 7 dias</p>
+          <p className="mt-2 text-3xl font-black text-[var(--color-primary-900)]">{summaryQuery.data?.atualizadosUltimos7Dias ?? 0}</p>
+          <p className="mt-2 text-sm text-[var(--color-neutral-600)]">Movimentação recente.</p>
         </article>
-        <article className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Em andamento</p>
-          <p className="mt-2 text-3xl font-black text-slate-950">
+        <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.78))] px-5 py-5 shadow-[0_12px_24px_-22px_rgba(15,26,109,0.2)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Em andamento</p>
+          <p className="mt-2 text-3xl font-black text-[var(--color-primary-900)]">
             {summaryQuery.data?.porSituacao.find((item) => item.situacao === "EM_ANDAMENTO")?.total ?? 0}
           </p>
-          <p className="mt-2 text-sm text-slate-600">Fluxos em execução.</p>
+          <p className="mt-2 text-sm text-[var(--color-neutral-600)]">Fluxos em execução.</p>
         </article>
-        <article className="rounded-[28px] border border-slate-200 bg-white px-5 py-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Aguardando</p>
-          <p className="mt-2 text-3xl font-black text-slate-950">
+        <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.78))] px-5 py-5 shadow-[0_12px_24px_-22px_rgba(15,26,109,0.2)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Aguardando</p>
+          <p className="mt-2 text-3xl font-black text-[var(--color-primary-900)]">
             {summaryQuery.data?.porSituacao.find((item) => item.situacao === "AGUARDANDO")?.total ?? 0}
           </p>
-          <p className="mt-2 text-sm text-slate-600">Dependentes de outro setor.</p>
+          <p className="mt-2 text-sm text-[var(--color-neutral-600)]">Dependentes de outro setor.</p>
         </article>
       </div>
 
@@ -183,13 +183,13 @@ export function WorkflowPage() {
       >
         <div className="mb-4 grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_220px_150px]">
           <FormField label="Buscar" className="w-full">
-            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-              <Search className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center gap-2 rounded-[18px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2">
+              <Search className="h-4 w-4 text-[var(--color-neutral-400)]" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Processo, objeto, etapa ou secretaria"
-                className="w-full border-none bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400"
+                className="w-full border-none bg-transparent text-sm text-[var(--color-neutral-700)] outline-none placeholder:text-[var(--color-neutral-400)]"
               />
             </div>
           </FormField>
@@ -226,7 +226,7 @@ export function WorkflowPage() {
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
           <div className="space-y-4">
-            <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
               <Table className="min-w-[820px]">
                 <TableHead>
                   <tr>
@@ -246,33 +246,33 @@ export function WorkflowPage() {
                       <TableRow
                         key={row.processoId}
                         onClick={() => setSelectedProcessId(row.processoId)}
-                        className={["cursor-pointer transition", active ? "bg-sky-50/80" : "hover:bg-slate-50"].join(" ")}
+                        className={["cursor-pointer transition", active ? "bg-[var(--color-primary-50)]" : "hover:bg-[rgba(230,240,255,0.45)]"].join(" ")}
                       >
                         <TableCell className="align-top">
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-bold text-slate-950">{row.numeroSirel}</div>
+                            <div className="font-bold text-[var(--color-primary-900)]">{row.numeroSirel}</div>
                             {row.foraDoFluxo ? (
                               <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">
                                 Fora do fluxo
                               </span>
                             ) : null}
                           </div>
-                          <div className="text-xs text-slate-500">{row.secretaria}</div>
+                          <div className="text-xs text-[var(--color-neutral-500)]">{row.secretaria}</div>
                         </TableCell>
                         <TableCell className="align-top">
-                          <div className="font-semibold text-slate-950">{row.etapaAtual}</div>
-                          <div className="text-xs text-slate-500">{row.statusProcesso ?? "Sem status"}</div>
+                          <div className="font-semibold text-[var(--color-primary-900)]">{row.etapaAtual}</div>
+                          <div className="text-xs text-[var(--color-neutral-500)]">{row.statusProcesso ?? "Sem status"}</div>
                         </TableCell>
                         <TableCell className="align-top">
-                          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
+                          <span className="inline-flex rounded-full bg-[var(--color-primary-50)] px-3 py-1 text-xs font-bold text-[var(--color-primary-700)]">
                             {row.situacao}
                           </span>
                         </TableCell>
                         <TableCell className="align-top">{row.moduloAtual}</TableCell>
-                        <TableCell className="align-top text-xs text-slate-600">
+                        <TableCell className="align-top text-xs text-[var(--color-neutral-600)]">
                           {row.ultimaMovimentacao ? (
                             <>
-                              <div className="font-semibold text-slate-950">{row.ultimaMovimentacao.descricao}</div>
+                              <div className="font-semibold text-[var(--color-primary-900)]">{row.ultimaMovimentacao.descricao}</div>
                               <div>{formatShortDateTimeBR(row.ultimaMovimentacao.criadoEm)}</div>
                             </>
                           ) : (
@@ -299,7 +299,7 @@ export function WorkflowPage() {
                   })}
                   {!rows.length ? (
                     <TableRow>
-                      <TableCell className="py-8 text-center text-slate-500" colSpan={6}>
+                      <TableCell className="py-8 text-center text-[var(--color-neutral-500)]" colSpan={6}>
                         {listQuery.isFetching ? "Carregando workflows..." : "Nenhum workflow encontrado."}
                       </TableCell>
                     </TableRow>
@@ -309,9 +309,9 @@ export function WorkflowPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-slate-600">
-                Exibindo <span className="font-bold text-slate-950">{rows.length}</span> de{" "}
-                <span className="font-bold text-slate-950">{total}</span> workflows.
+              <p className="text-sm text-[var(--color-neutral-600)]">
+                Exibindo <span className="font-bold text-[var(--color-primary-900)]">{rows.length}</span> de{" "}
+                <span className="font-bold text-[var(--color-primary-900)]">{total}</span> workflows.
               </p>
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
@@ -329,7 +329,7 @@ export function WorkflowPage() {
                       Documentos do processo
                     </Button>
                   ) : null}
-                  <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-900)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">
                     <Workflow className="h-4 w-4" />
                     Operação guiada
                   </div>
@@ -348,49 +348,49 @@ export function WorkflowPage() {
                 <Alert variant="warning">Falha ao carregar o detalhe do workflow.</Alert>
               ) : (
                 <div className="space-y-4">
-                  <article className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                  <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.78))] px-5 py-5 shadow-[0_12px_24px_-24px_rgba(15,26,109,0.2)]">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Processo</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Processo</p>
                         <div className="mt-2 flex flex-wrap items-center gap-2">
-                          <h4 className="text-xl font-black text-slate-950">{detailQuery.data?.processo?.numeroSirel}</h4>
+                          <h4 className="text-xl font-black text-[var(--color-primary-900)]">{detailQuery.data?.processo?.numeroSirel}</h4>
                           {detailQuery.data?.processo?.foraDoFluxo ? (
                             <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">
                               Fora do fluxo
                             </span>
                           ) : null}
                         </div>
-                        <p className="mt-1 text-sm text-slate-600">{detailQuery.data?.processo?.secretaria}</p>
+                        <p className="mt-1 text-sm text-[var(--color-neutral-600)]">{detailQuery.data?.processo?.secretaria}</p>
                       </div>
-                      <div className="rounded-2xl bg-slate-950 p-3 text-white">
+                      <div className="rounded-2xl bg-[var(--color-primary-900)] p-3 text-white">
                         <Workflow className="h-5 w-5" />
                       </div>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{detailQuery.data?.processo?.objeto}</p>
+                    <p className="mt-3 text-sm leading-6 text-[var(--color-neutral-700)]">{detailQuery.data?.processo?.objeto}</p>
                   </article>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Módulo atual</p>
-                      <p className="mt-2 text-lg font-black text-slate-950">{detailQuery.data?.estado?.moduloAtual ?? "-"}</p>
-                      <p className="mt-1 text-sm text-slate-600">Etapa: {detailQuery.data?.estado?.etapaAtual ?? "-"}</p>
+                    <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4 shadow-[0_12px_24px_-26px_rgba(15,26,109,0.22)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Módulo atual</p>
+                      <p className="mt-2 text-lg font-black text-[var(--color-primary-900)]">{detailQuery.data?.estado?.moduloAtual ?? "-"}</p>
+                      <p className="mt-1 text-sm text-[var(--color-neutral-600)]">Etapa: {detailQuery.data?.estado?.etapaAtual ?? "-"}</p>
                     </article>
-                    <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Publicidade</p>
-                      <p className="mt-2 text-lg font-black text-slate-950">{detailQuery.data?.processo?.numeroEdital ?? "Edital ainda não gerado"}</p>
-                      <p className="mt-1 text-sm text-slate-600">
+                    <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4 shadow-[0_12px_24px_-26px_rgba(15,26,109,0.22)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Publicidade</p>
+                      <p className="mt-2 text-lg font-black text-[var(--color-primary-900)]">{detailQuery.data?.processo?.numeroEdital ?? "Edital ainda não gerado"}</p>
+                      <p className="mt-1 text-sm text-[var(--color-neutral-600)]">
                         {detailQuery.data?.processo?.condutorProcesso?.nome ?? "Condutor definido apenas na publicação"}
                       </p>
                     </article>
-                    <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Valor estimado</p>
-                      <p className="mt-2 text-lg font-black text-slate-950">{formatCurrencyBRL(detailQuery.data?.processo?.valorEstimado)}</p>
-                      <p className="mt-1 text-sm text-slate-600">Abertura: {formatShortDateBR(detailQuery.data?.processo?.dataAbertura)}</p>
+                    <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4 shadow-[0_12px_24px_-26px_rgba(15,26,109,0.22)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Valor estimado</p>
+                      <p className="mt-2 text-lg font-black text-[var(--color-primary-900)]">{formatCurrencyBRL(detailQuery.data?.processo?.valorEstimado)}</p>
+                      <p className="mt-1 text-sm text-[var(--color-neutral-600)]">Abertura: {formatShortDateBR(detailQuery.data?.processo?.dataAbertura)}</p>
                     </article>
-                    <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Documentos</p>
-                      <p className="mt-2 text-lg font-black text-slate-950">{detailQuery.data?.documentos ?? 0}</p>
-                      <p className="mt-1 text-sm text-slate-600">Acervo já vinculado ao processo.</p>
+                    <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4 shadow-[0_12px_24px_-26px_rgba(15,26,109,0.22)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Documentos</p>
+                      <p className="mt-2 text-lg font-black text-[var(--color-primary-900)]">{detailQuery.data?.documentos ?? 0}</p>
+                      <p className="mt-1 text-sm text-[var(--color-neutral-600)]">Acervo já vinculado ao processo.</p>
                       <Button type="button" size="sm" variant="outline" className="mt-4" onClick={() => setOpenDocumentsModal(true)}>
                         <FileStack className="mr-2 h-4 w-4" />
                         Abrir documentos
@@ -398,10 +398,10 @@ export function WorkflowPage() {
                     </article>
                   </div>
 
-                  <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
+                  <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4 shadow-[0_12px_24px_-26px_rgba(15,26,109,0.22)]">
                     <div className="mb-4 flex items-center gap-2">
-                      <ArrowRightLeft className="h-4 w-4 text-sky-700" />
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Movimentar processo</p>
+                      <ArrowRightLeft className="h-4 w-4 text-[var(--color-primary-700)]" />
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Movimentar processo</p>
                     </div>
 
                     <form className="space-y-4" onSubmit={handleMoveProcesso}>
@@ -496,7 +496,7 @@ export function WorkflowPage() {
                       <div className="mt-4">
                         <Link
                           href={selectedProcessId ? `/licitacao/${selectedProcessId}` : "/licitacao"}
-                          className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-white px-4 py-2.5 text-sm font-semibold text-sky-800 transition hover:border-sky-300 hover:text-sky-900"
+                          className="inline-flex items-center justify-center rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-2.5 text-sm font-semibold text-[var(--color-primary-800)] transition hover:border-[rgba(65,105,225,0.35)] hover:text-[var(--color-primary-900)]"
                         >
                           Abrir fase da Licitação
                         </Link>
@@ -504,26 +504,26 @@ export function WorkflowPage() {
                     </Alert>
                   ) : null}
 
-                  <article className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Linha do tempo</p>
+                  <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4 shadow-[0_12px_24px_-26px_rgba(15,26,109,0.22)]">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Linha do tempo</p>
                     <div className="mt-4 space-y-3">
                       {detailQuery.data?.historico.length ? (
                         detailQuery.data.historico.map((item) => (
-                          <div key={item.id} className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4">
+                          <div key={item.id} className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-4">
                             <div className="flex items-start justify-between gap-3">
                               <div>
-                                <p className="font-semibold text-slate-950">{item.descricao}</p>
-                                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                                <p className="font-semibold text-[var(--color-primary-900)]">{item.descricao}</p>
+                                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-[var(--color-neutral-500)]">
                                   {item.moduloOrigem || "Entrada"} para {item.moduloDestino}
                                 </p>
                               </div>
-                              <span className="text-xs text-slate-500">{formatShortDateTimeBR(item.criadoEm)}</span>
+                              <span className="text-xs text-[var(--color-neutral-500)]">{formatShortDateTimeBR(item.criadoEm)}</span>
                             </div>
-                            {item.observacao ? <p className="mt-3 text-sm leading-6 text-slate-600">{item.observacao}</p> : null}
+                            {item.observacao ? <p className="mt-3 text-sm leading-6 text-[var(--color-neutral-600)]">{item.observacao}</p> : null}
                           </div>
                         ))
                       ) : (
-                        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[28px] border border-dashed border-[rgba(65,105,225,0.22)] bg-[var(--color-primary-50)] px-4 py-6 text-sm text-[var(--color-neutral-500)]">
                           Nenhuma movimentação registrada para este processo.
                         </div>
                       )}
@@ -561,7 +561,7 @@ export function WorkflowPage() {
         ) : !documentosQuery.data?.length ? (
           <Alert variant="info">Este processo ainda não possui documentos vinculados.</Alert>
         ) : (
-          <div className="overflow-x-auto rounded-[28px] border border-slate-200 bg-white">
+          <div className="overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
             <Table className="min-w-[980px]">
               <TableHead>
                 <tr>
@@ -579,8 +579,8 @@ export function WorkflowPage() {
                   <TableRow key={item.id}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell>
-                      <div className="font-semibold text-slate-950">{item.titulo}</div>
-                      <div className="text-xs text-slate-500">Versão {item.versao}</div>
+                      <div className="font-semibold text-[var(--color-primary-900)]">{item.titulo}</div>
+                      <div className="text-xs text-[var(--color-neutral-500)]">Versão {item.versao}</div>
                     </TableCell>
                     <TableCell>{item.tipo}</TableCell>
                     <TableCell>{item.categoria ?? "-"}</TableCell>
@@ -594,7 +594,7 @@ export function WorkflowPage() {
                           </Button>
                         </a>
                       ) : (
-                        <span className="text-sm text-slate-400">Sem arquivo</span>
+                        <span className="text-sm text-[var(--color-neutral-400)]">Sem arquivo</span>
                       )}
                     </TableCell>
                   </TableRow>

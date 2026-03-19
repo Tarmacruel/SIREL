@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Card } from "@/components/ui/card";
+
 interface KpiCardProps {
   title: string;
   value: string;
@@ -9,15 +11,15 @@ interface KpiCardProps {
 
 export function KpiCard({ title, value, hint, icon }: KpiCardProps) {
   return (
-    <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
+    <Card className="rounded-[28px] border-[rgba(204,225,255,0.9)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.72))]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-sky-700">{title}</p>
-          <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">{value}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{hint}</p>
+          <p className="font-[var(--font-heading)] text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary-700)]">{title}</p>
+          <p className="mt-3 text-3xl font-black tracking-tight text-[var(--color-primary-900)]">{value}</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--color-neutral-600)]">{hint}</p>
         </div>
-        <div className="rounded-2xl bg-sky-50 p-3 text-sky-700">{icon}</div>
+        <div className="rounded-[20px] bg-[linear-gradient(135deg,var(--color-primary-100),rgba(255,255,255,0.96))] p-3 text-[var(--color-primary-700)] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">{icon}</div>
       </div>
-    </article>
+    </Card>
   );
 }

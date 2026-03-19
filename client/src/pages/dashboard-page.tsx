@@ -44,6 +44,13 @@ const dashboardPriorityLabels = {
   URGENTE: "Urgente",
 } as const;
 
+function buildDashboardSearchHref(row: { id: number; moduloAtual: string }) {
+  if (row.moduloAtual === "LICITACAO") {
+    return `/licitacao/${row.id}`;
+  }
+  return `/processos/${row.id}`;
+}
+
 export function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchStatusId, setSearchStatusId] = useState("");
@@ -118,21 +125,21 @@ export function DashboardPage() {
           <KpiCard title="Até 48h" value={String(data.prazos48h)} hint="Janela curta para alinhamento das equipes." icon={<Clock3 className="h-5 w-5" />} />
           <KpiCard title="Em atraso" value={String(data.prazosAtrasados)} hint="Ocorrências que pedem correção prioritária." icon={<AlertTriangle className="h-5 w-5" />} />
 
-          <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/60">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Fila crítica</p>
+          <div className="rounded-[28px] border border-[rgba(204,225,255,0.95)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.8))] p-5 shadow-[0_14px_32px_-24px_rgba(15,26,109,0.3)]">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Fila crítica</p>
             <div className="mt-4 space-y-3">
               {summaryQuery.isLoading
                 ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-16 w-full rounded-2xl" />)
                 : data.agendaCritica.slice(0, 4).map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div key={item.id} className="rounded-2xl border border-[rgba(204,225,255,0.85)] bg-white/95 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-black text-slate-950">{item.numeroSirel}</p>
-                          <p className="text-sm font-semibold text-slate-700">{item.titulo}</p>
+                          <p className="font-black text-[var(--color-primary-900)]">{item.numeroSirel}</p>
+                          <p className="text-sm font-semibold text-[var(--color-neutral-700)]">{item.titulo}</p>
                         </div>
                         <span className={["rounded-full px-3 py-1 text-xs font-bold", item.status === "EM_ATRASO" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"].join(" ")}>{item.status === "EM_ATRASO" ? "Em atraso" : "Pendente"}</span>
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">{formatShortDateBR(item.dataPrevista)} · {item.objeto.length > 90 ? `${item.objeto.slice(0, 87)}...` : item.objeto}</p>
+                      <p className="mt-2 text-xs text-[var(--color-neutral-500)]">{formatShortDateBR(item.dataPrevista)} · {item.objeto.length > 90 ? `${item.objeto.slice(0, 87)}...` : item.objeto}</p>
                     </div>
                   ))}
               {!summaryQuery.isLoading && !data.agendaCritica.length ? <Alert variant="info">Nenhum prazo crítico na janela monitorada.</Alert> : null}
@@ -185,15 +192,15 @@ export function DashboardPage() {
             {quickSearchQuery.isLoading && (deferredSearch || searchStatusId || searchModalidadeId)
               ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-20 w-full rounded-[24px]" />)
               : quickSearchQuery.data?.dados.map((row) => (
-                  <Link key={row.id} href="/consultas">
-                    <button type="button" className="w-full rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-sky-300 hover:bg-white">
+                  <Link key={row.id} href={buildDashboardSearchHref(row)}>
+                    <button type="button" className="w-full rounded-[24px] border border-[rgba(204,225,255,0.85)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.66))] px-4 py-4 text-left transition hover:border-[rgba(65,105,225,0.45)] hover:bg-white">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">{row.numeroSirel}</span>
-                        <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-800">{row.modalidade}</span>
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{row.status}</span>
+                        <span className="rounded-full bg-[var(--color-primary-900)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-white">{row.numeroSirel}</span>
+                        <span className="rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-xs font-bold text-[var(--color-primary-800)]">{row.modalidade}</span>
+                        <span className="rounded-full bg-[var(--color-neutral-100)] px-3 py-1 text-xs font-bold text-[var(--color-neutral-700)]">{row.status}</span>
                       </div>
-                      <p className="mt-3 text-sm font-bold text-slate-950">{row.objetoResumo}</p>
-                      <p className="mt-1 text-xs text-slate-500">{row.secretariaNome} · documentos: {row.documentos}</p>
+                      <p className="mt-3 text-sm font-bold text-[var(--color-primary-900)]">{row.objetoResumo}</p>
+                      <p className="mt-1 text-xs text-[var(--color-neutral-500)]">{row.secretariaNome} · módulo: {row.moduloAtual} · documentos: {row.documentos}</p>
                     </button>
                   </Link>
                 ))}
@@ -224,14 +231,14 @@ export function DashboardPage() {
             {summaryQuery.isLoading
               ? Array.from({ length: 4 }).map((_, index) => <Skeleton key={index} className="h-20 w-full rounded-[24px]" />)
               : data.minhaAgenda.map((item) => (
-                  <div key={item.id} className="rounded-[24px] border border-slate-200 bg-slate-50 px-4 py-4">
+                  <div key={item.id} className="rounded-[24px] border border-[rgba(204,225,255,0.82)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.58))] px-4 py-4">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-800">{dashboardAgendaTypeLabels[item.type as keyof typeof dashboardAgendaTypeLabels] ?? item.type}</span>
+                      <span className="rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-primary-800)]">{dashboardAgendaTypeLabels[item.type as keyof typeof dashboardAgendaTypeLabels] ?? item.type}</span>
                       <span className={["rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em]", item.priority === "URGENTE" ? "bg-rose-100 text-rose-800" : item.priority === "ALTA" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"].join(" ")}>{dashboardPriorityLabels[item.priority as keyof typeof dashboardPriorityLabels] ?? item.priority}</span>
                     </div>
-                    <p className="mt-3 font-black text-slate-950">{item.title}</p>
-                    <p className="mt-1 text-sm text-slate-600">{item.message}</p>
-                    <p className="mt-2 text-xs text-slate-500">{formatShortDateTimeBR(item.createdAt)}</p>
+                    <p className="mt-3 font-black text-[var(--color-primary-900)]">{item.title}</p>
+                    <p className="mt-1 text-sm text-[var(--color-neutral-600)]">{item.message}</p>
+                    <p className="mt-2 text-xs text-[var(--color-neutral-500)]">{formatShortDateTimeBR(item.createdAt)}</p>
                   </div>
                 ))}
 
@@ -264,14 +271,14 @@ export function DashboardPage() {
             {summaryQuery.isLoading
               ? Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-20 w-full rounded-[24px]" />)
               : data.ultimasMovimentacoes.map((item) => (
-                  <article key={item.id} className="rounded-[24px] border border-slate-200 bg-white px-4 py-4 shadow-sm">
+                  <article key={item.id} className="rounded-[24px] border border-[rgba(204,225,255,0.88)] bg-white px-4 py-4 shadow-[0_12px_24px_-22px_rgba(15,26,109,0.2)]">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-black text-slate-950">{item.numeroSirel}</p>
-                        <p className="mt-1 text-sm font-semibold text-slate-700">{item.descricao}</p>
-                        <p className="mt-2 text-xs text-slate-500">{formatShortDateTimeBR(item.criadoEm)}</p>
+                        <p className="font-black text-[var(--color-primary-900)]">{item.numeroSirel}</p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--color-neutral-700)]">{item.descricao}</p>
+                        <p className="mt-2 text-xs text-[var(--color-neutral-500)]">{formatShortDateTimeBR(item.criadoEm)}</p>
                       </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-700">{item.moduloDestino}</span>
+                      <span className="rounded-full bg-[var(--color-primary-50)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-primary-700)]">{item.moduloDestino}</span>
                     </div>
                   </article>
                 ))}
