@@ -7,6 +7,7 @@ import { contratosRouter } from "./contratos.js";
 import { dashboardRouter } from "./dashboard.js";
 import { documentosRouter } from "./documentos.js";
 import { healthRouter } from "./health.js";
+import { importacoesRouter } from "./importacoes.js";
 import { itensRouter } from "./itens.js";
 import { licitacaoRouter } from "./licitacao.js";
 import { notificacoesRouter } from "./notificacoes.js";
@@ -24,6 +25,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   cadastros: cadastrosRouter,
   consultas: consultasRouter,
+  importacoes: importacoesRouter,
   itens: itensRouter,
   licitacao: licitacaoRouter,
   notificacoes: notificacoesRouter,

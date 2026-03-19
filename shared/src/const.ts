@@ -368,6 +368,7 @@ export const appModules = [
   { key: "consultas", label: "Consultas", href: "/consultas" },
   { key: "relatorios", label: "Relatórios", href: "/relatorios" },
   { key: "prazos", label: "Prazos", href: "/prazos" },
+  { key: "importacoes", label: "Importações", href: "/importacoes" },
   { key: "cadastros", label: "Cadastros", href: "/cadastros" },
   { key: "processos", label: "Processos", href: "/processos" },
   { key: "itens", label: "Itens", href: "/itens" },
@@ -396,3 +397,26 @@ export const relatorioTipoLabels: Record<(typeof relatorioTipoOptions)[number], 
   DOCUMENTOS_POR_TIPO: "Documentos por tipo",
   ATIVIDADE_USUARIOS: "Atividade dos usuários",
 };
+
+export const importacaoBllSourceLabels = {
+  LICITACAO: "Licitações BLL",
+  COMPRA_DIRETA: "Compras diretas BLL",
+} as const;
+
+export const importacaoBllModeLabels = {
+  REMOTA_JSON: "Sincronização remota",
+  CSV_MANUAL: "Importação por CSV",
+} as const;
+
+export const importacaoBllExecutionStatusLabels = {
+  PROCESSANDO: "Processando",
+  CONCLUIDA: "Concluída",
+  ERRO: "Erro",
+} as const;
+
+export const importacaoBllConciliacaoStatusLabels = {
+  PENDENTE: "Pendente",
+  SUGERIDO: "Sugestão encontrada",
+  VINCULADO: "Vinculado",
+  IGNORADO: "Ignorado",
+} as const;

@@ -141,6 +141,20 @@
       "when": 1773708984450,
       "tag": "0019_cadastros_assets",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1773931401038,
+      "tag": "0020_importacoes_bll",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1773939800000,
+      "tag": "0021_importacoes_conciliacao",
+      "breakpoints": true
     }
   ]
 }

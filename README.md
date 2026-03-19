@@ -56,6 +56,7 @@ Já implementado:
 - geração e persistência de HTML/PDF da DFD, mapa comparativo e TR base;
 - módulo de Licitação com subetapas, licitantes, propostas, lances, recursos e documentos da fase;
 - módulo de Itens com rastreabilidade por processo e contrato;
+- módulo de Importações para sincronização pública da BLL via JSON consolidado ou CSV manual;
 - módulo de Usuários com consulta de acessos recentes;
 - operação em rede local, com frontend e backend escutando em `0.0.0.0`.
 
@@ -128,6 +129,32 @@ npm run db:check-seeded
 npm run legacy:seed:basics
 ```
 
+## Importações BLL
+
+O módulo `Importações` trabalha com a mesma base pública consumida pelo portal:
+
+- `https://sergiocarneiro-adm.github.io/licitacao/dados.json`
+- `https://sergiocarneiro-adm.github.io/licitacao/dados_compra_direta.json`
+
+Modos disponíveis:
+
+- sincronização remota por JSON público;
+- importação manual por dois CSVs: `registros` + `itens`.
+
+Rotina automática:
+
+- executa pela manhã no servidor local;
+- padrão: `07:00`, fuso `America/Sao_Paulo`;
+- grava execuções e acervo importado no banco local.
+
+Variáveis de ambiente:
+
+```env
+IMPORT_BLL_AUTOMATICA=true
+IMPORT_BLL_DAILY_HOUR=7
+IMPORT_BLL_TIMEZONE=America/Sao_Paulo
+```
+
 ## Ambiente
 
 Exemplo de `.env`:
@@ -143,6 +170,9 @@ BETA_DEFAULT_PASSWORD=SirelBeta@2026
 BETA_ADMIN_USERNAME=jonatas.sousa
 BETA_ADMIN_NAME=Jonatas Sousa
 BETA_ADMIN_EMAIL=jonatassousa@outlook.com
+IMPORT_BLL_AUTOMATICA=true
+IMPORT_BLL_DAILY_HOUR=7
+IMPORT_BLL_TIMEZONE=America/Sao_Paulo
 ```
 
 ## Credencial beta inicial
@@ -159,6 +189,7 @@ BETA_ADMIN_EMAIL=jonatassousa@outlook.com
 - `npm run db:generate`
 - `npm run db:migrate`
 - `npm run db:check-seeded`
+- `npm run db:sync-journal`
 - `npm run legacy:export`
 - `npm run legacy:import`
 - `npm run legacy:import:basics`

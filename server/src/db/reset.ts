@@ -3,6 +3,9 @@ import { sql } from "drizzle-orm";
 import type { db } from "./client.js";
 
 const RESET_TABLES = [
+  "importacao_bll_itens",
+  "importacao_bll_processos",
+  "importacao_bll_execucoes",
   "auth_log",
   "auditoria_log",
   "prazos_processuais",

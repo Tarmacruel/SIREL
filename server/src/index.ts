@@ -15,6 +15,7 @@ import { logAuditoria } from "./db/auditoria.js";
 import { requireDb } from "./db/client.js";
 import { catalogoItens, documentos, fornecedores } from "./db/schema.js";
 import { verifySessionToken } from "./lib/auth-session.js";
+import { startImportacoesScheduler } from "./lib/importacoes-bll.js";
 import { appRouter } from "./routers/index.js";
 
 const app = express();
@@ -467,5 +468,6 @@ app.delete("/api/planejamento/documentos/:documentoId", async (req, res) => {
 app.use("/api/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 
 app.listen(port, host, () => {
+  startImportacoesScheduler();
   console.log(`SIREL Beta 2.0 server listening on http://${host}:${port}`);
 });

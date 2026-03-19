@@ -13,6 +13,7 @@ const ContratosPage = lazy(() => import("@/pages/contratos-page").then((module) 
 const ConsultasPage = lazy(() => import("@/pages/consultas-page").then((module) => ({ default: module.ConsultasPage })));
 const DashboardPage = lazy(() => import("@/pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
 const DocumentosPage = lazy(() => import("@/pages/documentos-page").then((module) => ({ default: module.DocumentosPage })));
+const ImportacoesPage = lazy(() => import("@/pages/importacoes-page").then((module) => ({ default: module.ImportacoesPage })));
 const ItensPage = lazy(() => import("@/pages/itens-page").then((module) => ({ default: module.ItensPage })));
 const LoginPage = lazy(() => import("@/pages/login-page").then((module) => ({ default: module.LoginPage })));
 const LicitacaoPage = lazy(() => import("@/pages/licitacao-page").then((module) => ({ default: module.LicitacaoPage })));
@@ -91,6 +92,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           <Route path="/consultas" component={ConsultasPage} />
           <Route path="/relatorios" component={RelatoriosPage} />
           <Route path="/prazos" component={PrazosPage} />
+          <Route path="/importacoes" component={ImportacoesPage} />
           <Route path="/cadastros" component={CadastrosPage} />
           <Route path="/planejamento/dfd/:processoId">
             {(params) => <PlanejamentoDfdPage processoId={Number(params.processoId)} />}

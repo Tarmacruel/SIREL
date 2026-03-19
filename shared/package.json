@@ -62,6 +62,10 @@
       "types": "./dist/schemas/licitacao.d.ts",
       "import": "./dist/schemas/licitacao.js"
     },
+    "./schemas/importacoes": {
+      "types": "./dist/schemas/importacoes.d.ts",
+      "import": "./dist/schemas/importacoes.js"
+    },
     "./schemas/relatorios": {
       "types": "./dist/schemas/relatorios.d.ts",
       "import": "./dist/schemas/relatorios.js"
