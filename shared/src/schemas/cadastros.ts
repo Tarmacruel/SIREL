@@ -147,8 +147,32 @@ export const cadastroDeleteInputSchema = z.object({
   id: z.number().int().positive(),
 });
 
+export const cadastroHistoryInputSchema = z.object({
+  entity: z.enum(cadastroEntityOptions),
+  id: z.number().int().positive(),
+  action: z.enum(["CREATE", "UPDATE", "DELETE"]).optional(),
+  search: z.string().trim().optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(50).default(10),
+});
+
+export const cadastroBulkStatusInputSchema = z.object({
+  entity: z.enum(cadastroEntityOptions),
+  ids: z.array(z.number().int().positive()).min(1).max(200),
+  ativo: z.boolean(),
+});
+
+export const cadastroExportInputSchema = cadastrosListInputSchema.extend({
+  ids: z.array(z.number().int().positive()).optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(5000).default(5000),
+});
+
 export type CadastroEntity = (typeof cadastroEntityOptions)[number];
 export type CadastroStatus = (typeof cadastroStatusOptions)[number];
 export type CadastrosListInput = z.infer<typeof cadastrosListInputSchema>;
 export type CadastroSaveInput = z.infer<typeof cadastroSaveInputSchema>;
 export type CadastroDeleteInput = z.infer<typeof cadastroDeleteInputSchema>;
+export type CadastroHistoryInput = z.infer<typeof cadastroHistoryInputSchema>;
+export type CadastroBulkStatusInput = z.infer<typeof cadastroBulkStatusInputSchema>;
+export type CadastroExportInput = z.infer<typeof cadastroExportInputSchema>;

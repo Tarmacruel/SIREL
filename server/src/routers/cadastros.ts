@@ -1,8 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, eq, ilike, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 
 import {
+  cadastroBulkStatusInputSchema,
   cadastroDeleteInputSchema,
+  cadastroExportInputSchema,
+  cadastroHistoryInputSchema,
   cadastroSaveInputSchema,
   cadastrosListInputSchema,
 } from "@sirel/shared/schemas/cadastros";
@@ -20,6 +23,7 @@ import {
 import { logAuditoria } from "../db/auditoria.js";
 import { requireDb } from "../db/client.js";
 import {
+  auditoriaLog,
   catalogoItens,
   departamentos,
   fornecedores,
@@ -48,6 +52,23 @@ function toNullableDecimal(value: number | null | undefined) {
 
 function itemCodeFromId(id: number) {
   return `ITM-${new Date().getFullYear()}-${String(id).padStart(5, "0")}`;
+}
+
+function entityTableName(entity: "itens" | "fornecedores" | "secretarias" | "departamentos" | "usuarios" | "parametros") {
+  switch (entity) {
+    case "itens":
+      return "catalogo_itens";
+    case "fornecedores":
+      return "fornecedores";
+    case "secretarias":
+      return "secretarias";
+    case "departamentos":
+      return "departamentos";
+    case "usuarios":
+      return "users";
+    case "parametros":
+      return "parametros_sistema";
+  }
 }
 
 function buildAtivoFilter(status: "ativo" | "inativo" | undefined, column: any) {
@@ -177,6 +198,58 @@ export const cadastrosRouter = router({
         }
       }
     }),
+
+  history: protectedProcedure.input(cadastroHistoryInputSchema).query(async ({ input }) => {
+    const db = requireDb();
+    const pagination = withPagination(input.page, input.pageSize);
+    const tabela = entityTableName(input.entity);
+    const filters = [
+      eq(auditoriaLog.tabela, tabela),
+      eq(auditoriaLog.registroId, input.id),
+      input.action ? eq(auditoriaLog.acao, input.action) : undefined,
+      input.search
+        ? or(
+            ilike(auditoriaLog.descricao, `%${input.search}%`),
+            ilike(users.name, `%${input.search}%`),
+          )
+        : undefined,
+    ].filter(Boolean) as any[];
+    const whereClause = filters.length ? and(...filters) : undefined;
+
+    const [totalRows, rows] = await Promise.all([
+      db
+        .select({ total: count() })
+        .from(auditoriaLog)
+        .leftJoin(users, eq(users.id, auditoriaLog.usuarioId))
+        .where(whereClause),
+      db
+        .select({
+          id: auditoriaLog.id,
+          acao: auditoriaLog.acao,
+          descricao: auditoriaLog.descricao,
+          dadosAnteriores: auditoriaLog.dadosAnteriores,
+          dadosNovos: auditoriaLog.dadosNovos,
+          criadoEm: auditoriaLog.criadoEm,
+          usuarioId: auditoriaLog.usuarioId,
+          usuarioNome: users.name,
+        })
+        .from(auditoriaLog)
+        .leftJoin(users, eq(users.id, auditoriaLog.usuarioId))
+        .where(whereClause)
+        .orderBy(desc(auditoriaLog.criadoEm), desc(auditoriaLog.id))
+        .limit(pagination.limit)
+        .offset(pagination.offset),
+    ]);
+
+    const total = Number(totalRows[0]?.total ?? 0);
+    return {
+      page: input.page,
+      pageSize: input.pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / input.pageSize)),
+      items: rows,
+    };
+  }),
 
   list: protectedProcedure.input(cadastrosListInputSchema).query(async ({ input }) => {
     const db = requireDb();
@@ -464,6 +537,226 @@ export const cadastrosRouter = router({
             atualizadoEm: row.atualizadoEm,
           })),
         };
+      }
+    }
+  }),
+
+  exportRows: protectedProcedure.input(cadastroExportInputSchema).query(async ({ input }) => {
+    const db = requireDb();
+
+    switch (input.entity) {
+      case "itens": {
+        const filters = [
+          buildAtivoFilter(input.status, catalogoItens.ativo),
+          input.search ? ilike(catalogoItens.descricao, `%${input.search}%`) : undefined,
+          input.ids?.length ? inArray(catalogoItens.id, input.ids) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db
+          .select({
+            id: catalogoItens.id,
+            descricao: catalogoItens.descricao,
+            unidadePadrao: catalogoItens.unidadePadrao,
+            valorReferencia: catalogoItens.valorReferencia,
+            ativo: catalogoItens.ativo,
+            atualizadoEm: catalogoItens.atualizadoEm,
+          })
+          .from(catalogoItens)
+          .where(whereClause)
+          .orderBy(asc(catalogoItens.descricao))
+          .limit(5000);
+
+        return rows.map((row) => ({
+          id: row.id,
+          nome: row.descricao,
+          codigo: itemCodeFromId(row.id),
+          unidade: row.unidadePadrao,
+          valorReferencia: row.valorReferencia ? Number(row.valorReferencia) : null,
+          status: row.ativo ? "ativo" : "inativo",
+          atualizadoEm: row.atualizadoEm,
+        }));
+      }
+
+      case "fornecedores": {
+        const filters = [
+          buildAtivoFilter(input.status, fornecedores.ativo),
+          input.search
+            ? or(
+                ilike(fornecedores.razaoSocial, `%${input.search}%`),
+                ilike(fornecedores.cnpj, `%${input.search}%`),
+                ilike(fornecedores.email, `%${input.search}%`),
+              )
+            : undefined,
+          input.cidade ? ilike(fornecedores.cidade, `%${input.cidade}%`) : undefined,
+          input.ids?.length ? inArray(fornecedores.id, input.ids) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db.select().from(fornecedores).where(whereClause).orderBy(asc(fornecedores.razaoSocial)).limit(5000);
+        return rows.map((row) => ({
+          id: row.id,
+          razaoSocial: row.razaoSocial,
+          cnpj: row.cnpj,
+          email: row.email,
+          telefone: row.telefone,
+          cidade: row.cidade,
+          estado: row.estado,
+          status: row.ativo ? "ativo" : "inativo",
+          atualizadoEm: row.atualizadoEm,
+        }));
+      }
+
+      case "secretarias": {
+        const filters = [
+          buildAtivoFilter(input.status, secretarias.ativo),
+          input.search
+            ? or(
+                ilike(secretarias.nome, `%${input.search}%`),
+                ilike(secretarias.sigla, `%${input.search}%`),
+                ilike(secretarias.responsavel, `%${input.search}%`),
+              )
+            : undefined,
+          input.ids?.length ? inArray(secretarias.id, input.ids) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db.select().from(secretarias).where(whereClause).orderBy(asc(secretarias.nome)).limit(5000);
+        return rows.map((row) => ({
+          id: row.id,
+          sigla: row.sigla,
+          nome: row.nome,
+          descricao: row.descricao,
+          responsavel: row.responsavel,
+          email: row.email,
+          telefone: row.telefone,
+          status: row.ativo ? "ativo" : "inativo",
+          atualizadoEm: row.atualizadoEm,
+        }));
+      }
+
+      case "departamentos": {
+        const filters = [
+          buildAtivoFilter(input.status, departamentos.ativo),
+          input.search
+            ? or(
+                ilike(departamentos.nome, `%${input.search}%`),
+                ilike(departamentos.codigoCentroCusto, `%${input.search}%`),
+                ilike(secretarias.nome, `%${input.search}%`),
+              )
+            : undefined,
+          input.secretariaId ? eq(departamentos.secretariaId, input.secretariaId) : undefined,
+          input.ids?.length ? inArray(departamentos.id, input.ids) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db
+          .select({
+            id: departamentos.id,
+            nome: departamentos.nome,
+            codigoCentroCusto: departamentos.codigoCentroCusto,
+            secretariaId: departamentos.secretariaId,
+            secretariaNome: secretarias.nome,
+            responsavelId: departamentos.responsavelId,
+            responsavelNome: pessoas.nome,
+            descricao: departamentos.descricao,
+            ativo: departamentos.ativo,
+            atualizadoEm: departamentos.atualizadoEm,
+          })
+          .from(departamentos)
+          .leftJoin(secretarias, eq(secretarias.id, departamentos.secretariaId))
+          .leftJoin(pessoas, eq(pessoas.id, departamentos.responsavelId))
+          .where(whereClause)
+          .orderBy(asc(departamentos.nome))
+          .limit(5000);
+
+        return rows.map((row) => ({
+          id: row.id,
+          nome: row.nome,
+          codigoCentroCusto: row.codigoCentroCusto,
+          secretariaId: row.secretariaId,
+          secretariaNome: row.secretariaNome,
+          responsavelId: row.responsavelId,
+          responsavelNome: row.responsavelNome,
+          descricao: row.descricao,
+          status: row.ativo ? "ativo" : "inativo",
+          atualizadoEm: row.atualizadoEm,
+        }));
+      }
+
+      case "usuarios": {
+        const filters = [
+          buildAtivoFilter(input.status, users.ativo),
+          input.search
+            ? or(
+                ilike(users.username, `%${input.search}%`),
+                ilike(users.name, `%${input.search}%`),
+                ilike(users.email, `%${input.search}%`),
+              )
+            : undefined,
+          input.secretariaId ? eq(users.secretariaId, input.secretariaId) : undefined,
+          input.role ? eq(users.role, input.role) : undefined,
+          input.ids?.length ? inArray(users.id, input.ids) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db
+          .select({
+            id: users.id,
+            username: users.username,
+            name: users.name,
+            email: users.email,
+            role: users.role,
+            secretariaId: users.secretariaId,
+            secretariaNome: secretarias.nome,
+            ativo: users.ativo,
+            lastSignedIn: users.lastSignedIn,
+            atualizadoEm: users.updatedAt,
+          })
+          .from(users)
+          .leftJoin(secretarias, eq(secretarias.id, users.secretariaId))
+          .where(whereClause)
+          .orderBy(asc(users.name))
+          .limit(5000);
+
+        return rows.map((row) => ({
+          id: row.id,
+          username: row.username,
+          name: row.name,
+          email: row.email,
+          role: row.role,
+          secretariaId: row.secretariaId,
+          secretariaNome: row.secretariaNome,
+          status: row.ativo ? "ativo" : "inativo",
+          lastSignedIn: row.lastSignedIn,
+          atualizadoEm: row.atualizadoEm,
+        }));
+      }
+
+      case "parametros": {
+        const filters = [
+          buildAtivoFilter(input.status, parametrosSistema.ativo),
+          input.search
+            ? or(
+                ilike(parametrosSistema.categoria, `%${input.search}%`),
+                ilike(parametrosSistema.chave, `%${input.search}%`),
+                ilike(parametrosSistema.valor, `%${input.search}%`),
+              )
+            : undefined,
+          input.ids?.length ? inArray(parametrosSistema.id, input.ids) : undefined,
+        ].filter(Boolean) as any[];
+        const whereClause = filters.length ? and(...filters) : undefined;
+        const rows = await db
+          .select()
+          .from(parametrosSistema)
+          .where(whereClause)
+          .orderBy(asc(parametrosSistema.categoria), asc(parametrosSistema.chave))
+          .limit(5000);
+
+        return rows.map((row) => ({
+          id: row.id,
+          categoria: row.categoria,
+          chave: row.chave,
+          valor: row.valor,
+          descricao: row.descricao,
+          status: row.ativo ? "ativo" : "inativo",
+          atualizadoEm: row.atualizadoEm,
+        }));
       }
     }
   }),
@@ -833,6 +1126,137 @@ export const cadastrosRouter = router({
           descricao: `Parâmetro ${updated.chave} inativado`,
         });
         return { success: true };
+      }
+    }
+  }),
+
+  bulkSetStatus: adminProcedure.input(cadastroBulkStatusInputSchema).mutation(async ({ ctx, input }) => {
+    const db = requireDb();
+
+    if (!input.ativo && input.entity === "usuarios" && ctx.user?.id && input.ids.includes(ctx.user.id)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Não é permitido inativar o usuário autenticado em lote." });
+    }
+
+    switch (input.entity) {
+      case "itens": {
+        const before = await db.select().from(catalogoItens).where(inArray(catalogoItens.id, input.ids));
+        const updated = await db
+          .update(catalogoItens)
+          .set({ ativo: input.ativo, atualizadoEm: new Date() })
+          .where(inArray(catalogoItens.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "catalogo_itens",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Cadastro do item ${row.descricao} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
+      }
+      case "fornecedores": {
+        const before = await db.select().from(fornecedores).where(inArray(fornecedores.id, input.ids));
+        const updated = await db
+          .update(fornecedores)
+          .set({ ativo: input.ativo, atualizadoEm: new Date() })
+          .where(inArray(fornecedores.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "fornecedores",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Cadastro do fornecedor ${row.razaoSocial} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
+      }
+      case "secretarias": {
+        const before = await db.select().from(secretarias).where(inArray(secretarias.id, input.ids));
+        const updated = await db
+          .update(secretarias)
+          .set({ ativo: input.ativo, atualizadoEm: new Date() })
+          .where(inArray(secretarias.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "secretarias",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Cadastro da secretaria ${row.nome} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
+      }
+      case "departamentos": {
+        const before = await db.select().from(departamentos).where(inArray(departamentos.id, input.ids));
+        const updated = await db
+          .update(departamentos)
+          .set({ ativo: input.ativo, atualizadoEm: new Date() })
+          .where(inArray(departamentos.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "departamentos",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Cadastro do departamento ${row.nome} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
+      }
+      case "usuarios": {
+        const before = await db.select().from(users).where(inArray(users.id, input.ids));
+        const updated = await db
+          .update(users)
+          .set({ ativo: input.ativo, updatedAt: new Date() })
+          .where(inArray(users.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "users",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Cadastro do usuário ${row.name} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
+      }
+      case "parametros": {
+        const before = await db.select().from(parametrosSistema).where(inArray(parametrosSistema.id, input.ids));
+        const updated = await db
+          .update(parametrosSistema)
+          .set({ ativo: input.ativo, atualizadoEm: new Date() })
+          .where(inArray(parametrosSistema.id, input.ids))
+          .returning();
+        for (const row of updated) {
+          const previous = before.find((item) => item.id === row.id);
+          await logAuditoria(ctx, {
+            tabela: "parametros_sistema",
+            registroId: row.id,
+            acao: "UPDATE",
+            dadosAnteriores: previous,
+            dadosNovos: row,
+            descricao: `Parâmetro ${row.chave} ${input.ativo ? "reativado" : "inativado"} em lote`,
+          });
+        }
+        return { updated: updated.length };
       }
     }
   }),
