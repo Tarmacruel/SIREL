@@ -236,6 +236,9 @@ export function ImportacoesPage() {
   const summaryQuery = trpc.importacoes.summary.useQuery(undefined, {
     retry: false,
   });
+  const catalogQuery = trpc.cadastros.formOptions.useQuery(undefined, {
+    retry: false,
+  });
   const recordsQuery = trpc.importacoes.list.useQuery(
     {
       page,
@@ -370,8 +373,42 @@ export function ImportacoesPage() {
   const createProcessInitialValues = useMemo(() => {
     if (!detailData?.record) return undefined;
 
+    const normalize = (value?: string | null) =>
+      String(value ?? "").trim().toLocaleLowerCase();
+
+    const importedModalidade = normalize(detailData.record.modalidade);
+    const matchedModalidade = catalogQuery.data?.modalidades.find(
+      (item) => normalize(item.nome) === importedModalidade,
+    );
+
+    const tipoContratoMap = (value?: string | null): "AQUISICAO" | "REGISTRO_PRECO" | "AQUISICAO_PARCELADA" => {
+      const normalized = normalize(value);
+      if (normalized.includes("registro")) return "REGISTRO_PRECO";
+      if (normalized.includes("parcelada")) return "AQUISICAO_PARCELADA";
+      return "AQUISICAO";
+    };
+
+    const modoDisputaFromBll = (() => {
+      const dadosOriginais = detailData.record.dadosOriginais as Record<string, unknown> | undefined;
+      const rawValue = dadosOriginais?.modo_disputa ?? dadosOriginais?.modoDisputa ?? "";
+      const raw = normalize(String(rawValue));
+      if (raw.includes("aberto") && raw.includes("fechado")) return "ABERTO_FECHADO";
+      if (raw.includes("aberto")) return "ABERTO";
+      if (raw.includes("fechado")) return "FECHADO";
+      if (raw.includes("nao se aplica") || raw === "") return "NAO_SE_APLICA";
+      return "NAO_SE_APLICA";
+    })();
+
+    const matchedAutoridade = catalogQuery.data?.pessoas.find(
+      (item) => normalize(item.nome) === normalize(detailData.record.autoridadeNome),
+    );
+    const matchedCondutor = catalogQuery.data?.pessoas.find(
+      (item) => normalize(item.nome) === normalize(detailData.record.condutorNome),
+    );
+
     return {
       numeroAdministrativo: detailData.record.numeroAdministrativo ?? "",
+      numeroEdital: detailData.record.numeroEdital ?? "",
       anoReferencia: String(
         detailData.record.anoReferencia ?? new Date().getFullYear(),
       ),
@@ -379,10 +416,18 @@ export function ImportacoesPage() {
       valorEstimado: formatCurrencyForForm(
         detailData.record.valorTotal ?? detailData.record.valorReferencia,
       ),
-      dataAbertura: formatDateForInput(detailData.record.publicacaoEm),
-      foraDoFluxo: false,
+      dataAbertura:
+        formatDateForInput(detailData.record.publicacaoEm) ||
+        formatDateForInput(detailData.record.inicioRecepcaoEm),
+      modalidadeId: matchedModalidade ? String(matchedModalidade.id) : "",
+      tipoContratacao: tipoContratoMap(detailData.record.tipoContrato),
+      modoDisputa: modoDisputaFromBll,
+      autoridadeCompetenteId: matchedAutoridade ? String(matchedAutoridade.id) : "",
+      condutorProcessoId: matchedCondutor ? String(matchedCondutor.id) : "",
+      // Mantém como processo importado fora do fluxo, canal de saneamento
+      foraDoFluxo: true,
     };
-  }, [detailData]);
+  }, [catalogQuery.data?.modalidades, detailData]);
 
   async function handleCsvImport() {
     try {

@@ -18,6 +18,7 @@ export const processoListInputSchema = z.object({
 export const processoCreateInputSchema = z
   .object({
     numeroAdministrativo: z.string().max(64).optional(),
+    numeroEdital: z.string().max(64).optional(),
     anoReferencia: z.number().int().gte(2020).lte(2100),
     secretariaId: z.number().int().positive(),
     modalidadeId: z.number().int().positive().optional(),
@@ -30,6 +31,7 @@ export const processoCreateInputSchema = z
     modoDisputa: z.enum(modoDisputaOptions).optional(),
     tipoObjeto: z.enum(["PRODUTO", "SERVICO", "OBRA", "SERVICO_ENG"]).optional(),
     tipoContratacao: z.enum(["AQUISICAO", "REGISTRO_PRECO", "AQUISICAO_PARCELADA"]).optional(),
+    condutorProcessoId: z.number().int().positive().optional(),
     dataAbertura: z.string().optional(),
     foraDoFluxo: z.boolean().default(false),
     moduloInicial: z.enum(workflowModuleOptions).optional(),
@@ -58,8 +60,15 @@ export const processoSetAtivoInputSchema = z.object({
 
 export const processoUpdateDataInputSchema = z.object({
   processoId: z.number().int().positive(),
+  numeroAdministrativo: z.string().max(64).optional(),
+  numeroEdital: z.string().max(64).optional(),
+  dataAbertura: z.string().optional(),
   secretariaId: z.number().int().positive().optional(),
+  modalidadeId: z.number().int().positive().optional(),
+  tipoObjeto: z.enum(["PRODUTO", "SERVICO", "OBRA", "SERVICO_ENG"]).optional(),
+  tipoContratacao: z.enum(["AQUISICAO", "REGISTRO_PRECO", "AQUISICAO_PARCELADA"]).optional(),
   autoridadeCompetenteId: z.number().int().positive().optional(),
+  condutorProcessoId: z.number().int().positive().optional(),
   objeto: z.string().min(10).optional(),
   valorEstimado: z.number().nonnegative().optional(),
   criterioJulgamento: z.string().max(120).optional(),

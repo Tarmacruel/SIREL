@@ -12,10 +12,7 @@ function resolveApiUrl() {
   if (configuredUrl) return configuredUrl;
 
   if (typeof window !== "undefined") {
-    const protocol = window.location.protocol || "http:";
-    const hostname = window.location.hostname || "localhost";
-    const port = String(import.meta.env.VITE_API_PORT ?? "3030").trim() || "3030";
-    return `${protocol}//${hostname}:${port}/api/trpc`;
+    return "/api/trpc";
   }
 
   return "http://localhost:3030/api/trpc";

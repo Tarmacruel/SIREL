@@ -11,6 +11,7 @@ import { importacoesRouter } from "./importacoes.js";
 import { itensRouter } from "./itens.js";
 import { licitacaoRouter } from "./licitacao.js";
 import { notificacoesRouter } from "./notificacoes.js";
+import { parametrosRouter } from "./parametros.js";
 import { planejamentoRouter } from "./planejamento.js";
 import { prazosRouter } from "./prazos.js";
 import { processosRouter } from "./processos.js";
@@ -29,6 +30,7 @@ export const appRouter = router({
   itens: itensRouter,
   licitacao: licitacaoRouter,
   notificacoes: notificacoesRouter,
+  parametros: parametrosRouter,
   planejamento: planejamentoRouter,
   prazos: prazosRouter,
   processos: processosRouter,

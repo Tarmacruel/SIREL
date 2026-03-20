@@ -1,4 +1,4 @@
-﻿import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
 
@@ -24,6 +24,7 @@ const NotificacoesPage = lazy(() =>
   import("@/pages/notificacoes-page").then((module) => ({ default: module.NotificacoesPage })),
 );
 const NotFoundPage = lazy(() => import("@/pages/not-found-page").then((module) => ({ default: module.NotFoundPage })));
+const ParametrosPage = lazy(() => import("@/pages/parametros-page").then((module) => ({ default: module.ParametrosPage })));
 const PlanejamentoCotacoesPage = lazy(() =>
   import("@/pages/planejamento-cotacoes-page").then((module) => ({ default: module.PlanejamentoCotacoesPage })),
 );
@@ -121,6 +122,7 @@ function AuthenticatedApp({ session, onLogout }: { session: AuthSession; onLogou
           <Route path="/contratos" component={ContratosPage} />
           <Route path="/workflow" component={WorkflowPage} />
           <Route path="/auditoria" component={AuditoriaPage} />
+          <Route path="/parametros" component={ParametrosPage} />
           <Route path="/usuarios" component={UsuariosPage} />
           <Route component={NotFoundPage} />
         </Switch>

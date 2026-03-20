@@ -163,7 +163,7 @@ Exemplo de `.env`:
 DATABASE_URL=postgresql://sirel_user:senha_segura@localhost:5432/sirel_db
 HOST=0.0.0.0
 PORT=3030
-CLIENT_URL=http://localhost:5173
+CLIENT_URL=http://localhost:5174
 VITE_API_URL=http://localhost:3030/api/trpc
 JWT_SECRET=troque_esta_chave
 BETA_DEFAULT_PASSWORD=SirelBeta@2026

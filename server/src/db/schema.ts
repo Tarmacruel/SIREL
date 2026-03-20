@@ -99,6 +99,21 @@ export const authEventTypeEnum = pgEnum("auth_event_type", [
   "PASSWORD_CHANGE",
   "PASSWORD_RESET",
 ]);
+export const parametroCategoriaEnum = pgEnum("parametro_categoria", [
+  "INSTITUCIONAL",
+  "REGRAS",
+  "INTEGRACAO",
+  "COMPORTAMENTO",
+  "CATALOGOS",
+]);
+export const parametroTipoDadoEnum = pgEnum("parametro_tipo_dado", [
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "array",
+  "date",
+]);
 export const prazoProcessualTipoEnum = pgEnum("prazo_processual_tipo", [
   "PUBLICACAO_EDITAL",
   "RECEBIMENTO_PROPOSTAS",
@@ -199,10 +214,17 @@ export const parametrosSistema = pgTable(
   "parametros_sistema",
   {
     id: serial("id").primaryKey(),
-    categoria: varchar("categoria", { length: 120 }).notNull(),
+    categoria: parametroCategoriaEnum("categoria").notNull().default("REGRAS"),
     chave: varchar("chave", { length: 120 }).notNull(),
     valor: text("valor").notNull(),
+    valorJson: jsonb("valor_json"),
+    tipoDado: parametroTipoDadoEnum("tipo_dado").notNull().default("string"),
     descricao: text("descricao"),
+    valorPadrao: jsonb("valor_padrao"),
+    requerReinicio: boolean("requer_reinicio").notNull().default(false),
+    versao: integer("versao").notNull().default(1),
+    alteradoPor: integer("alterado_por"),
+    justificativaAlteracao: text("justificativa_alteracao"),
     ativo: boolean("ativo").notNull().default(true),
     criadoEm: timestamp("criado_em", { withTimezone: true })
       .notNull()
@@ -215,6 +237,30 @@ export const parametrosSistema = pgTable(
     uqChave: uniqueIndex("parametros_sistema_chave_uq").on(table.chave),
     idxCategoria: index("parametros_sistema_categoria_idx").on(table.categoria),
     idxAtivo: index("parametros_sistema_ativo_idx").on(table.ativo),
+  }),
+);
+
+export const parametrosHistorico = pgTable(
+  "parametros_historico",
+  {
+    id: serial("id").primaryKey(),
+    parametroId: integer("parametro_id")
+      .notNull()
+      .references(() => parametrosSistema.id, { onDelete: "cascade" }),
+    valorAnterior: jsonb("valor_anterior"),
+    valorNovo: jsonb("valor_novo").notNull(),
+    alteradoPor: integer("alterado_por"),
+    alteradoPorNome: varchar("alterado_por_nome", { length: 150 }).notNull(),
+    dataAlteracao: timestamp("data_alteracao", { withTimezone: true }).notNull().defaultNow(),
+    justificativa: text("justificativa"),
+    ipOrigem: varchar("ip_origem", { length: 45 }),
+    requerAprovacao: boolean("requer_aprovacao").notNull().default(false),
+    aprovadoPor: integer("aprovado_por"),
+    dataAprovacao: timestamp("data_aprovacao", { withTimezone: true }),
+  },
+  (table) => ({
+    idxParametro: index("parametros_historico_parametro_idx").on(table.parametroId),
+    idxDataAlteracao: index("parametros_historico_data_alteracao_idx").on(table.dataAlteracao),
   }),
 );
 

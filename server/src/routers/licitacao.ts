@@ -1,4 +1,4 @@
-﻿import { TRPCError } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 
 import {
@@ -45,6 +45,7 @@ import {
   workflowProcesso,
 } from "../db/schema.js";
 import { getNextNumeroEdital } from "../lib/processo-identity.js";
+import { getSystemParamNumber, getSystemParamNumberArray } from "../lib/system-params.js";
 import { operadorProcedure, publicProcedure, router } from "../trpc.js";
 
 type DbClient = ReturnType<typeof requireDb>;
@@ -128,12 +129,17 @@ function supportsLances(modalidadeCodigo?: string | null) {
   return Boolean(modalidadeCodigo && /(PREGAO|LEILAO)/.test(modalidadeCodigo));
 }
 
+function isObjetoConcorrenciaObras(tipoObjeto?: string | null) {
+  return tipoObjeto === "OBRA" || tipoObjeto === "SERVICO_ENG";
+}
+
 function getPublicationExtraDays(publicarNoDou?: boolean | null, publicarEmJornal?: boolean | null) {
   return publicarNoDou || publicarEmJornal ? 1 : 0;
 }
 
-function buildPublicationSchedule(params: {
+async function buildPublicationSchedule(db: DbClient, params: {
   modalidadeCodigo?: string | null;
+  tipoObjeto?: string | null;
   dataPublicacaoEdital?: Date | null;
   publicarNoDou?: boolean | null;
   publicarEmJornal?: boolean | null;
@@ -143,7 +149,19 @@ function buildPublicationSchedule(params: {
     return null;
   }
 
-  const baseDays = licitacaoPrazoBasePorModalidade[params.modalidadeCodigo as keyof typeof licitacaoPrazoBasePorModalidade] ?? 8;
+  const defaultBaseDays = licitacaoPrazoBasePorModalidade[params.modalidadeCodigo as keyof typeof licitacaoPrazoBasePorModalidade] ?? 8;
+  let baseDays = defaultBaseDays;
+
+  if (/PREGAO/.test(params.modalidadeCodigo)) {
+    baseDays = await getSystemParamNumber(db, "PRAZOS.PREGAO.RECEBIMENTO_PROPOSTAS_DIAS_UTEIS", defaultBaseDays);
+  } else if (/CONCORRENCIA/.test(params.modalidadeCodigo)) {
+    baseDays = isObjetoConcorrenciaObras(params.tipoObjeto)
+      ? await getSystemParamNumber(db, "PRAZOS.CONCORRENCIA.OBRAS_DIAS_UTEIS", defaultBaseDays)
+      : await getSystemParamNumber(db, "PRAZOS.CONCORRENCIA.SERVICOS_DIAS_UTEIS", defaultBaseDays);
+  } else if (/DISPENSA/.test(params.modalidadeCodigo)) {
+    baseDays = await getSystemParamNumber(db, "PRAZOS.DISPENSA.PUBLICACAO_RESUMO_DIAS_UTEIS", defaultBaseDays);
+  }
+
   const municipioExtra = 1;
   const canaisExtra = getPublicationExtraDays(params.publicarNoDou, params.publicarEmJornal);
   const totalBusinessDays = baseDays + municipioExtra + canaisExtra;
@@ -214,10 +232,12 @@ async function buildInternalChecklist(db: DbClient, processoId: number, exigeDec
 async function syncPublicationDeadlines(
   db: DbClient,
   processoId: number,
-  schedule: ReturnType<typeof buildPublicationSchedule>,
+  schedule: Awaited<ReturnType<typeof buildPublicationSchedule>>,
   userId?: number | null,
 ) {
   if (!schedule) return;
+
+  const alertDays = await getSystemParamNumberArray(db, "NOTIFICACOES.ALERTA_PRAZO_DIAS", [7, 3, 1]);
 
   const deadlineItems = [
     {
@@ -262,7 +282,7 @@ async function syncPublicationDeadlines(
       titulo: item.titulo,
       dataPrevista: item.dataPrevista,
       status: new Date(`${item.dataPrevista}T00:00:00`) < startOfDay() ? "EM_ATRASO" : "PENDENTE",
-      alertasConfig: { lembretes: [7, 3, 1], canais: ["sistema"] },
+      alertasConfig: { lembretes: alertDays, canais: ["sistema"] },
       criadoPor: userId ?? null,
       criadoEm: new Date(),
       atualizadoEm: new Date(),
@@ -353,6 +373,7 @@ async function getBaseProcesso(db: DbClient, processoId: number) {
       statusProcesso: statusProcesso.nome,
       criterioJulgamento: processos.criterioJulgamento,
       modoDisputa: processos.modoDisputa,
+      tipoObjeto: processos.tipoObjeto,
       valorEstimado: processos.valorEstimado,
       dataAbertura: processos.dataAbertura,
       publicado: processos.publicado,
@@ -690,8 +711,9 @@ export const licitacaoRouter = router({
         input.processoId,
         Boolean(licitacao?.exigeDeclaracaoNaoFracionamento),
       ),
-      calendarioPublicacao: buildPublicationSchedule({
+      calendarioPublicacao: await buildPublicationSchedule(db, {
         modalidadeCodigo: processo.modalidadeCodigo,
+        tipoObjeto: processo.tipoObjeto,
         dataPublicacaoEdital: licitacao?.dataPublicacaoEdital ?? null,
         publicarNoDou: licitacao?.publicarNoDou ?? false,
         publicarEmJornal: licitacao?.publicarEmJornal ?? false,
@@ -717,8 +739,9 @@ export const licitacaoRouter = router({
     const licitacao = await ensureLicitacao(db, input.processoId);
     const configuredPublicationDate = parseOptionalTimestamp(input.dataPublicacaoEdital);
     const configuredDisputeDate = parseOptionalTimestamp(input.dataAberturaPropostas);
-    const schedule = buildPublicationSchedule({
+    const schedule = await buildPublicationSchedule(db, {
       modalidadeCodigo: processo.modalidadeCodigo,
+      tipoObjeto: processo.tipoObjeto,
       dataPublicacaoEdital: configuredPublicationDate,
       publicarNoDou: input.publicarNoDou,
       publicarEmJornal: input.publicarEmJornal,
@@ -787,8 +810,9 @@ export const licitacaoRouter = router({
       });
     }
 
-    const schedule = buildPublicationSchedule({
+    const schedule = await buildPublicationSchedule(db, {
       modalidadeCodigo: processo.modalidadeCodigo,
+      tipoObjeto: processo.tipoObjeto,
       dataPublicacaoEdital: parseOptionalTimestamp(input.dataPublicacaoEdital) ?? licitacao.dataPublicacaoEdital ?? new Date(),
       publicarNoDou: licitacao.publicarNoDou,
       publicarEmJornal: licitacao.publicarEmJornal,

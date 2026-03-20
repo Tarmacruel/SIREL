@@ -1,4 +1,5 @@
-﻿import { z } from "zod";
+import { z } from "zod";
+import { parametroCategoriaSchema } from "./parametros.js";
 
 export const cadastroEntityOptions = [
   "itens",
@@ -156,7 +157,7 @@ export const usuarioCadastroSchema = z.object({
 
 export const parametroCadastroSchema = z.object({
   id: z.number().int().positive().optional(),
-  categoria: z.string().trim().min(2, "Informe a categoria."),
+  categoria: parametroCategoriaSchema,
   chave: z.string().trim().min(2, "Informe a chave do parâmetro."),
   valor: z.string().trim().min(1, "Informe o valor do parâmetro."),
   descricao: z.string().trim().optional(),

@@ -162,6 +162,20 @@
       "when": 1773940800000,
       "tag": "0022_processos_ativo",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1773967800000,
+      "tag": "0023_parametros_sistema_governanca",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1773969000000,
+      "tag": "0024_parametros_sistema_carga_inicial",
+      "breakpoints": true
     }
   ]
 }

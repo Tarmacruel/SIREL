@@ -12,6 +12,7 @@ import {
   itensProcesso,
   lotes,
   modalidades,
+  pessoas,
   processos,
   secretarias,
   statusProcesso,
@@ -495,6 +496,75 @@ export async function linkImportedProcessToInternal(
     })
     .where(eq(importacaoBllProcessos.id, importedId));
 
+  // Tentar ajustar campos do processo interno com base nos dados importados, sem sobrepor valores definidos manualmente.
+  const updateData: any = {};
+
+  if (record.numeroAdministrativo && !process.numeroAdministrativo) {
+    updateData.numeroAdministrativo = record.numeroAdministrativo;
+  }
+  if (record.numeroEdital && !process.numeroEdital) {
+    updateData.numeroEdital = record.numeroEdital;
+  }
+
+  const suggestedDataAbertura =
+    record.publicacaoEm ?? record.inicioRecepcaoEm ?? record.inicioDisputaEm;
+  if (suggestedDataAbertura && !process.dataAbertura) {
+    updateData.dataAbertura = suggestedDataAbertura;
+  }
+
+  if (record.objeto && !process.objeto) {
+    updateData.objeto = record.objeto;
+  }
+
+  if (record.valorTotal && !process.valorEstimado) {
+    updateData.valorEstimado = Number(record.valorTotal);
+  } else if (record.valorReferencia && !process.valorEstimado) {
+    updateData.valorEstimado = Number(record.valorReferencia);
+  }
+
+  if (record.modalidade) {
+    const modalidadeId = await findModalidadeIdByName(record.modalidade);
+    if (modalidadeId && !process.modalidadeId) {
+      updateData.modalidadeId = modalidadeId;
+    }
+  }
+
+  if (record.tipoContrato && !process.tipoContratacao) {
+    updateData.tipoContratacao = mapTipoContrato(record.tipoContrato);
+  }
+
+  let registroModoDisputa = null;
+  if (record.dadosOriginais && typeof record.dadosOriginais === "object") {
+    const raw = (record.dadosOriginais as Record<string, unknown>).modo_disputa ??
+      (record.dadosOriginais as Record<string, unknown>).modoDisputa ??
+      null;
+    registroModoDisputa = typeof raw === "string" ? raw : null;
+  }
+  if (registroModoDisputa) {
+    const modoDisputa = mapModoDisputa(registroModoDisputa);
+    if (modoDisputa && !process.modoDisputa) {
+      updateData.modoDisputa = modoDisputa;
+    }
+  }
+
+  if (record.condutorNome && !process.condutorProcessoId) {
+    const pessoaId = await findOrCreatePessoaByName(record.condutorNome);
+    if (pessoaId) {
+      updateData.condutorProcessoId = pessoaId;
+    }
+  }
+
+  if (record.autoridadeNome && !process.autoridadeCompetenteId) {
+    const pessoaId = await findOrCreatePessoaByName(record.autoridadeNome);
+    if (pessoaId) {
+      updateData.autoridadeCompetenteId = pessoaId;
+    }
+  }
+
+  if (Object.keys(updateData).length) {
+    await db.update(processos).set({ ...updateData, atualizadoEm: new Date() }).where(eq(processos.id, processoId));
+  }
+
   // Link items and suppliers from the imported process
   await linkImportedItemsAndSuppliers(importedId, processoId, userId);
 }
@@ -589,6 +659,58 @@ async function findOrCreateSupplier(
   }
 
   return newSupplier.id;
+}
+
+async function findOrCreatePessoaByName(name: string): Promise<number | null> {
+  const db = requireDb();
+  const normalized = normalizeText(name);
+  if (!normalized) return null;
+
+  const existing = await db
+    .select({ id: pessoas.id, nome: pessoas.nome })
+    .from(pessoas)
+    .where(ilike(pessoas.nome, `%${normalized}%`))
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return existing[0].id;
+  }
+
+  const [created] = await db
+    .insert(pessoas)
+    .values({ nome: name.trim(), ativo: true })
+    .returning({ id: pessoas.id });
+
+  return created?.id ?? null;
+}
+
+async function findModalidadeIdByName(name: string): Promise<number | null> {
+  const db = requireDb();
+  const normalized = normalizeText(name);
+  if (!normalized) return null;
+
+  const [existing] = await db
+    .select({ id: modalidades.id, nome: modalidades.nome })
+    .from(modalidades)
+    .where(ilike(modalidades.nome, `%${normalized}%`))
+    .limit(1);
+
+  return existing?.id ?? null;
+}
+
+function mapTipoContrato(value: string | null | undefined): "AQUISICAO" | "REGISTRO_PRECO" | "AQUISICAO_PARCELADA" {
+  const normalized = normalizeText(value);
+  if (normalized.includes("registro")) return "REGISTRO_PRECO";
+  if (normalized.includes("parcel")) return "AQUISICAO_PARCELADA";
+  return "AQUISICAO";
+}
+
+function mapModoDisputa(value: string | null | undefined): "NAO_SE_APLICA" | "ABERTO" | "FECHADO" | "ABERTO_FECHADO" {
+  const normalized = normalizeText(value);
+  if (normalized.includes("aberto") && normalized.includes("fechado")) return "ABERTO_FECHADO";
+  if (normalized.includes("aberto")) return "ABERTO";
+  if (normalized.includes("fechado")) return "FECHADO";
+  return "NAO_SE_APLICA";
 }
 
 async function linkImportedItemsAndSuppliers(

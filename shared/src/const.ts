@@ -1,4 +1,4 @@
-﻿export const workflowModuleOptions = [
+export const workflowModuleOptions = [
   "PLANEJAMENTO",
   "COMPRAS",
   "LICITACAO",
@@ -379,6 +379,7 @@ export const appModules = [
   { key: "contratos", label: "Contratos", href: "/contratos" },
   { key: "workflow", label: "Workflow", href: "/workflow" },
   { key: "auditoria", label: "Auditoria", href: "/auditoria" },
+  { key: "parametros", label: "Parâmetros", href: "/parametros" },
   { key: "usuarios", label: "Usu\u00e1rios", href: "/usuarios" },
 ] as const;
 

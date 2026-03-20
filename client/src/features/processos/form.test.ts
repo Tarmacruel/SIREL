@@ -9,6 +9,7 @@ const baseForm = {
   modalidadeId: "2",
   statusId: "3",
   autoridadeCompetenteId: "4",
+  numeroEdital: "1/2026",
   objeto: "Contratacao de empresa especializada para atendimento das demandas da secretaria.",
   valorEstimado: "10.000,50",
   escopoDisputa: "GLOBAL",

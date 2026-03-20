@@ -1,4 +1,4 @@
-﻿import { getStoredAuthToken, loadStoredSession } from "@/lib/auth-session";
+import { getStoredAuthToken, loadStoredSession } from "@/lib/auth-session";
 
 export type DocumentoTipo = "DFD" | "ETP" | "TR" | "EDITAL" | "COMUNICACAO_INTERNA" | "RESULTADO" | "CONTRATO" | "OUTRO";
 
@@ -22,10 +22,7 @@ export function resolveServerBaseUrl() {
   }
 
   if (typeof window !== "undefined") {
-    const protocol = window.location.protocol || "http:";
-    const hostname = window.location.hostname || "localhost";
-    const port = String(import.meta.env.VITE_API_PORT ?? "3030").trim() || "3030";
-    return `${protocol}//${hostname}:${port}`;
+    return "";
   }
 
   return "http://localhost:3030";

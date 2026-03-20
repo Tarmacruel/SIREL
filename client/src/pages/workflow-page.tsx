@@ -36,13 +36,21 @@ export function WorkflowPage() {
   const [openDocumentsModal, setOpenDocumentsModal] = useState(false);
   const [openEditDataModal, setOpenEditDataModal] = useState(false);
   const [editDataForm, setEditDataForm] = useState({
+    numeroAdministrativo: "",
+    numeroEdital: "",
+    dataAbertura: "",
     secretariaId: "",
+    modalidadeId: "",
+    statusId: "",
     autoridadeCompetenteId: "",
+    condutorProcessoId: "",
     objeto: "",
     valorEstimado: "",
     criterioJulgamento: "",
     modoDisputa: "",
     escopoDisputa: "",
+    tipoObjeto: "",
+    tipoContratacao: "",
   });
   const [editDataErrors, setEditDataErrors] = useState<Record<string, string>>({});
   const [moveForm, setMoveForm] = useState({
@@ -116,13 +124,20 @@ export function WorkflowPage() {
     // @ts-ignore - tipo será atualizado após compilação do servidor
     setEditDataForm((current) => ({
       ...current,
+      numeroAdministrativo: detail.processo?.numeroAdministrativo ?? "",
+      numeroEdital: detail.processo?.numeroEdital ?? "",
+      dataAbertura: detail.processo?.dataAbertura ?? "",
       secretariaId: String(detail.processo?.secretariaId ?? ""),
+      modalidadeId: String(detail.processo?.modalidadeId ?? ""),
       autoridadeCompetenteId: String(detail.processo?.autoridadeCompetenteId ?? ""),
+      condutorProcessoId: String(detail.processo?.condutorProcessoId ?? ""),
       objeto: detail.processo?.objeto ?? "",
       valorEstimado: detail.processo?.valorEstimado ? String(detail.processo.valorEstimado) : "",
       criterioJulgamento: detail.processo?.criterioJulgamento ?? "",
       modoDisputa: detail.processo?.modoDisputa ?? "",
       escopoDisputa: detail.processo?.escopoDisputa ?? "",
+      tipoObjeto: detail.processo?.tipoObjeto ?? "",
+      tipoContratacao: detail.processo?.tipoContratacao ?? "",
     }));
   }, [detailQuery.data]);
 
@@ -226,8 +241,15 @@ export function WorkflowPage() {
       processoId: selectedProcessId,
     };
 
+    if (editDataForm.numeroAdministrativo?.trim()) updatePayload.numeroAdministrativo = editDataForm.numeroAdministrativo.trim();
+    if (editDataForm.numeroEdital?.trim()) updatePayload.numeroEdital = editDataForm.numeroEdital.trim();
+    if (editDataForm.dataAbertura) updatePayload.dataAbertura = editDataForm.dataAbertura;
     if (editDataForm.secretariaId) updatePayload.secretariaId = Number(editDataForm.secretariaId);
+    if (editDataForm.modalidadeId) updatePayload.modalidadeId = Number(editDataForm.modalidadeId);
+    if (editDataForm.tipoObjeto) updatePayload.tipoObjeto = editDataForm.tipoObjeto as "PRODUTO" | "SERVICO" | "OBRA" | "SERVICO_ENG";
+    if (editDataForm.tipoContratacao) updatePayload.tipoContratacao = editDataForm.tipoContratacao as "AQUISICAO" | "REGISTRO_PRECO" | "AQUISICAO_PARCELADA";
     if (editDataForm.autoridadeCompetenteId) updatePayload.autoridadeCompetenteId = Number(editDataForm.autoridadeCompetenteId);
+    if (editDataForm.condutorProcessoId) updatePayload.condutorProcessoId = Number(editDataForm.condutorProcessoId);
     if (editDataForm.objeto?.trim()) updatePayload.objeto = editDataForm.objeto.trim();
     if (editDataForm.valorEstimado?.trim()) updatePayload.valorEstimado = Number(editDataForm.valorEstimado);
     if (editDataForm.criterioJulgamento?.trim()) updatePayload.criterioJulgamento = editDataForm.criterioJulgamento.trim();
@@ -779,6 +801,85 @@ export function WorkflowPage() {
                     {item.cargo ? ` - ${item.cargo}` : ""}
                   </option>
                 ))}
+              </Select>
+            </FormField>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField label="Modalidade">
+              <Select
+                value={editDataForm.modalidadeId}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, modalidadeId: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                {catalogQuery.data?.modalidades.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Condutor do processo">
+              <Select
+                value={editDataForm.condutorProcessoId}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, condutorProcessoId: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                {catalogQuery.data?.pessoas.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                    {item.cargo ? ` - ${item.cargo}` : ""}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <FormField label="Número administrativo">
+              <Input
+                value={editDataForm.numeroAdministrativo}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, numeroAdministrativo: event.target.value }))}
+              />
+            </FormField>
+            <FormField label="Número do edital">
+              <Input
+                value={editDataForm.numeroEdital}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, numeroEdital: event.target.value }))}
+              />
+            </FormField>
+            <FormField label="Data da sessão / abertura">
+              <input
+                type="date"
+                value={editDataForm.dataAbertura}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, dataAbertura: event.target.value }))}
+                className="w-full rounded-[10px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2 text-sm outline-none"
+              />
+            </FormField>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <FormField label="Tipo de contratação">
+              <Select
+                value={editDataForm.tipoContratacao}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, tipoContratacao: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                <option value="AQUISICAO">Aquisição</option>
+                <option value="REGISTRO_PRECO">Registro de preço</option>
+                <option value="AQUISICAO_PARCELADA">Aquisição parcelada</option>
+              </Select>
+            </FormField>
+            <FormField label="Tipo de objeto">
+              <Select
+                value={editDataForm.tipoObjeto}
+                onChange={(event) => setEditDataForm((current) => ({ ...current, tipoObjeto: event.target.value }))}
+              >
+                <option value="">Selecione</option>
+                <option value="PRODUTO">Produto</option>
+                <option value="SERVICO">Serviço</option>
+                <option value="OBRA">Obra</option>
+                <option value="SERVICO_ENG">Serviço de engenharia</option>
               </Select>
             </FormField>
           </div>

@@ -1,4 +1,4 @@
-import { prefeituraLines, prefeituraLogoUrl, systemFooterText, systemFullName } from "@/lib/branding";
+import { getRuntimeBrandingSnapshot, systemFullName } from "@/lib/branding";
 
 interface ReportColumn {
   key: string;
@@ -74,13 +74,14 @@ export async function exportReportToXlsx(
   rows: Record<string, unknown>[],
   summary: ReportSummaryItem[] = [],
 ) {
+  const branding = getRuntimeBrandingSnapshot();
   const XLSX = await import("xlsx");
   const summaryLines = buildSummaryLines(summary);
   const sheetData = [
-    [prefeituraLines[0]],
-    [prefeituraLines[1]],
-    [prefeituraLines[2]],
-    [prefeituraLines[3]],
+    [branding.prefeituraLines[0]],
+    [branding.prefeituraLines[1]],
+    [branding.prefeituraLines[2]],
+    [branding.prefeituraLines[3]],
     [systemFullName],
     [],
     [title],
@@ -91,7 +92,7 @@ export async function exportReportToXlsx(
     columns.map((column) => column.label),
     ...rows.map((row) => columns.map((column) => toText(row[column.key]))),
     [],
-    [systemFooterText],
+    [branding.systemFooterText],
   ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
@@ -111,6 +112,7 @@ export async function exportReportToPdf(
   rows: Record<string, unknown>[],
   summary: ReportSummaryItem[] = [],
 ) {
+  const branding = getRuntimeBrandingSnapshot();
   const [{ default: jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const autoTable = autoTableModule.default;
 
@@ -122,12 +124,12 @@ export async function exportReportToPdf(
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(prefeituraLines[0], 40, 28);
-  doc.text(prefeituraLines[1], 40, 42);
+  doc.text(branding.prefeituraLines[0], 40, 28);
+  doc.text(branding.prefeituraLines[1], 40, 42);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text(prefeituraLines[2], 40, 56);
-  doc.text(prefeituraLines[3], 40, 68, { maxWidth: 520 });
+  doc.text(branding.prefeituraLines[2], 40, 56);
+  doc.text(branding.prefeituraLines[3], 40, 68, { maxWidth: 520 });
   doc.text(systemFullName, 40, 82);
 
   doc.setFont("helvetica", "bold");
@@ -184,7 +186,7 @@ export async function exportReportToPdf(
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
-      doc.text(systemFooterText, 40, pageHeight - 18);
+      doc.text(branding.systemFooterText, 40, pageHeight - 18);
       doc.text(`Página ${doc.getCurrentPageInfo().pageNumber}`, pageWidth - 40, pageHeight - 18, { align: "right" });
     },
   });
@@ -198,6 +200,7 @@ export function openPrintableReport(
   rows: Record<string, unknown>[],
   summary: ReportSummaryItem[] = [],
 ) {
+  const branding = getRuntimeBrandingSnapshot();
   const printableHtml = `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -230,12 +233,12 @@ export function openPrintableReport(
       </head>
       <body>
         <section class="brand">
-          <img src="${prefeituraLogoUrl}" alt="Prefeitura Municipal de Teixeira de Freitas" />
+          <img src="${branding.prefeituraLogoUrl}" alt="Prefeitura Municipal de Teixeira de Freitas" />
           <div class="brand-copy">
-            <strong>${escapeHtml(prefeituraLines[0])}</strong>
-            <strong>${escapeHtml(prefeituraLines[1])}</strong>
-            <span>${escapeHtml(prefeituraLines[2])}</span>
-            <span>${escapeHtml(prefeituraLines[3])}</span>
+            <strong>${escapeHtml(branding.prefeituraLines[0])}</strong>
+            <strong>${escapeHtml(branding.prefeituraLines[1])}</strong>
+            <span>${escapeHtml(branding.prefeituraLines[2])}</span>
+            <span>${escapeHtml(branding.prefeituraLines[3])}</span>
             <span>${escapeHtml(systemFullName)}</span>
           </div>
         </section>
@@ -287,7 +290,7 @@ export function openPrintableReport(
                 .join("")}</section>`
             : ""
         }
-        <div class="system-footer">${escapeHtml(systemFooterText)}</div>
+        <div class="system-footer">${escapeHtml(branding.systemFooterText)}</div>
       </body>
     </html>
   `;

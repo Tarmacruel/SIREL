@@ -2,6 +2,7 @@ import { processoCreateInputSchema } from "@sirel/shared/schemas/processos";
 
 export interface ProcessoFormState {
   numeroAdministrativo: string;
+  numeroEdital: string;
   anoReferencia: string;
   secretariaId: string;
   modalidadeId: string;
@@ -15,6 +16,7 @@ export interface ProcessoFormState {
   tipoObjeto: string;
   tipoContratacao: string;
   dataAbertura: string;
+  condutorProcessoId?: string;
   foraDoFluxo: boolean;
   moduloInicial: string;
 }
@@ -34,6 +36,7 @@ function toOptionalNumber(value: string) {
 export function buildProcessoPayload(form: ProcessoFormState) {
   return {
     numeroAdministrativo: form.numeroAdministrativo.trim() || undefined,
+    numeroEdital: form.numeroEdital.trim() || undefined,
     anoReferencia: Number(form.anoReferencia),
     secretariaId: Number(form.secretariaId),
     modalidadeId: toOptionalId(form.modalidadeId),
@@ -47,6 +50,7 @@ export function buildProcessoPayload(form: ProcessoFormState) {
     tipoObjeto: form.tipoObjeto as "PRODUTO" | "SERVICO" | "OBRA" | "SERVICO_ENG",
     tipoContratacao: form.tipoContratacao as "AQUISICAO" | "REGISTRO_PRECO" | "AQUISICAO_PARCELADA",
     dataAbertura: form.dataAbertura || undefined,
+    condutorProcessoId: form.condutorProcessoId ? Number(form.condutorProcessoId) : undefined,
     foraDoFluxo: form.foraDoFluxo,
     moduloInicial: form.foraDoFluxo ? (form.moduloInicial as any) : undefined,
   };

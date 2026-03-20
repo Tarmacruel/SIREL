@@ -21,6 +21,7 @@ import { mapZodFieldErrors } from "@/lib/zod-errors";
 
 const initialProcessoForm: ProcessoFormState = {
   numeroAdministrativo: "",
+  numeroEdital: "",
   anoReferencia: String(new Date().getFullYear()),
   secretariaId: "",
   modalidadeId: "",
@@ -33,6 +34,7 @@ const initialProcessoForm: ProcessoFormState = {
   modoDisputa: "NAO_SE_APLICA",
   tipoObjeto: "PRODUTO",
   tipoContratacao: "AQUISICAO",
+  condutorProcessoId: "",
   dataAbertura: "",
   foraDoFluxo: false,
   moduloInicial: "DOCUMENTOS",
@@ -207,6 +209,18 @@ export function ProcessoCreateModal({
               }
             />
           </FormField>
+          <FormField label="Número do edital" error={fieldErrors.numeroEdital}>
+            <Input
+              value={form.numeroEdital}
+              error={Boolean(fieldErrors.numeroEdital)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  numeroEdital: event.target.value,
+                }))
+              }
+            />
+          </FormField>
           <FormField label="Secretaria" error={fieldErrors.secretariaId}>
             <Select
               required
@@ -292,6 +306,25 @@ export function ProcessoCreateModal({
                 setForm((current) => ({
                   ...current,
                   autoridadeCompetenteId: event.target.value,
+                }))
+              }
+            >
+              <option value="">Selecione</option>
+              {catalogQuery.data?.pessoas.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.nome}
+                  {item.cargo ? ` - ${item.cargo}` : ""}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Condutor do processo">
+            <Select
+              value={form.condutorProcessoId}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  condutorProcessoId: event.target.value,
                 }))
               }
             >

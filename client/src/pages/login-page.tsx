@@ -1,4 +1,4 @@
-﻿import { useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { LockKeyhole, LogIn, ShieldCheck, Zap } from "lucide-react";
 
 import type { AuthSession } from "@/lib/auth-session";
@@ -7,13 +7,14 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { prefeituraLines, prefeituraLogoUrl, systemName } from "@/lib/branding";
+import { useRuntimeBranding } from "@/lib/branding";
 
 interface LoginPageProps {
   onLogin: (session: AuthSession) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const branding = useRuntimeBranding();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const mutation = trpc.auth.login.useMutation({
@@ -34,17 +35,17 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         <section className="flex flex-col justify-between rounded-[32px] border border-white/80 bg-[linear-gradient(135deg,_#0f1a6d_0%,_#192d8a_50%,_#2440a7_100%)] px-6 py-6 text-white shadow-2xl shadow-slate-900/30 md:px-8 md:py-8">
           <div>
             <div className="flex items-center gap-3">
-              <img src={prefeituraLogoUrl} alt="Prefeitura Municipal de Teixeira de Freitas" className="h-16 w-auto rounded-2xl bg-white px-3 py-2 shadow-lg" />
+              <img src={branding.prefeituraLogoUrl} alt="Prefeitura Municipal de Teixeira de Freitas" className="h-16 w-auto rounded-2xl bg-white px-3 py-2 shadow-lg" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-200">Sistema oficial</p>
-                <h1 className="text-lg font-black leading-tight text-white">{systemName}</h1>
+                <h1 className="text-lg font-black leading-tight text-white">{branding.systemName}</h1>
               </div>
             </div>
 
             <div className="mt-8 space-y-4">
               <p className="text-base font-bold leading-relaxed text-white">Gestão transparente de licitações e contratações públicas.</p>
-              <p className="text-sm leading-7 text-sky-100">{prefeituraLines[1]}</p>
-              <p className="text-xs leading-6 text-sky-200">{prefeituraLines[2]} · {prefeituraLines[3]}</p>
+              <p className="text-sm leading-7 text-sky-100">{branding.prefeituraLines[1]}</p>
+              <p className="text-xs leading-6 text-sky-200">{branding.prefeituraLines[2]} · {branding.prefeituraLines[3]}</p>
             </div>
           </div>
 
@@ -74,7 +75,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <div className="inline-flex rounded-full bg-[var(--color-primary-50)] px-4 py-2">
                 <p className="text-xs font-bold uppercase tracking-[0.24em] text-[var(--color-primary-700)]">🔐 Acesso seguro</p>
               </div>
-              <h2 className="mt-4 text-3xl font-black tracking-tight text-[var(--color-neutral-950)]">Entrar no {systemName}</h2>
+              <h2 className="mt-4 text-3xl font-black tracking-tight text-[var(--color-neutral-950)]">Entrar no {branding.systemName}</h2>
               <p className="mt-3 text-sm leading-6 text-[var(--color-neutral-600)]">Informe seus dados de acesso para explorar o sistema de gestão de licitações.</p>
             </div>
 

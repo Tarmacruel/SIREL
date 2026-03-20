@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type PropsWithChildren } from "react";
+import { useEffect, useState, type PropsWithChildren } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Bell,
@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Search,
   ScrollText,
+  Settings2,
   ShieldCheck,
   RefreshCcw,
   Users,
@@ -27,7 +28,7 @@ import {
 
 import { appModules } from "@sirel/shared/const";
 import type { AuthUser } from "@/lib/auth-session";
-import { prefeituraLines, prefeituraLogoUrl, systemFooterText, systemName } from "@/lib/branding";
+import { useRuntimeBranding } from "@/lib/branding";
 import { trpc } from "@/lib/trpc";
 
 const icons: Record<string, typeof LayoutDashboard> = {
@@ -47,6 +48,7 @@ const icons: Record<string, typeof LayoutDashboard> = {
   contratos: Bell,
   workflow: Workflow,
   auditoria: ShieldCheck,
+  parametros: Settings2,
   usuarios: Users,
 };
 
@@ -59,6 +61,8 @@ interface SidebarContentProps {
   collapsed: boolean;
   location: string;
   unreadNotifications: number;
+  systemName: string;
+  systemFooterText: string;
   onToggleCollapse: () => void;
   onNavigate?: () => void;
 }
@@ -68,7 +72,15 @@ function formatBadgeCount(value: number) {
   return String(value);
 }
 
-function SidebarContent({ collapsed, location, unreadNotifications, onToggleCollapse, onNavigate }: SidebarContentProps) {
+function SidebarContent({
+  collapsed,
+  location,
+  unreadNotifications,
+  systemName,
+  systemFooterText,
+  onToggleCollapse,
+  onNavigate,
+}: SidebarContentProps) {
   return (
     <div className={["flex h-full flex-col rounded-[28px] border border-[rgba(36,64,167,0.7)] bg-[linear-gradient(180deg,var(--color-primary-900),var(--color-primary-700))] py-6 text-white shadow-2xl shadow-[rgba(15,26,109,0.28)]", collapsed ? "px-3" : "px-5"].join(" ")}>
       <div className="mb-8">
@@ -133,6 +145,7 @@ function SidebarContent({ collapsed, location, unreadNotifications, onToggleColl
 }
 
 export function AppShell({ children, user, onLogout }: AppShellProps) {
+  const branding = useRuntimeBranding();
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -172,6 +185,8 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
             collapsed={collapsed}
             location={location}
             unreadNotifications={unreadNotifications}
+            systemName={branding.systemName}
+            systemFooterText={branding.systemFooterText}
             onToggleCollapse={() => setCollapsed((current) => !current)}
           />
         </div>
@@ -184,6 +199,8 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
                 collapsed={false}
                 location={location}
                 unreadNotifications={unreadNotifications}
+                systemName={branding.systemName}
+                systemFooterText={branding.systemFooterText}
                 onToggleCollapse={() => setCollapsed((current) => !current)}
                 onNavigate={() => setMobileMenuOpen(false)}
               />
@@ -202,11 +219,11 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
                   <Menu className="h-5 w-5" />
                 </button>
                 <div>
-                  <img src={prefeituraLogoUrl} alt="Prefeitura Municipal de Teixeira de Freitas" className="mb-3 h-14 w-auto rounded-xl bg-white/90 p-1 shadow-sm" />
-                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary-600)]">{prefeituraLines[0]}</p>
-                  <h2 className="mt-1 font-[var(--font-heading)] text-xl font-black tracking-tight text-[var(--color-primary-900)] md:text-2xl">{systemName} - Gestão integrada de licitações</h2>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-neutral-600)]">{prefeituraLines[1]} · {prefeituraLines[2]}</p>
-                  <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--color-neutral-500)]">{prefeituraLines[3]}</p>
+                  <img src={branding.prefeituraLogoUrl} alt="Prefeitura Municipal de Teixeira de Freitas" className="mb-3 h-14 w-auto rounded-xl bg-white/90 p-1 shadow-sm" />
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-[var(--color-primary-600)]">{branding.prefeituraLines[0]}</p>
+                  <h2 className="mt-1 font-[var(--font-heading)] text-xl font-black tracking-tight text-[var(--color-primary-900)] md:text-2xl">{branding.systemName} - Gestão integrada de licitações</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--color-neutral-600)]">{branding.prefeituraLines[1]} · {branding.prefeituraLines[2]}</p>
+                  <p className="mt-1 max-w-3xl text-xs leading-5 text-[var(--color-neutral-500)]">{branding.prefeituraLines[3]}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end xl:items-center">
@@ -240,7 +257,7 @@ export function AppShell({ children, user, onLogout }: AppShellProps) {
           </header>
           {children}
           <footer className="rounded-[24px] border border-[rgba(204,225,255,0.95)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(230,240,255,0.7))] px-4 py-4 text-center text-sm text-[var(--color-neutral-600)]">
-            {systemFooterText}
+            {branding.systemFooterText}
           </footer>
         </main>
       </div>

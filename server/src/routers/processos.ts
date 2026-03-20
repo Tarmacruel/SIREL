@@ -1,4 +1,4 @@
-﻿import { TRPCError } from "@trpc/server";
+import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 
@@ -28,6 +28,7 @@ import {
   workflowProcesso,
 } from "../db/schema.js";
 import { getNextNumeroSirel } from "../lib/processo-identity.js";
+import { getSystemParamNumber } from "../lib/system-params.js";
 import { gestorProcedure, publicProcedure, router } from "../trpc.js";
 
 function toNumber(value: unknown) {
@@ -40,6 +41,45 @@ function daysSince(value: Date | string | null | undefined) {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return 0;
   return Math.max(0, Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function isDispensaModalidade(modalidadeCodigo?: string | null) {
+  return Boolean(modalidadeCodigo && modalidadeCodigo.includes("DISPENSA"));
+}
+
+function isObjetoIncisoI(tipoObjeto?: string | null) {
+  return tipoObjeto === "OBRA" || tipoObjeto === "SERVICO_ENG";
+}
+
+async function validateDispensaLimit(params: {
+  db: ReturnType<typeof requireDb>;
+  modalidadeId?: number | null;
+  tipoObjeto?: string | null;
+  valorEstimado?: number | null;
+}) {
+  if (!params.modalidadeId || params.valorEstimado === undefined || params.valorEstimado === null) {
+    return;
+  }
+
+  const [modalidade] = await params.db
+    .select({ codigo: modalidades.codigo, nome: modalidades.nome })
+    .from(modalidades)
+    .where(eq(modalidades.id, params.modalidadeId))
+    .limit(1);
+
+  if (!modalidade || !isDispensaModalidade(modalidade.codigo)) return;
+
+  const isIncisoI = isObjetoIncisoI(params.tipoObjeto);
+  const limite = isIncisoI
+    ? await getSystemParamNumber(params.db, "LIMITES.DISPENSA.INCISO_I", 119217.89)
+    : await getSystemParamNumber(params.db, "LIMITES.DISPENSA.INCISO_II", 59908.94);
+
+  if (params.valorEstimado > limite) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Valor estimado excede o limite configurado para dispensa (${isIncisoI ? "Inciso I" : "Inciso II"}): R$ ${limite.toFixed(2)}.`,
+    });
+  }
 }
 
 async function loadProcessMaps(processIds: number[]) {
@@ -275,6 +315,12 @@ export const processosRouter = router({
 
   create: gestorProcedure.input(processoCreateInputSchema).mutation(async ({ ctx, input }) => {
     const db = requireDb();
+    await validateDispensaLimit({
+      db,
+      modalidadeId: input.modalidadeId,
+      tipoObjeto: input.tipoObjeto ?? "PRODUTO",
+      valorEstimado: input.valorEstimado ?? null,
+    });
     const numeroSirel = await getNextNumeroSirel(db, input.anoReferencia);
     const moduloInicial = input.foraDoFluxo ? input.moduloInicial ?? "DOCUMENTOS" : "PLANEJAMENTO";
 
@@ -283,14 +329,14 @@ export const processosRouter = router({
       .values({
         numeroSirel,
         numeroAdministrativo: input.numeroAdministrativo,
-        numeroEdital: null,
+        numeroEdital: input.numeroEdital ?? null,
         anoReferencia: input.anoReferencia,
         foraDoFluxo: input.foraDoFluxo,
         secretariaId: input.secretariaId,
         modalidadeId: input.modalidadeId,
         statusId: input.statusId,
         autoridadeCompetenteId: input.autoridadeCompetenteId,
-        condutorProcessoId: null,
+        condutorProcessoId: input.condutorProcessoId ?? null,
         objeto: input.objeto,
         valorEstimado: input.valorEstimado?.toFixed(2),
         escopoDisputa: input.escopoDisputa ?? "GLOBAL",
@@ -375,12 +421,28 @@ export const processosRouter = router({
       throw new TRPCError({ code: "NOT_FOUND", message: "Processo não encontrado." });
     }
 
+    if (input.valorEstimado !== undefined) {
+      await validateDispensaLimit({
+        db,
+        modalidadeId: before.modalidadeId,
+        tipoObjeto: before.tipoObjeto,
+        valorEstimado: input.valorEstimado,
+      });
+    }
+
     const updateData: any = {
       atualizadoEm: new Date(),
     };
 
+    if (input.numeroAdministrativo !== undefined) updateData.numeroAdministrativo = input.numeroAdministrativo;
+    if (input.numeroEdital !== undefined) updateData.numeroEdital = input.numeroEdital;
+    if (input.dataAbertura !== undefined) updateData.dataAbertura = input.dataAbertura;
     if (input.secretariaId) updateData.secretariaId = input.secretariaId;
+    if (input.modalidadeId) updateData.modalidadeId = input.modalidadeId;
+    if (input.tipoObjeto) updateData.tipoObjeto = input.tipoObjeto;
+    if (input.tipoContratacao) updateData.tipoContratacao = input.tipoContratacao;
     if (input.autoridadeCompetenteId) updateData.autoridadeCompetenteId = input.autoridadeCompetenteId;
+    if (input.condutorProcessoId) updateData.condutorProcessoId = input.condutorProcessoId;
     if (input.objeto) updateData.objeto = input.objeto;
     if (input.valorEstimado !== undefined) updateData.valorEstimado = input.valorEstimado.toFixed(2);
     if (input.criterioJulgamento) updateData.criterioJulgamento = input.criterioJulgamento;
