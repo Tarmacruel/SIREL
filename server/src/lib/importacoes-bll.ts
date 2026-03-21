@@ -6,6 +6,8 @@ import type { ImportacaoBllSource } from "@sirel/shared/schemas/importacoes";
 import { databaseEnabled, requireDb } from "../db/client.js";
 import { importacaoBllExecucoes, importacaoBllItens, importacaoBllProcessos } from "../db/schema.js";
 import { refreshConciliationForImportedIds } from "./importacoes-conciliacao.js";
+import { normalizeEnhancedDataset } from "./importacoes-bll-v2.js";
+import { persistEnhancedNormalizedDataset } from "./importacoes-bll-v2-integration.js";
 
 const IMPORT_TIMEZONE = process.env.IMPORT_BLL_TIMEZONE?.trim() || "America/Sao_Paulo";
 const IMPORT_DAILY_HOUR = Number.parseInt(process.env.IMPORT_BLL_DAILY_HOUR ?? "7", 10);
@@ -769,22 +771,38 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
   }
 }
 
-export async function syncRemoteImport(source: ImportacaoBllSource, options?: { criadoPor?: number | null; agendada?: boolean; referenciaRotina?: string | null }) {
+export async function syncRemoteImport(
+  source: ImportacaoBllSource,
+  options?: { criadoPor?: number | null; agendada?: boolean; referenciaRotina?: string | null },
+) {
   const payload = await fetchRemoteDataset(source);
-  const dataset = source === "LICITACAO" ? normalizeRemoteLicitacaoDataset(payload) : normalizeRemoteCompraDiretaDataset(payload);
-  return persistNormalizedDataset({
+  
+  // Normalizar com v2 (preservação completa de dados)
+  const datasetV1 = source === "LICITACAO"
+    ? normalizeRemoteLicitacaoDataset(payload)
+    : normalizeRemoteCompraDiretaDataset(payload);
+  
+  const datasetV2 = normalizeEnhancedDataset(
+    { processos: datasetV1.registros, data_atualizacao: datasetV1.atualizadoFonteEm, ...datasetV1.detalhes },
+    source,
+  );
+
+  // Persistir com v2 (preservação + lotes + itens especificados)
+  return persistEnhancedNormalizedDataset({
     origem: source,
     modo: "REMOTA_JSON",
     criadoPor: options?.criadoPor ?? null,
     agendada: options?.agendada ?? false,
     referenciaRotina: options?.referenciaRotina ?? null,
     urlFonte: remoteImportSources[source].url,
-    dataset,
+    dataset: datasetV2,
   });
 }
 
-export async function syncAllRemoteImports(options?: { criadoPor?: number | null; agendada?: boolean; referenciaRotina?: string | null }) {
-  const results: ExecutionResult[] = [];
+export async function syncAllRemoteImports(
+  options?: { criadoPor?: number | null; agendada?: boolean; referenciaRotina?: string | null },
+) {
+  const results: any[] = [];
   for (const source of Object.keys(remoteImportSources) as ImportacaoBllSource[]) {
     results.push(
       await syncRemoteImport(source, {
@@ -805,17 +823,25 @@ export async function importCsvBundle(params: {
   itensContent: string;
   criadoPor?: number | null;
 }) {
-  const dataset = params.source === "LICITACAO"
+  // Normalizar com v1 primeiro (compatibilidade com estrutura CSV)
+  const datasetV1 = params.source === "LICITACAO"
     ? normalizeCsvLicitacaoDataset(params.registrosContent, params.itensContent)
     : normalizeCsvCompraDiretaDataset(params.registrosContent, params.itensContent);
 
-  return persistNormalizedDataset({
+  // Converter para v2 (preservação completa)
+  const datasetV2 = normalizeEnhancedDataset(
+    { processos: datasetV1.registros, data_atualizacao: datasetV1.atualizadoFonteEm, ...datasetV1.detalhes },
+    params.source,
+  );
+
+  // Persistir com v2 (preservação + lotes + itens especificados)
+  return persistEnhancedNormalizedDataset({
     origem: params.source,
     modo: "CSV_MANUAL",
     criadoPor: params.criadoPor ?? null,
     arquivoRegistrosNome: params.registrosFilename,
     arquivoItensNome: params.itensFilename,
-    dataset,
+    dataset: datasetV2,
   });
 }
 

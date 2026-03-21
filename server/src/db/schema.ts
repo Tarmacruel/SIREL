@@ -192,6 +192,15 @@ export const importacaoBllConciliacaoStatusEnum = pgEnum(
   "importacao_bll_conciliacao_status",
   ["PENDENTE", "SUGERIDO", "VINCULADO", "IGNORADO"],
 );
+export const importacaoBllLoteTipoEnum = pgEnum("importacao_bll_lote_tipo", [
+  "GLOBAL",
+  "ITEM",
+  "LOTE",
+]);
+export const importacaoBllEdicaoOrigemEnum = pgEnum(
+  "importacao_bll_edicao_origem",
+  ["MANUAL", "IMPORTACAO_BLL", "PNCP_SYNC"],
+);
 
 export const secretarias = pgTable("secretarias", {
   id: serial("id").primaryKey(),
@@ -1237,6 +1246,18 @@ export const importacaoBllProcessos = pgTable(
     linkExterno: varchar("link_externo", { length: 500 }),
     totalLotes: integer("total_lotes").notNull().default(0),
     totalItens: integer("total_itens").notNull().default(0),
+    // Phase 1: Critical fields for data preservation
+    justificativa: text("justificativa"),
+    legislacaoAplicavel: varchar("legislacao_aplicavel", { length: 255 }),
+    observacoes: text("observacoes"),
+    cotaMe: boolean("cota_me").default(false),
+    codigoPncp: varchar("codigo_pncp", { length: 100 }),
+    urlPncp: varchar("url_pncp", { length: 500 }),
+    dataSincronizacaoPncp: timestamp("data_sincronizacao_pncp", {
+      withTimezone: true,
+    }),
+    completenessScore: integer("completeness_score").default(0),
+    lastValidationAt: timestamp("last_validation_at", { withTimezone: true }),
     processoInternoId: integer("processo_interno_id").references(
       () => processos.id,
       { onDelete: "set null" },
@@ -1291,6 +1312,16 @@ export const importacaoBllProcessos = pgTable(
     idxUltimaExecucao: index("importacao_bll_processos_execucao_idx").on(
       table.ultimaExecucaoId,
     ),
+    // Phase 1: Indexes for new fields
+    idxPncp: index("importacao_bll_processos_pncp_idx").on(
+      table.codigoPncp,
+    ),
+    idxCompletude: index("importacao_bll_processos_completude_idx").on(
+      table.completenessScore,
+    ),
+    idxJustificativa: index("importacao_bll_processos_justificativa_gin").on(
+      table.justificativa,
+    ),
   }),
 );
 
@@ -1329,6 +1360,147 @@ export const importacaoBllItens = pgTable(
     idxLoteNumero: index("importacao_bll_itens_lote_idx").on(table.loteNumero),
     idxFornecedor: index("importacao_bll_itens_fornecedor_idx").on(
       table.fornecedorNome,
+    ),
+  }),
+);
+
+// Phase 1: Enhanced import tables for data preservation
+export const importacaoBllLotes = pgTable(
+  "importacao_bll_lotes",
+  {
+    id: serial("id").primaryKey(),
+    processoImportadoId: integer("processo_importado_id")
+      .notNull()
+      .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
+    numero: varchar("numero", { length: 32 }).notNull(),
+    titulo: text("titulo").notNull(),
+    tipo: importacaoBllLoteTipoEnum("tipo"),
+    faseAtual: varchar("fase_atual", { length: 64 }),
+    intervaloMinimoLance: numeric("intervalo_minimo_lance", {
+      precision: 14,
+      scale: 2,
+    }),
+    exclusivoMe: boolean("exclusivo_me").default(false),
+    localEntrega: text("local_entrega"),
+    garantiaExigida: text("garantia_exigida"),
+    valorReferencia: numeric("valor_referencia", { precision: 14, scale: 2 }),
+    valorHomologado: numeric("valor_homologado", { precision: 14, scale: 2 }),
+    vencedor: varchar("vencedor", { length: 255 }),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxProcesso: index("importacao_bll_lotes_processo_idx").on(
+      table.processoImportadoId,
+    ),
+    idxVencedor: index("importacao_bll_lotes_vencedor_idx").on(table.vencedor),
+    idxTipo: index("importacao_bll_lotes_tipo_idx").on(table.tipo),
+    uqProcessoNumero: uniqueIndex("importacao_bll_lotes_processo_numero_uq").on(
+      table.processoImportadoId,
+      table.numero,
+    ),
+  }),
+);
+
+export const importacaoBllItensEspecificados = pgTable(
+  "importacao_bll_itens_especificados",
+  {
+    id: serial("id").primaryKey(),
+    loteImportadoId: integer("lote_importado_id").references(
+      () => importacaoBllLotes.id,
+      { onDelete: "cascade" },
+    ),
+    processoImportadoId: integer("processo_importado_id")
+      .notNull()
+      .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
+    numeroItem: varchar("numero_item", { length: 32 }).notNull(),
+    codigoCatalogo: varchar("codigo_catalogo", { length: 64 }),
+    descricaoResumida: text("descricao_resumida").notNull(),
+    especificacaoTecnica: text("especificacao_tecnica"),
+    unidadeMedida: varchar("unidade_medida", { length: 32 }),
+    quantidade: numeric("quantidade", { precision: 14, scale: 4 }),
+    valorReferenciaUnitario: numeric("valor_referencia_unitario", {
+      precision: 14,
+      scale: 2,
+    }),
+    valorHomologadoUnitario: numeric("valor_homologado_unitario", {
+      precision: 14,
+      scale: 2,
+    }),
+    subtotalReferencia: numeric("subtotal_referencia", {
+      precision: 14,
+      scale: 2,
+    }),
+    subtotalHomologado: numeric("subtotal_homologado", {
+      precision: 14,
+      scale: 2,
+    }),
+    fornecedorHomologado: varchar("fornecedor_homologado", { length: 255 }),
+    marcaHomologada: varchar("marca_homologada", { length: 120 }),
+    modeloHomologado: varchar("modelo_homologado", { length: 120 }),
+    catalogoInternoId: integer("catalogo_interno_id").references(
+      () => catalogoItens.id,
+      { onDelete: "set null" },
+    ),
+    similaridadeCatalogo: numeric("similaridade_catalogo", {
+      precision: 3,
+      scale: 2,
+    }),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxProcesso: index("importacao_bll_itens_proc_idx").on(
+      table.processoImportadoId,
+    ),
+    idxLote: index("importacao_bll_itens_lote_idx").on(table.loteImportadoId),
+    idxCatalogo: index("importacao_bll_itens_catalogo_idx").on(
+      table.catalogoInternoId,
+    ),
+    idxCodigoCatalogo: index("importacao_bll_itens_codigo_catalogo_idx").on(
+      table.codigoCatalogo,
+    ),
+    idxEspecificacao: index("importacao_bll_itens_espec_gin").on(
+      table.especificacaoTecnica,
+    ),
+  }),
+);
+
+export const importacaoBllEdicoesAudit = pgTable(
+  "importacao_bll_edicoes_audit",
+  {
+    id: serial("id").primaryKey(),
+    processoImportadoId: integer("processo_importado_id")
+      .notNull()
+      .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
+    usuarioId: integer("usuario_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    camposAlterados: jsonb("campos_alterados").notNull(), // Array of {field, old_value, new_value}
+    justificativa: text("justificativa").notNull(),
+    origemEdicao: importacaoBllEdicaoOrigemEnum("origem_edicao")
+      .notNull()
+      .default("MANUAL"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxProcesso: index("importacao_bll_edicoes_audit_processo_idx").on(
+      table.processoImportadoId,
+    ),
+    idxUsuario: index("importacao_bll_edicoes_audit_usuario_idx").on(
+      table.usuarioId,
     ),
   }),
 );

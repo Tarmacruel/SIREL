@@ -333,6 +333,23 @@ export function ImportacoesPage() {
       setFeedback({ variant: "error", message: error.message }),
   });
 
+  // PNCP mutations
+  const pncpAutoConciliateMutation = trpc.importacoes.autoConciliatePncp.useMutation({
+    onSuccess: (result) => {
+      setFeedback({
+        variant: "success",
+        message: result.message,
+      });
+      void invalidateImportacoes();
+    },
+    onError: (error) => {
+      setFeedback({
+        variant: "error",
+        message: error.message,
+      });
+    },
+  });
+
   const detailData = detailQuery.data;
   const suggestionRows =
     deferredManualProcessSearch.length > 0
@@ -406,6 +423,10 @@ export function ImportacoesPage() {
       (item) => normalize(item.nome) === normalize(detailData.record.condutorNome),
     );
 
+    const matchedStatus = catalogQuery.data?.statusProcesso.find(
+      (item) => normalize(item.nome) === normalize(detailData.record.situacaoExterna),
+    );
+
     return {
       numeroAdministrativo: detailData.record.numeroAdministrativo ?? "",
       numeroEdital: detailData.record.numeroEdital ?? "",
@@ -417,6 +438,7 @@ export function ImportacoesPage() {
         detailData.record.valorTotal ?? detailData.record.valorReferencia,
       ),
       dataAbertura:
+        formatDateForInput(detailData.record.inicioDisputaEm) ||
         formatDateForInput(detailData.record.publicacaoEm) ||
         formatDateForInput(detailData.record.inicioRecepcaoEm),
       modalidadeId: matchedModalidade ? String(matchedModalidade.id) : "",
@@ -424,10 +446,11 @@ export function ImportacoesPage() {
       modoDisputa: modoDisputaFromBll,
       autoridadeCompetenteId: matchedAutoridade ? String(matchedAutoridade.id) : "",
       condutorProcessoId: matchedCondutor ? String(matchedCondutor.id) : "",
+      statusId: matchedStatus ? String(matchedStatus.id) : "",
       // Mantém como processo importado fora do fluxo, canal de saneamento
       foraDoFluxo: true,
     };
-  }, [catalogQuery.data?.modalidades, detailData]);
+  }, [catalogQuery.data?.modalidades, catalogQuery.data?.pessoas, catalogQuery.data?.statusProcesso, detailData]);
 
   async function handleCsvImport() {
     try {
@@ -1337,6 +1360,83 @@ export function ImportacoesPage() {
           })();
         }}
       />
+
+      <SectionCard
+        title="Conciliação PNCP"
+        description="Busque processos no Portal Nacional de Contratações Públicas (PNCP) e vincule automaticamente aos registros BLL importados."
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              // TODO: Implementar busca PNCP
+              setFeedback({
+                variant: "info",
+                message: "Funcionalidade de busca PNCP em desenvolvimento.",
+              });
+            }}
+          >
+            <Globe className="mr-2 h-4 w-4" />
+            Buscar PNCP
+          </Button>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <FormField label="Ano">
+              <Input
+                type="number"
+                placeholder="2024"
+                min="2020"
+                max={new Date().getFullYear()}
+              />
+            </FormField>
+            <FormField label="CNPJ Órgão">
+              <Input placeholder="00.000.000/0000-00" />
+            </FormField>
+            <FormField label="Data Inicial">
+              <Input type="date" />
+            </FormField>
+            <FormField label="Data Final">
+              <Input type="date" />
+            </FormField>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                void pncpAutoConciliateMutation.mutateAsync({
+                  source: sourceFilter || undefined,
+                  onlyPending: true,
+                });
+              }}
+              disabled={pncpAutoConciliateMutation.isPending}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              {pncpAutoConciliateMutation.isPending ? "Processando..." : "Conciliação Automática"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                // TODO: Implementar busca manual PNCP com filtros
+                setFeedback({
+                  variant: "info",
+                  message: "Busca manual PNCP será implementada na próxima iteração.",
+                });
+              }}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              Buscar Processos
+            </Button>
+          </div>
+
+          <Alert variant="info">
+            <strong>PNCP Integration:</strong> Esta funcionalidade permite buscar processos no Portal Nacional de Contratações Públicas
+            e vinculá-los automaticamente aos registros BLL importados, melhorando a rastreabilidade e completude dos dados.
+          </Alert>
+        </div>
+      </SectionCard>
     </div>
   );
 }

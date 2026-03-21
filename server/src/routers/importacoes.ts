@@ -33,6 +33,12 @@ import {
   unlinkImportedProcess,
 } from "../lib/importacoes-conciliacao.js";
 import {
+  executeAutomaticPncpConciliation,
+  generatePncpConciliationSuggestions,
+  getPncpProcessDetails,
+  searchPncpProcesses,
+} from "../lib/importacoes-pncp.js";
+import {
   getImportSchedulerConfig,
   getImportSummaryCounts,
   importCsvBundle,
@@ -517,6 +523,140 @@ export const importacoesRouter = router({
 
       return {
         message: `Importação manual concluída com ${result.totalRegistros} registro(s).`,
+        result,
+      };
+    }),
+
+  // PNCP Conciliation endpoints
+  searchPncpProcesses: protectedProcedure
+    .input(importacaoBllSearchProcessosInputSchema) // Reutilizando schema similar
+    .query(async ({ input }) => {
+      // Por enquanto, busca processos PNCP recentes para demonstração
+      const pncpResults = await searchPncpProcesses({
+        pagina: 1,
+        tamanhoPagina: input.pageSize,
+      });
+
+      return {
+        items: pncpResults.data.map(process => ({
+          processoId: parseInt(process.numeroControlePNCP.replace(/\D/g, '')) || 0,
+          numeroSirel: process.numeroControlePNCP,
+          numeroAdministrativo: null,
+          numeroEdital: null,
+          objeto: process.objetoCompra,
+          modalidade: process.modalidadeNome,
+          secretaria: process.orgaoEntidadeNome,
+          moduloAtual: null,
+          valorEstimado: process.valorTotalEstimado,
+          score: 0,
+          nivel: "BAIXO" as const,
+          motivos: [`Processo PNCP: ${process.numeroControlePNCP}`],
+        })),
+      };
+    }),
+
+  getPncpSuggestions: protectedProcedure
+    .input(importacaoBllDetailInputSchema)
+    .query(async ({ input }) => {
+      const suggestions = await generatePncpConciliationSuggestions(input.id, 10);
+
+      return {
+        suggestions: suggestions.map(s => ({
+          processoId: parseInt(s.pncpProcess.numeroControlePNCP.replace(/\D/g, '')) || 0,
+          numeroSirel: s.pncpProcess.numeroControlePNCP,
+          numeroAdministrativo: null,
+          numeroEdital: null,
+          objeto: s.pncpProcess.objetoCompra,
+          modalidade: s.pncpProcess.modalidadeNome,
+          secretaria: s.pncpProcess.orgaoEntidadeNome,
+          moduloAtual: null,
+          valorEstimado: s.pncpProcess.valorTotalEstimado,
+          score: s.score,
+          nivel: s.nivel,
+          motivos: s.motivos,
+        })),
+      };
+    }),
+
+  linkPncpProcess: operadorProcedure
+    .input(importacaoBllLinkProcessoInputSchema) // Reutilizando schema
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+
+      // Busca dados do processo PNCP
+      const pncpDetails = await getPncpProcessDetails(
+        new Date().getFullYear(), // Ano atual como fallback
+        input.processoId
+      );
+
+      const [before] = await db
+        .select()
+        .from(importacaoBllProcessos)
+        .where(eq(importacaoBllProcessos.id, input.importedId))
+        .limit(1);
+
+      if (!before) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Registro importado não encontrado.",
+        });
+      }
+
+      // Atualiza com dados PNCP
+      await db
+        .update(importacaoBllProcessos)
+        .set({
+          codigoPncp: pncpDetails.numeroControlePNCP,
+          urlPncp: pncpDetails.urlProcesso,
+          dataSincronizacaoPncp: new Date(),
+          statusConciliacao: "VINCULADO" as const,
+          detalhesConciliacao: {
+            tipo: "PNCP_MANUAL",
+            pncpProcess: pncpDetails,
+            conciliadoPor: ctx.user!.id,
+            conciliadoEm: new Date(),
+          },
+        })
+        .where(eq(importacaoBllProcessos.id, input.importedId));
+
+      const [after] = await db
+        .select()
+        .from(importacaoBllProcessos)
+        .where(eq(importacaoBllProcessos.id, input.importedId))
+        .limit(1);
+
+      await logAuditoria(ctx, {
+        tabela: "importacao_bll_processos",
+        registroId: input.importedId,
+        acao: "UPDATE",
+        dadosAnteriores: before,
+        dadosNovos: after,
+        descricao: `Registro importado vinculado ao processo PNCP ${pncpDetails.numeroControlePNCP}`,
+      });
+
+      return {
+        message: "Vínculo com PNCP realizado com sucesso.",
+      };
+    }),
+
+  autoConciliatePncp: operadorProcedure
+    .input(importacaoBllAutoReconcileInputSchema) // Reutilizando schema
+    .mutation(async ({ ctx, input }) => {
+      const result = await executeAutomaticPncpConciliation(
+        input.source,
+        75 // Score mínimo para conciliação automática
+      );
+
+      await logAuditoria(ctx, {
+        tabela: "importacao_bll_processos",
+        registroId: 0,
+        acao: "UPDATE",
+        dadosNovos: result,
+        descricao: `Conciliação automática PNCP executada${input.source ? ` para ${input.source}` : ""}.`,
+      });
+
+      return {
+        message: `Conciliação PNCP concluída: ${result.conciliations} conciliação(ões), ${result.processed} processado(s) e ${result.errors} erro(s).`,
         result,
       };
     }),

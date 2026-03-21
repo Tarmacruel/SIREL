@@ -106,3 +106,22 @@ export type ImportacaoBllSetIgnoredInput = z.infer<
 export type ImportacaoBllAutoReconcileInput = z.infer<
   typeof importacaoBllAutoReconcileInputSchema
 >;
+
+// PNCP Schemas
+export const pncpSearchInputSchema = z.object({
+  anoCompra: z.number().int().optional(),
+  modalidadeId: z.number().int().optional(),
+  orgaoCnpj: z.string().optional(),
+  dataInicial: z.string().optional(),
+  dataFinal: z.string().optional(),
+  pagina: z.number().int().positive().default(1),
+  tamanhoPagina: z.number().int().positive().max(50).default(10),
+});
+
+export const pncpConciliationInputSchema = z.object({
+  importedId: z.number().int().positive(),
+  pncpProcessId: z.string(),
+});
+
+export type PncpSearchInput = z.infer<typeof pncpSearchInputSchema>;
+export type PncpConciliationInput = z.infer<typeof pncpConciliationInputSchema>;
