@@ -3,11 +3,20 @@ import { chartPalette } from "@/styles/theme";
 const palette = [...chartPalette];
 
 interface SimpleDonutChartItem {
+  id?: number | string | null;
   label: string;
   value: number;
 }
 
-export function SimpleDonutChart({ items }: { items: SimpleDonutChartItem[] }) {
+export function SimpleDonutChart({
+  items,
+  onSliceClick,
+  selected,
+}: {
+  items: SimpleDonutChartItem[];
+  onSliceClick?: (item: SimpleDonutChartItem) => void;
+  selected?: number | string | null;
+}) {
   const total = items.reduce((acc, item) => acc + item.value, 0);
   if (!total) {
     return <div className="rounded-3xl border border-dashed border-[rgba(204,225,255,0.9)] bg-[var(--color-primary-50)] px-4 py-8 text-center text-sm text-[var(--color-neutral-500)]">Sem dados para exibir.</div>;
@@ -35,17 +44,23 @@ export function SimpleDonutChart({ items }: { items: SimpleDonutChartItem[] }) {
       <div className="space-y-3">
         {items.map((item, index) => {
           const percentage = total ? (item.value / total) * 100 : 0;
+          const isSelected = selected !== undefined && selected !== null && item.id === selected;
           return (
-            <div key={item.label} className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(204,225,255,0.85)] bg-white px-4 py-3 text-sm">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: palette[index % palette.length] }} />
-                <span className="truncate font-medium text-[var(--color-neutral-700)]">{item.label}</span>
+            <button
+              key={`${item.label}-${index}`}
+              type="button"
+              onClick={() => onSliceClick?.(item)}
+              className={`w-full rounded-2xl border px-4 py-3 text-left transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isSelected ? "border-indigo-500 bg-indigo-50 shadow-sm" : "border-[rgba(204,225,255,0.85)] bg-white hover:border-[rgba(65,105,225,0.45)] hover:bg-slate-50"}`}
+            >
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: palette[index % palette.length] }} />
+                  <span className="truncate font-medium text-[var(--color-neutral-700)]">{item.label}</span>
+                </div>
+                <span className="font-black text-[var(--color-primary-900)]">{item.value.toLocaleString("pt-BR")}</span>
               </div>
-              <div className="text-right">
-                <div className="font-black text-[var(--color-primary-900)]">{item.value.toLocaleString("pt-BR")}</div>
-                <div className="text-xs text-[var(--color-neutral-500)]">{percentage.toFixed(1).replace(".", ",")}%</div>
-              </div>
-            </div>
+              <div className="mt-1 text-xs text-[var(--color-neutral-500)]">{percentage.toFixed(1).replace(".", ",")}%</div>
+            </button>
           );
         })}
       </div>

@@ -1333,8 +1333,8 @@ export const importacaoBllItens = pgTable(
     processoImportadoId: integer("processo_importado_id")
       .notNull()
       .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
-    loteNumero: varchar("lote_numero", { length: 32 }),
-    itemNumero: varchar("item_numero", { length: 32 }),
+    loteNumero: varchar("lote_numero", { length: 128 }),
+    itemNumero: varchar("item_numero", { length: 128 }),
     descricao: text("descricao").notNull(),
     unidade: varchar("unidade", { length: 64 }),
     quantidade: numeric("quantidade", { precision: 14, scale: 4 }),

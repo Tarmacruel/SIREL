@@ -1,9 +1,11 @@
 ﻿import { TRPCError } from "@trpc/server";
-import { and, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 
 import {
   importacaoBllAutoReconcileInputSchema,
   importacaoBllCsvInputSchema,
+  importacaoBllDeleteProcessoInputSchema,
+  importacaoBllDeleteProcessosInputSchema,
   importacaoBllDetailInputSchema,
   importacaoBllExecutionListInputSchema,
   importacaoBllLinkProcessoInputSchema,
@@ -31,6 +33,8 @@ import {
   linkImportedProcessToInternal,
   setImportedProcessIgnored,
   unlinkImportedProcess,
+  deleteImportedProcess,
+  deleteImportedProcesses,
 } from "../lib/importacoes-conciliacao.js";
 import {
   executeAutomaticPncpConciliation,
@@ -452,6 +456,72 @@ export const importacoesRouter = router({
         message: input.ignored
           ? "Registro marcado como ignorado."
           : "Registro reaberto para conciliação.",
+      };
+    }),
+
+  deleteProcesso: operadorProcedure
+    .input(importacaoBllDeleteProcessoInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+      const [before] = await db
+        .select()
+        .from(importacaoBllProcessos)
+        .where(eq(importacaoBllProcessos.id, input.importedId))
+        .limit(1);
+      if (!before) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Registro importado não encontrado.",
+        });
+      }
+
+      await deleteImportedProcess(input.importedId);
+
+      await logAuditoria(ctx, {
+        tabela: "importacao_bll_processos",
+        registroId: input.importedId,
+        acao: "DELETE",
+        dadosAnteriores: before,
+        dadosNovos: null,
+        descricao: "Registro importado excluído manualmente.",
+      });
+
+      return {
+        message: "Registro importado excluído com sucesso.",
+      };
+    }),
+
+  deleteProcessos: operadorProcedure
+    .input(importacaoBllDeleteProcessosInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+      const rows = await db
+        .select()
+        .from(importacaoBllProcessos)
+        .where(inArray(importacaoBllProcessos.id, input.importedIds));
+
+      if (!rows.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Nenhum registro importado encontrado para exclusão.",
+        });
+      }
+
+      await deleteImportedProcesses(input.importedIds);
+
+      for (const row of rows) {
+        await logAuditoria(ctx, {
+          tabela: "importacao_bll_processos",
+          registroId: row.id,
+          acao: "DELETE",
+          dadosAnteriores: row,
+          dadosNovos: null,
+          descricao: "Registro importado excluído manualmente em lote.",
+        });
+      }
+
+      return {
+        message: `${rows.length} registro(s) importado(s) excluído(s) com sucesso.`,
       };
     }),
 

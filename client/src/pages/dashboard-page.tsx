@@ -57,12 +57,20 @@ export function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchStatusId, setSearchStatusId] = useState("");
   const [searchModalidadeId, setSearchModalidadeId] = useState("");
-  const [filterYear, setFilterYear] = useState<number>(new Date().getFullYear());
+  const [filterYear, setFilterYear] = useState<number | null>(new Date().getFullYear());
+  const [selectedModalidadeId, setSelectedModalidadeId] = useState<number | null>(null);
+  const [selectedCondutorId, setSelectedCondutorId] = useState<number | null>(null);
+  const [selectedSecretariaId, setSelectedSecretariaId] = useState<number | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const deferredSearch = useDeferredValue(searchTerm.trim());
 
   const summaryQuery = trpc.dashboard.summary.useQuery(
-    { ano: filterYear },
+    {
+      ano: filterYear,
+      modalidadeId: selectedModalidadeId ?? undefined,
+      condutorId: selectedCondutorId ?? undefined,
+      secretariaId: selectedSecretariaId ?? undefined,
+    },
     {
       retry: false,
       refetchInterval: 30_000,
@@ -107,22 +115,31 @@ export function DashboardPage() {
       processosPorSecretaria: [],
       modalidadesMaisUtilizadas: [],
       evolucaoMensal: [],
+      rankingCondutores: [],
       minhaAgenda: [],
       agendaCritica: [],
       ultimasMovimentacoes: [],
     };
 
   return (
-    <div className="space-y-6">
-      {/* Year Filter */}
-      <div className="flex items-center gap-4 rounded-[24px] border border-[rgba(204,225,255,0.9)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.7))] px-4 py-4 shadow-sm">
+    <div className="mx-auto w-full max-w-[1600px] px-4 md:px-6 2xl:px-10">
+      <div className="space-y-6">
+        {/* Year Filter */}
+        <div className="flex flex-wrap items-center gap-4 rounded-[24px] border border-[rgba(204,225,255,0.9)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.7))] p-4 shadow-sm">
         <label className="flex items-center gap-3 whitespace-nowrap">
           <span className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--color-primary-600)]">Filtrar por ano</span>
           <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(Number(e.target.value))}
+            value={filterYear ?? "all"}
+            onChange={(e) => {
+              if (e.target.value === "all") {
+                setFilterYear(null);
+              } else {
+                setFilterYear(Number(e.target.value));
+              }
+            }}
             className="rounded-[16px] border border-[var(--color-primary-200)] bg-white px-3 py-2 text-sm font-semibold text-[var(--color-neutral-900)] transition hover:border-[var(--color-primary-400)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-500)]"
           >
+            <option value="all">Todos os anos</option>
             {Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 9 + i).map((year) => (
               <option key={year} value={year}>
                 {year}
@@ -133,6 +150,29 @@ export function DashboardPage() {
         <div className="flex-1" />
         <p className="text-xs text-[var(--color-neutral-500)]">Dados do ano selecionado</p>
       </div>
+
+      {(selectedModalidadeId || selectedCondutorId) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-[20px] border border-[rgba(204,225,255,0.8)] bg-[rgba(230,240,255,0.4)] px-4 py-3">
+          {selectedModalidadeId && (
+            <button
+              type="button"
+              className="rounded-full border border-sky-300 bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-800"
+              onClick={() => setSelectedModalidadeId(null)}
+            >
+              Modalidade: {data.modalidadesMaisUtilizadas.find((m) => m.modalidadeId === selectedModalidadeId)?.modalidade ?? "Selecionada"} ×
+            </button>
+          )}
+          {selectedCondutorId && (
+            <button
+              type="button"
+              className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-800"
+              onClick={() => setSelectedCondutorId(null)}
+            >
+              Condutor: {data.rankingCondutores.find((r) => r.condutorId === selectedCondutorId)?.condutor ?? "Selecionado"} ×
+            </button>
+          )}
+        </div>
+      )}
 
       <SectionCard
         title="Alertas críticos de prazo"
@@ -146,7 +186,7 @@ export function DashboardPage() {
           </Link>
         }
       >
-        <div className="grid gap-4 lg:grid-cols-[repeat(4,minmax(0,0.75fr))_minmax(0,1.3fr)]">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
           <KpiCard title="Vencendo hoje" value={String(data.prazosHoje)} hint="Eventos que exigem atuação hoje." icon={<CalendarClock className="h-5 w-5" />} />
           <KpiCard title="Próximas 24h" value={String(data.prazos24h)} hint="Prazos com virada operacional imediata." icon={<Clock3 className="h-5 w-5" />} />
           <KpiCard title="Até 48h" value={String(data.prazos48h)} hint="Janela curta para alinhamento das equipes." icon={<Clock3 className="h-5 w-5" />} />
@@ -175,11 +215,11 @@ export function DashboardPage() {
         </div>
       </SectionCard>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <KpiCard title="Processos ativos hoje" value={String(data.processosAtivos)} hint="Processos em andamento na base do SIREL." icon={<FolderOpenDot className="h-5 w-5" />} />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <KpiCard title="Processos ativos" value={String(data.processosAtivos)} hint="Processos em andamento na base do SIREL." icon={<FolderOpenDot className="h-5 w-5" />} />
         <KpiCard title="Contratos vigentes" value={String(data.contratosVigentes)} hint="Contratos vinculados a processos formalizados." icon={<BriefcaseBusiness className="h-5 w-5" />} />
         <KpiCard title="Tarefas pendentes" value={String(data.tarefasPendentesUsuario)} hint="Notificações ainda não tratadas pelo usuário." icon={<CheckSquare className="h-5 w-5" />} />
-        <KpiCard title="Movimentações do time" value={String(data.movimentacoesUltimas24h)} hint="Eventos registrados nas últimas 24 horas." icon={<GitCompareArrows className="h-5 w-5" />} />
+        <KpiCard title="Movimentações 24h" value={String(data.movimentacoesUltimas24h)} hint="Eventos registrados nas últimas 24 horas." icon={<GitCompareArrows className="h-5 w-5" />} />
         <KpiCard title="Valor global" value={formatCurrencyBRL(data.valorGlobalEstimado)} hint="Soma dos valores estimados cadastrados." icon={<Landmark className="h-5 w-5" />} />
         <KpiCard title="Notificações pendentes" value={String(data.tarefasPendentesUsuario)} hint="Consulte o detalhe na Central de Notificações." icon={<BellRing className="h-5 w-5" />} />
       </div>
@@ -280,15 +320,100 @@ export function DashboardPage() {
         </SectionCard>
       </div>
 
+      {(selectedModalidadeId || selectedCondutorId || selectedSecretariaId) && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-[20px] border border-[rgba(204,225,255,0.8)] bg-[rgba(230,240,255,0.4)] px-4 py-3">
+            {selectedModalidadeId && (
+              <button
+                type="button"
+                className="rounded-full border border-sky-300 bg-sky-100 px-3 py-1 text-sm font-semibold text-sky-800"
+                onClick={() => setSelectedModalidadeId(null)}
+              >
+                Modalidade: {data.modalidadesMaisUtilizadas.find((m) => m.modalidadeId === selectedModalidadeId)?.modalidade ?? "Selecionada"} ×
+              </button>
+            )}
+            {selectedCondutorId && (
+              <button
+                type="button"
+                className="rounded-full border border-indigo-300 bg-indigo-100 px-3 py-1 text-sm font-semibold text-indigo-800"
+                onClick={() => setSelectedCondutorId(null)}
+              >
+                Condutor: {data.rankingCondutores.find((r) => r.condutorId === selectedCondutorId)?.condutor ?? "Selecionado"} ×
+              </button>
+            )}
+            {selectedSecretariaId && (
+              <button
+                type="button"
+                className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800"
+                onClick={() => setSelectedSecretariaId(null)}
+              >
+                Secretaria: {data.processosPorSecretaria.find((s) => s.secretariaId === selectedSecretariaId)?.secretaria ?? "Selecionada"} ×
+              </button>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+              onClick={() => {
+                setSelectedModalidadeId(null);
+                setSelectedCondutorId(null);
+                setSelectedSecretariaId(null);
+              }}
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+      )}
+
+      <SectionCard title="Processos por secretaria" description="Distribuição atual dos processos ativos por secretaria.">
+        <div className="min-h-[420px]">
+          {summaryQuery.isLoading ? (
+            <Skeleton className="h-full w-full rounded-[28px]" />
+          ) : (
+            <SimpleDonutChart
+              items={data.processosPorSecretaria.map((item) => ({ id: item.secretariaId, label: item.secretaria, value: item.total }))}
+              selected={selectedSecretariaId}
+              onSliceClick={(item) => {
+                setSelectedSecretariaId(item.id as number);
+                setSelectedModalidadeId(null);
+                setSelectedCondutorId(null);
+              }}
+            />
+          )}
+        </div>
+      </SectionCard>
+
       <div className="grid gap-6 xl:grid-cols-3">
-        <SectionCard title="Processos por secretaria" description="Distribuição atual dos processos ativos por secretaria.">
-          {summaryQuery.isLoading ? <Skeleton className="h-72 w-full rounded-[28px]" /> : <SimpleDonutChart items={data.processosPorSecretaria.map((item) => ({ label: item.secretaria, value: item.total }))} />}
-        </SectionCard>
         <SectionCard title="Evolução mensal" description="Quantidade de processos criados nos últimos meses.">
-          {summaryQuery.isLoading ? <Skeleton className="h-72 w-full rounded-[28px]" /> : <SimpleLineChart items={data.evolucaoMensal.map((item) => ({ label: item.mes, value: item.total }))} />}
+          <div className="min-h-[420px]">
+            {summaryQuery.isLoading ? <Skeleton className="h-full w-full rounded-[28px]" /> : <SimpleLineChart items={data.evolucaoMensal.map((item) => ({ label: item.mes, value: item.total }))} />}
+          </div>
         </SectionCard>
         <SectionCard title="Modalidades mais utilizadas" description="Volume recente por modalidade cadastrada.">
-          {summaryQuery.isLoading ? <Skeleton className="h-72 w-full rounded-[28px]" /> : <SimpleBarChart items={data.modalidadesMaisUtilizadas.map((item) => ({ label: item.modalidade, value: item.total }))} />}
+          <div className="min-h-[420px]">
+            {summaryQuery.isLoading ? <Skeleton className="h-full w-full rounded-[28px]" /> : <SimpleBarChart
+              items={data.modalidadesMaisUtilizadas.map((item) => ({ label: item.modalidade, value: item.total, id: item.modalidadeId }))}
+              onBarClick={(item) => {
+                setSelectedModalidadeId(item.id as number);
+                setSelectedCondutorId(null);
+              }}
+              selected={selectedModalidadeId}
+            />}
+          </div>
+        </SectionCard>
+        <SectionCard title="Ranking de condutores" description="Top 5 condutores por número de processos no ano selecionado.">
+          <div className="min-h-[420px]">
+            {summaryQuery.isLoading ? <Skeleton className="h-full w-full rounded-[28px]" /> : <SimpleBarChart
+              items={data.rankingCondutores.map((item) => ({ label: item.condutor, value: item.total, id: item.condutorId }))}
+              onBarClick={(item) => {
+                setSelectedCondutorId(item.id as number);
+                setSelectedModalidadeId(null);
+              }}
+              selected={selectedCondutorId}
+            />}
+          </div>
         </SectionCard>
       </div>
 
@@ -362,6 +487,7 @@ export function DashboardPage() {
         }}
       />
     </div>
+  </div>
   );
 }
 

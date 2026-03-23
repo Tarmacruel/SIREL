@@ -7,6 +7,7 @@ import {
   modalidades,
   movimentacoesWorkflow,
   notificacoesUsuario,
+  pessoas,
   processos,
   prazosProcessuais,
   secretarias,
@@ -32,7 +33,10 @@ export const dashboardRouter = router({
   summary: protectedProcedure
     .input(
       z.object({
-        ano: z.number().int().min(2000).max(2100).optional(),
+        ano: z.number().int().min(2000).max(2100).nullable().optional(),
+        modalidadeId: z.number().int().optional(),
+        condutorId: z.number().int().optional(),
+        secretariaId: z.number().int().optional(),
       }).optional()
     )
     .query(async ({ ctx, input }) => {
@@ -45,17 +49,26 @@ export const dashboardRouter = router({
     await syncOperationalNotifications(userId);
 
     const now = new Date();
-    const filterYear = input?.ano ?? now.getFullYear();
+    const filterYear = input?.ano;
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const recentMovementWindow = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const today = formatDateString(todayStart);
     const limit24h = formatDateString(addDays(todayStart, 1));
     const limit48h = formatDateString(addDays(todayStart, 2));
     const monthWindowStart = new Date(todayStart.getFullYear(), todayStart.getMonth() - 5, 1);
-    
-    // If filtering by year that's not current, adjust the date ranges
-    const filterYearStart = new Date(filterYear, 0, 1);
-    const filterYearEnd = new Date(filterYear, 11, 31);
+
+    const processYearFilter = filterYear ? eq(processos.anoReferencia, filterYear) : undefined;
+    const condicaoModalidade = input?.modalidadeId ? eq(processos.modalidadeId, input.modalidadeId) : undefined;
+    const condicaoCondutor = input?.condutorId ? eq(processos.condutorProcessoId, input?.condutorId) : undefined;
+    const condicaoSecretaria = input?.secretariaId ? eq(processos.secretariaId, input.secretariaId) : undefined;
+    const processFilter = processYearFilter || condicaoModalidade || condicaoCondutor || condicaoSecretaria
+      ? and(
+          ...(processYearFilter ? [processYearFilter] : []),
+          ...(condicaoModalidade ? [condicaoModalidade] : []),
+          ...(condicaoCondutor ? [condicaoCondutor] : []),
+          ...(condicaoSecretaria ? [condicaoSecretaria] : []),
+        )
+      : undefined;
 
     const [
       processosAtivosRow,
@@ -72,36 +85,22 @@ export const dashboardRouter = router({
       modalidadesMaisUtilizadasRows,
       evolucaoMensalRows,
       minhaAgendaRows,
+      rankingCondutoresRows,
       agendaCriticaRows,
       movimentacoesRecentesRows,
     ] = await Promise.all([
-      // Processos ativos (filter by year if not current)
+      // Processos ativos (filtrar por ano de referencia do número do processo)
       db
         .select({ total: count() })
         .from(processos)
-        .where(
-          filterYear !== now.getFullYear()
-            ? and(
-                eq(processos.finalizado, false),
-                gte(processos.criadoEm, filterYearStart),
-                lte(processos.criadoEm, filterYearEnd),
-              )
-            : eq(processos.finalizado, false)
-        )
+        .where(and(eq(processos.finalizado, false), ...(processFilter ? [processFilter] : [])))
         .then((rows) => rows[0]),
       db.select({ total: count() }).from(contratos).where(eq(contratos.status, "ATIVO")).then((rows) => rows[0]),
-      // Valor global (filter by year if not current)
+      // Valor global (filtrar por ano de referencia do número do processo)
       db
         .select({ total: sum(processos.valorEstimado) })
         .from(processos)
-        .where(
-          filterYear !== now.getFullYear()
-            ? and(
-                gte(processos.criadoEm, filterYearStart),
-                lte(processos.criadoEm, filterYearEnd),
-              )
-            : undefined
-        )
+        .where(processFilter)
         .then((rows) => rows[0]),
       db
         .select({ total: count() })
@@ -156,34 +155,19 @@ export const dashboardRouter = router({
         .from(workflowProcesso)
         .groupBy(workflowProcesso.moduloAtual),
       db
-        .select({ secretaria: secretarias.nome, total: count() })
+        .select({ secretariaId: secretarias.id, secretaria: secretarias.nome, total: count() })
         .from(processos)
         .innerJoin(secretarias, eq(secretarias.id, processos.secretariaId))
-        .where(
-          filterYear !== now.getFullYear()
-            ? and(
-                eq(processos.finalizado, false),
-                gte(processos.criadoEm, filterYearStart),
-                lte(processos.criadoEm, filterYearEnd),
-              )
-            : eq(processos.finalizado, false)
-        )
-        .groupBy(secretarias.nome)
+        .where(and(eq(processos.finalizado, false), ...(processFilter ? [processFilter] : [])))
+        .groupBy(secretarias.id, secretarias.nome)
         .orderBy(desc(count()), secretarias.nome)
         .limit(6),
       db
-        .select({ modalidade: modalidades.nome, total: count() })
+        .select({ modalidadeId: modalidades.id, modalidade: modalidades.nome, total: count() })
         .from(processos)
         .leftJoin(modalidades, eq(modalidades.id, processos.modalidadeId))
-        .where(
-          filterYear !== now.getFullYear()
-            ? and(
-                gte(processos.criadoEm, filterYearStart),
-                lte(processos.criadoEm, filterYearEnd),
-              )
-            : undefined
-        )
-        .groupBy(modalidades.nome)
+        .where(processFilter)
+        .groupBy(modalidades.id, modalidades.nome)
         .orderBy(desc(count()), modalidades.nome)
         .limit(6),
       db
@@ -193,14 +177,7 @@ export const dashboardRouter = router({
           total: count(),
         })
         .from(processos)
-        .where(
-          filterYear !== now.getFullYear()
-            ? and(
-                gte(processos.criadoEm, filterYearStart),
-                lte(processos.criadoEm, filterYearEnd),
-              )
-            : gte(processos.criadoEm, monthWindowStart)
-        )
+        .where(processFilter)
         .groupBy(sql`date_trunc('month', ${processos.criadoEm})`)
         .orderBy(sql`date_trunc('month', ${processos.criadoEm})`),
       db
@@ -223,6 +200,18 @@ export const dashboardRouter = router({
           ),
         )
         .orderBy(desc(notificacoesUsuario.prioridade), desc(notificacoesUsuario.atualizadoEm), desc(notificacoesUsuario.id))
+        .limit(5),
+      db
+        .select({
+          condutorId: pessoas.id,
+          condutor: pessoas.nome,
+          total: count(),
+        })
+        .from(processos)
+        .innerJoin(pessoas, eq(pessoas.id, processos.condutorProcessoId))
+        .where(processFilter)
+        .groupBy(pessoas.id, pessoas.nome)
+        .orderBy(desc(count()), pessoas.nome)
         .limit(5),
       db
         .select({
@@ -266,9 +255,10 @@ export const dashboardRouter = router({
       tarefasPendentesUsuario: Number(tarefasPendentesRow?.total ?? 0),
       movimentacoesUltimas24h: Number(movimentacoesUltimas24hRow?.total ?? 0),
       porModulo: porModuloRows.map((row) => ({ modulo: row.modulo, total: Number(row.total) })),
-      processosPorSecretaria: processosPorSecretariaRows.map((row) => ({ secretaria: row.secretaria, total: Number(row.total) })),
-      modalidadesMaisUtilizadas: modalidadesMaisUtilizadasRows.map((row) => ({ modalidade: row.modalidade ?? "Sem modalidade", total: Number(row.total) })),
+      processosPorSecretaria: processosPorSecretariaRows.map((row) => ({ secretariaId: row.secretariaId, secretaria: row.secretaria, total: Number(row.total) })),
+      modalidadesMaisUtilizadas: modalidadesMaisUtilizadasRows.map((row) => ({ modalidadeId: row.modalidadeId ?? null, modalidade: row.modalidade ?? "Sem modalidade", total: Number(row.total) })),
       evolucaoMensal: evolucaoMensalRows.map((row) => ({ referencia: row.referencia, mes: row.mes, total: Number(row.total) })),
+      rankingCondutores: rankingCondutoresRows.map((row) => ({ condutorId: row.condutorId ?? null, condutor: row.condutor, total: Number(row.total) })),
       minhaAgenda: minhaAgendaRows,
       agendaCritica: agendaCriticaRows,
       ultimasMovimentacoes: movimentacoesRecentesRows,

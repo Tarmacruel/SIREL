@@ -18,6 +18,7 @@ import { processosRouter } from "./processos.js";
 import { relatoriosRouter } from "./relatorios.js";
 import { usuariosRouter } from "./usuarios.js";
 import { workflowRouter } from "./workflow.js";
+import { pncpTeixeiraRouter } from "./importacoes-pncp-teixeira.js";
 
 export const appRouter = router({
   health: healthRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   cadastros: cadastrosRouter,
   consultas: consultasRouter,
   importacoes: importacoesRouter,
+  pncpTeixeira: pncpTeixeiraRouter,
   itens: itensRouter,
   licitacao: licitacaoRouter,
   notificacoes: notificacoesRouter,
@@ -38,7 +40,7 @@ export const appRouter = router({
   documentos: documentosRouter,
   contratos: contratosRouter,
   workflow: workflowRouter,
-  usuarios: usuariosRouter
+  usuarios: usuariosRouter,
 });
 
 export type AppRouter = typeof appRouter;

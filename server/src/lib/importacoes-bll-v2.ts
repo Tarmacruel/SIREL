@@ -209,34 +209,88 @@ export function normalizeEnhancedItem(
   lotePaiData: Record<string, unknown> = {},
 ): EnhancedNormalizedItem {
   const especificacao = normalizeTextPreserveLines(
-    itemData.especificacao || itemData.descricao,
+    itemData.especificacao || itemData.descricao || itemData.especificacaoTecnica,
   );
 
   return {
-    numero: normalizeText(itemData.numero) || `ITEM-${Date.now()}`,
+    numero:
+      normalizeText(itemData.numero) ||
+      normalizeText(itemData.itemNumero) ||
+      normalizeText(itemData.numeroItem) ||
+      `ITEM-${Date.now()}`,
     codigoCatalogo: extractCatalogCode(especificacao),
-    descricaoResumida: normalizeText(
-      especificacao?.split(/[:\n]/)[0] || itemData.descricao || "Item sem descrição",
-    ) || "Item sem descrição",
+    descricaoResumida:
+      normalizeText(
+        especificacao?.split(/[:\n]/)[0] ||
+          itemData.descricao ||
+          itemData.descricaoResumida ||
+          "Item sem descrição",
+      ) || "Item sem descrição",
     // ⚠️ CRITICAL: Preserve complete technical specification
     especificacaoTecnica: especificacao,
-    unidadeMedida: normalizeText(itemData.unidade),
-    quantidade: parseBrazilianNumber(itemData.quantidade, 4)
-      ? Number.parseFloat(parseBrazilianNumber(itemData.quantidade, 4)!)
-      : null,
-    valorReferenciaUnitario: parseBrazilianNumber(itemData.valor_referencia)
-      ? Number.parseFloat(parseBrazilianNumber(itemData.valor_referencia)!)
-      : null,
-    valorHomologadoUnitario: parseBrazilianNumber(
-      itemData.valor_unitario || itemData.valor,
-    )
-      ? Number.parseFloat(parseBrazilianNumber(itemData.valor_unitario || itemData.valor)!)
-      : null,
-    fornecedorHomologado: normalizeText(lotePaiData.vencedor || itemData.fornecedor),
-    marcaHomologada: normalizeText(itemData.marca || lotePaiData.marca),
-    modeloHomologado: normalizeText(itemData.modelo || lotePaiData.modelo),
+    unidadeMedida:
+      normalizeText(itemData.unidade) ||
+      normalizeText(itemData.unidadeMedida) ||
+      normalizeText(itemData.unidade_medida),
+    quantidade: (() => {
+      const raw =
+        itemData.quantidade ??
+        itemData.quantidadeUnitario ??
+        itemData.quantidade_unitario ??
+        itemData.qtd;
+      const parsed = parseBrazilianNumber(raw, 4);
+      return parsed ? Number.parseFloat(parsed) : null;
+    })(),
+    valorReferenciaUnitario: (() => {
+      const raw =
+        itemData.valorReferencia ??
+        itemData.valor_referencia ??
+        itemData.valorReferenciaUnitario ??
+        itemData.valor_unitario ??
+        itemData.valor;
+      const parsed = parseBrazilianNumber(raw);
+      return parsed ? Number.parseFloat(parsed) : null;
+    })(),
+    valorHomologadoUnitario: (() => {
+      const raw =
+        itemData.valorHomologadoUnitario ??
+        itemData.valorHomologado ??
+        itemData.valor_unitario ??
+        itemData.valor;
+      const parsed = parseBrazilianNumber(raw);
+      return parsed ? Number.parseFloat(parsed) : null;
+    })(),
+    fornecedorHomologado:
+      normalizeText(lotePaiData.vencedor || itemData.fornecedor || itemData.fornecedorHomologado),
+    marcaHomologada:
+      normalizeText(itemData.marca || lotePaiData.marca || itemData.marcaHomologada),
+    modeloHomologado:
+      normalizeText(itemData.modelo || lotePaiData.modelo || itemData.modeloHomologada),
     dadosOriginais: itemData,
   };
+}
+
+function normalizeEnhancedItemFromFlat(
+  itemData: Record<string, unknown>,
+): EnhancedNormalizedItem {
+  return normalizeEnhancedItem(
+    {
+      numero: itemData.itemNumero ?? itemData.numeroItem ?? itemData.numero,
+      descricao: itemData.descricao,
+      especificacao: itemData.especificacao,
+      unidade: itemData.unidade,
+      quantidade: itemData.quantidade,
+      fornecedor: itemData.fornecedorNome ?? itemData.fornecedor,
+      marca: itemData.marca,
+      modelo: itemData.modelo,
+      valor_referencia:
+        itemData.valorReferencia ?? itemData.valor_referencia ?? itemData.valorReferenciaUnitario,
+      valor_unitario:
+        itemData.valorUnitario ?? itemData.valor_unitario ?? itemData.valorHomologadoUnitario,
+      dadosOriginais: itemData,
+    },
+    {},
+  );
 }
 
 // ============================================================================
@@ -249,13 +303,23 @@ export function normalizeEnhancedProcess(
 ): EnhancedNormalizedProcess {
   // Extract lotes structure (exists only for licitações)
   const lotesRaw = Array.isArray(processoJson.lotes) ? processoJson.lotes : [];
-  
   const lotes = lotesRaw.map((lote: Record<string, unknown>) =>
     normalizeEnhancedLote(lote, origem),
   );
 
-  // Flatten all items from all lotes for backward compatibility
-  const allItens = lotes.flatMap((lote) => lote.itens);
+  const lotesItens = lotes.flatMap((lote) => lote.itens);
+
+  // Extra compatibility: flat item list (v1 style) may be on processoJson.itens
+  const itensRaw = Array.isArray(processoJson.itens) ? processoJson.itens : [];
+  const itensFromFlat = itensRaw
+    .map((item) =>
+      item && typeof item === "object"
+        ? normalizeEnhancedItemFromFlat(item as Record<string, unknown>)
+        : null,
+    )
+    .filter((item): item is EnhancedNormalizedItem => item !== null);
+
+  const allItens = [...lotesItens, ...itensFromFlat];
 
   // Calculate data quality metrics
   const criticalFields = ["objeto", "modalidade", "publicacao"];
@@ -273,30 +337,118 @@ export function normalizeEnhancedProcess(
   return {
     // Original fields v1
     origem,
-    chaveExterna: normalizeText(processoJson.id) || `${Date.now()}`,
-    idOrigem: normalizeText(processoJson.id),
-    numeroEdital: normalizeText(processoJson.numero_adm),
-    numeroAdministrativo: normalizeText(processoJson.numero_adm),
-    anoReferencia: parseInteger(processoJson.ano_referencia) || new Date().getFullYear(),
-    modalidade: normalizeText(processoJson.modalidade) || "NÃO ESPECIFICADO",
-    situacaoExterna: normalizeText(processoJson.status),
-    tipoContrato: normalizeText(processoJson.tipo_contrato),
+    chaveExterna:
+      normalizeText(
+        processoJson.chaveExterna ??
+          processoJson.id ??
+          processoJson.numero_edital ??
+          processoJson.numeroEdital ??
+          processoJson.numeroAdministrativo ??
+          processoJson.numero_adm,
+      ) || `${Date.now()}`,
+    idOrigem:
+      normalizeText(
+        processoJson.idOrigem ??
+          processoJson.id ??
+          processoJson.numero_adm ??
+          processoJson.numeroAdministrativo,
+      ),
+    numeroEdital:
+      normalizeText(
+        processoJson.numeroEdital ??
+          processoJson.numero_edital ??
+          processoJson.numero_adm ??
+          processoJson.id,
+      ),
+    numeroAdministrativo:
+      normalizeText(
+        processoJson.numeroAdministrativo ??
+          processoJson.numero_adm ??
+          processoJson.numero_administrativo ??
+          processoJson.numeroEdital ??
+          processoJson.id,
+      ),
+    anoReferencia:
+      parseInteger(
+        processoJson.anoReferencia ?? processoJson.ano_referencia,
+      ) || new Date().getFullYear(),
+    modalidade:
+      normalizeText(processoJson.modalidade ?? processoJson.modalidade_nome) ||
+      "NÃO ESPECIFICADO",
+    situacaoExterna:
+      normalizeText(processoJson.situacao || processoJson.status),
+    tipoContrato:
+      normalizeText(processoJson.tipoContrato ?? processoJson.tipo_contrato),
     artigo: normalizeText(processoJson.artigo),
     inciso: normalizeText(processoJson.inciso),
-    objeto: normalizeText(processoJson.objeto) || "Objeto não informado",
-    condutorNome: normalizeText(processoJson.coordenador),
-    coordenadorNome: normalizeText(processoJson.coordenador),
-    autoridadeNome: normalizeText(processoJson.autoridade),
-    fornecedorNome: normalizeText(processoJson.promotor),
-    valorReferencia: parseBrazilianNumber(processoJson.valor_referencia),
-    valorTotal: parseBrazilianNumber(processoJson.valor_total),
-    publicacaoEm: parseBrazilianDateTime(processoJson.data_publicacao),
-    conclusaoEm: parseBrazilianDateTime(processoJson.data_conclusao),
-    inicioRecepcaoEm: parseBrazilianDateTime(processoJson.inicio_recepcao),
-    fimRecepcaoEm: parseBrazilianDateTime(processoJson.fim_recepcao),
-    inicioDisputaEm: parseBrazilianDateTime(processoJson.inicio_disputa),
-    linkExterno: normalizeText(processoJson.link),
-    totalLotes: lotes.length || 1,
+    objeto:
+      normalizeText(processoJson.objeto ?? processoJson.objeto_processo) ||
+      "Objeto não informado",
+    condutorNome:
+      normalizeText(
+        processoJson.condutorNome ??
+          processoJson.condutor ??
+          processoJson.coordenador ??
+          processoJson.coordenadorNome,
+      ),
+    coordenadorNome:
+      normalizeText(
+        processoJson.coordenadorNome ??
+          processoJson.coordenador ??
+          processoJson.condutor ??
+          processoJson.condutorNome,
+      ),
+    autoridadeNome:
+      normalizeText(
+        processoJson.autoridadeNome ??
+          processoJson.autoridade ??
+          processoJson.autoridadeNome ??
+          processoJson.autoridade_responsavel,
+      ),
+    fornecedorNome:
+      normalizeText(
+        processoJson.fornecedorNome ??
+          processoJson.fornecedor ??
+          processoJson.promotor ??
+          processoJson.fiscal,
+      ),
+    valorReferencia:
+      parseBrazilianNumber(
+        processoJson.valorReferencia ?? processoJson.valor_referencia,
+      ),
+    valorTotal:
+      parseBrazilianNumber(processoJson.valorTotal ?? processoJson.valor_total),
+    publicacaoEm:
+      parseBrazilianDateTime(
+        processoJson.publicacaoEm ?? processoJson.data_publicacao,
+      ),
+    conclusaoEm:
+      parseBrazilianDateTime(
+        processoJson.conclusaoEm ?? processoJson.data_conclusao,
+      ),
+    inicioRecepcaoEm:
+      parseBrazilianDateTime(
+        processoJson.inicioRecepcaoEm ?? processoJson.inicio_recepcao,
+      ),
+    fimRecepcaoEm:
+      parseBrazilianDateTime(
+        processoJson.fimRecepcaoEm ?? processoJson.fim_recepcao,
+      ),
+    inicioDisputaEm:
+      parseBrazilianDateTime(
+        processoJson.inicioDisputaEm ?? processoJson.inicio_disputa,
+      ),
+    linkExterno:
+      normalizeText(
+        processoJson.linkExterno ??
+          processoJson.link ??
+          processoJson.url ??
+          processoJson.endereco,
+      ),
+    totalLotes:
+      Number.isFinite(Number(processoJson.totalLotes ?? processoJson.total_lotes))
+        ? Number(processoJson.totalLotes ?? processoJson.total_lotes)
+        : lotes.length,
     totalItens: allItens.length,
     dadosOriginais: processoJson,
     

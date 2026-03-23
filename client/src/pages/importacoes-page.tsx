@@ -1,15 +1,18 @@
 ﻿import {
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   Globe,
   Link2,
   RefreshCcw,
   Search,
   Sparkles,
+  Trash2,
   Unlink,
   Upload,
 } from "lucide-react";
-import { useDeferredValue, useMemo, useState, type ChangeEvent } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Link } from "wouter";
 
 import {
@@ -32,6 +35,7 @@ import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -72,6 +76,8 @@ type SuggestionRow = {
   nivel: "ALTO" | "MEDIO" | "BAIXO";
   motivos: string[];
 };
+
+const TEIXEIRA_FREITAS_CNPJ_FORMAT = "13.650.403/0001-28";
 
 const sourceOptions = Object.entries(importacaoBllSourceLabels) as Array<
   [ImportacaoBllSource, string]
@@ -221,6 +227,7 @@ export function ImportacoesPage() {
     "" | ImportacaoBllConciliacaoStatus
   >("");
   const [selectedRecordId, setSelectedRecordId] = useState<number | null>(null);
+  const [selectedRecordIds, setSelectedRecordIds] = useState<number[]>([]);
   const [createProcessModalOpen, setCreateProcessModalOpen] = useState(false);
   const [manualProcessSearch, setManualProcessSearch] = useState("");
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -229,6 +236,26 @@ export function ImportacoesPage() {
     registrosFile: null,
     itensFile: null,
   });
+  const [pncpDateRange, setPncpDateRange] = useState({
+    dataInicio: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0],
+    dataFim: new Date().toISOString().split("T")[0],
+  });
+  const [pncpPreviewData, setPncpPreviewData] = useState<any>(null);
+  const [pncpLoading, setPncpLoading] = useState(false);
+  const pncpPreviewQuery = trpc.pncpTeixeira.previewData.useQuery(
+    {
+      dataInicio: pncpDateRange.dataInicio,
+      dataFim: pncpDateRange.dataFim,
+    },
+    {
+      enabled: false,
+      retry: false,
+      refetchOnWindowFocus: false,
+    },
+  );
+  const pncpImportMutation = trpc.pncpTeixeira.importAllData.useMutation();
   const deferredSearch = useDeferredValue(search.trim());
   const deferredManualProcessSearch = useDeferredValue(
     manualProcessSearch.trim(),
@@ -270,6 +297,11 @@ export function ImportacoesPage() {
     },
   );
 
+  const visibleRecordIds = recordsQuery.data?.items.map((row) => row.id) ?? [];
+  const allVisibleSelected =
+    visibleRecordIds.length > 0 &&
+    visibleRecordIds.every((id) => selectedRecordIds.includes(id));
+
   const invalidateImportacoes = async () => {
     await Promise.all([
       utils.importacoes.summary.invalidate(),
@@ -278,6 +310,129 @@ export function ImportacoesPage() {
       utils.importacoes.detail.invalidate(),
     ]);
   };
+
+  const previewPncpData = async () => {
+    setPncpLoading(true);
+    try {
+      const result = await pncpPreviewQuery.refetch();
+      setPncpPreviewData(result.data);
+      setFeedback({ variant: "success", message: "Preview PNCP carregado com sucesso." });
+    } catch (error: any) {
+      setFeedback({
+        variant: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Falha ao buscar preview PNCP.",
+      });
+    } finally {
+      setPncpLoading(false);
+    }
+  };
+
+  const importPncpData = async () => {
+    setPncpLoading(true);
+    try {
+      const result = await pncpImportMutation.mutateAsync({
+        dataInicio: pncpDateRange.dataInicio,
+        dataFim: pncpDateRange.dataFim,
+        incluirItens: true,
+        incluirAtas: true,
+        incluirContratos: true,
+        dryRun: false,
+      });
+      setFeedback({ variant: "success", message: result.message ?? "Importação PNCP concluída." });
+      await invalidateImportacoes();
+      setPncpPreviewData(null);
+    } catch (error: any) {
+      setFeedback({
+        variant: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Falha ao importar PNCP.",
+      });
+    } finally {
+      setPncpLoading(false);
+    }
+  };
+
+  // Funções de navegação no modal de conciliação
+  const navigateToNextProcess = () => {
+    if (!selectedRecordId || !recordsQuery.data?.items) return;
+
+    const currentRecords = recordsQuery.data.items;
+    const currentIndex = currentRecords.findIndex(record => record.id === selectedRecordId);
+
+    if (currentIndex === -1) return;
+
+    const nextIndex = (currentIndex + 1) % currentRecords.length;
+    const nextRecord = currentRecords[nextIndex];
+
+    setSelectedRecordId(nextRecord.id);
+    setManualProcessSearch("");
+  };
+
+  const navigateToPreviousProcess = () => {
+    if (!selectedRecordId || !recordsQuery.data?.items) return;
+
+    const currentRecords = recordsQuery.data.items;
+    const currentIndex = currentRecords.findIndex(record => record.id === selectedRecordId);
+
+    if (currentIndex === -1) return;
+
+    const prevIndex = currentIndex === 0 ? currentRecords.length - 1 : currentIndex - 1;
+    const prevRecord = currentRecords[prevIndex];
+
+    setSelectedRecordId(prevRecord.id);
+    setManualProcessSearch("");
+  };
+
+  // Calcular posição atual na lista para exibir no modal
+  const getCurrentPosition = () => {
+    if (!selectedRecordId || !recordsQuery.data?.items) return null;
+
+    const currentRecords = recordsQuery.data.items;
+    const currentIndex = currentRecords.findIndex(record => record.id === selectedRecordId);
+
+    if (currentIndex === -1) return null;
+
+    return {
+      current: currentIndex + 1,
+      total: currentRecords.length,
+    };
+  };
+
+  // Atalhos de teclado para navegação
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Só funciona quando o modal está aberto
+      if (selectedRecordId === null) return;
+
+      // Evita conflito com campos de input
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          event.preventDefault();
+          navigateToPreviousProcess();
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          navigateToNextProcess();
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedRecordId, recordsQuery.data?.items]);
+
+  useEffect(() => {
+    setSelectedRecordIds([]);
+  }, [search, sourceFilter, conciliationFilter, page]);
 
   const syncRemoteMutation = trpc.importacoes.syncRemote.useMutation({
     onSuccess: async (result) => {
@@ -324,6 +479,29 @@ export function ImportacoesPage() {
     onError: (error) =>
       setFeedback({ variant: "error", message: error.message }),
   });
+  const deleteProcessoMutation = trpc.importacoes.deleteProcesso.useMutation({
+    onSuccess: async (result) => {
+      setFeedback({ variant: "success", message: result.message });
+      setSelectedRecordId(null);
+      setManualProcessSearch("");
+      await invalidateImportacoes();
+    },
+    onError: (error) =>
+      setFeedback({ variant: "error", message: error.message }),
+  });
+
+  const deleteProcessosMutation = trpc.importacoes.deleteProcessos.useMutation({
+    onSuccess: async (result) => {
+      setFeedback({ variant: "success", message: result.message });
+      setSelectedRecordIds([]);
+      setSelectedRecordId(null);
+      setManualProcessSearch("");
+      await invalidateImportacoes();
+    },
+    onError: (error) =>
+      setFeedback({ variant: "error", message: error.message }),
+  });
+
   const setIgnoredMutation = trpc.importacoes.setIgnored.useMutation({
     onSuccess: async (result) => {
       setFeedback({ variant: "success", message: result.message });
@@ -621,6 +799,60 @@ export function ImportacoesPage() {
           </div>
         </div>
       </SectionCard>
+      <SectionCard
+        title="PNCP - Teixeira de Freitas"
+        description={`Importação direta PNCP: ${pncpDateRange.dataInicio} a ${pncpDateRange.dataFim} (orgão ${TEIXEIRA_FREITAS_CNPJ_FORMAT})`}
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          <FormField label="Data Início">
+            <Input
+              type="date"
+              value={pncpDateRange.dataInicio}
+              onChange={(event) =>
+                setPncpDateRange((prev) => ({ ...prev, dataInicio: event.target.value }))
+              }
+            />
+          </FormField>
+          <FormField label="Data Fim">
+            <Input
+              type="date"
+              value={pncpDateRange.dataFim}
+              onChange={(event) =>
+                setPncpDateRange((prev) => ({ ...prev, dataFim: event.target.value }))
+              }
+            />
+          </FormField>
+          <div className="flex items-end gap-2">
+            <Button
+              onClick={() => void previewPncpData()}
+              disabled={pncpLoading || pncpPreviewQuery.isFetching}
+              icon={<Search className="h-4 w-4" />}
+            >
+              {pncpLoading ? "Buscando..." : "Preview PNCP"}
+            </Button>
+            <Button
+              onClick={() => void importPncpData()}
+              disabled={pncpLoading || pncpImportMutation.isPending || !pncpPreviewData}
+              icon={<Upload className="h-4 w-4" />}
+            >
+              Importar tudo
+            </Button>
+          </div>
+        </div>
+
+        {pncpPreviewData && (
+          <div className="mt-4 rounded-xl border p-3 bg-slate-50">
+            <p className="text-xs text-muted-foreground">
+              Contratações: {pncpPreviewData.contratacoes.total} • Atas: {pncpPreviewData.atas.total} • Contratos: {pncpPreviewData.contratos.total}
+            </p>
+            <ul className="mt-2 grid gap-2 md:grid-cols-3 text-xs">
+              <li>Contratações: {pncpPreviewData.contratacoes.amostra.length}</li>
+              <li>Atas: {pncpPreviewData.atas.amostra.length}</li>
+              <li>Contratos: {pncpPreviewData.contratos.amostra.length}</li>
+            </ul>
+          </div>
+        )}
+      </SectionCard>
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <SectionCard
           title="Base importada"
@@ -688,10 +920,44 @@ export function ImportacoesPage() {
               </Button>
             </div>
           </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <Button
+              variant="destructive"
+              disabled={selectedRecordIds.length === 0 || deleteProcessosMutation.isPending}
+              onClick={async () => {
+                if (selectedRecordIds.length === 0) return;
+                if (!window.confirm(`Deseja excluir ${selectedRecordIds.length} registro(s) importado(s)?`)) return;
+                await deleteProcessosMutation.mutateAsync({ importedIds: selectedRecordIds });
+              }}
+              icon={<Trash2 className="h-4 w-4" />}
+            >
+              Excluir selecionados
+            </Button>
+            {selectedRecordIds.length > 0 ? (
+              <p className="text-sm text-[var(--color-neutral-600)]">
+                {selectedRecordIds.length} selecionado(s)
+              </p>
+            ) : null}
+          </div>
+
           <div className="mt-4 overflow-x-auto">
             <Table>
               <TableHead>
                 <tr>
+                  <TableHeaderCell className="w-[40px]">
+                    <Checkbox
+                      checked={allVisibleSelected}
+                      onChange={(event) => {
+                        const checked = event.target.checked;
+                        if (checked) {
+                          setSelectedRecordIds(visibleRecordIds);
+                        } else {
+                          setSelectedRecordIds([]);
+                        }
+                      }}
+                    />
+                  </TableHeaderCell>
                   <TableHeaderCell>Origem</TableHeaderCell>
                   <TableHeaderCell>Processo público</TableHeaderCell>
                   <TableHeaderCell>Objeto</TableHeaderCell>
@@ -721,6 +987,21 @@ export function ImportacoesPage() {
                           setManualProcessSearch("");
                         }}
                       >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRecordIds.includes(row.id)}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setSelectedRecordIds((current) => {
+                                if (checked) {
+                                  return Array.from(new Set([...current, row.id]));
+                                }
+                                return current.filter((id) => id !== row.id);
+                              });
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>
                           <p className="font-semibold text-[var(--color-neutral-900)]">
                             {importacaoBllSourceLabels[row.origem]}
@@ -1015,12 +1296,60 @@ export function ImportacoesPage() {
           setManualProcessSearch("");
         }}
         title={
-          detailData?.record.numeroEdital ||
-          detailData?.record.chaveExterna ||
-          "Conciliação de importação"
+          (() => {
+            const position = getCurrentPosition();
+            const baseTitle = detailData?.record.numeroEdital ||
+              detailData?.record.chaveExterna ||
+              "Conciliação de importação";
+
+            return position
+              ? `${baseTitle} (${position.current} de ${position.total})`
+              : baseTitle;
+          })()
         }
-        description="Revise o registro público, vincule ao processo interno correto ou descarte duplicidades sem impacto no acervo importado."
+        description={
+          recordsQuery.data?.items && recordsQuery.data.items.length > 1
+            ? "Revise o registro público, vincule ao processo interno correto ou descarte duplicidades. Use ← → para navegar entre processos."
+            : "Revise o registro público, vincule ao processo interno correto ou descarte duplicidades sem impacto no acervo importado."
+        }
         size="xl"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={navigateToPreviousProcess}
+              disabled={!recordsQuery.data?.items || recordsQuery.data.items.length <= 1}
+              icon={<ChevronLeft className="h-4 w-4" />}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={navigateToNextProcess}
+              disabled={!recordsQuery.data?.items || recordsQuery.data.items.length <= 1}
+              icon={<ChevronRight className="h-4 w-4" />}
+            >
+              Próximo
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (!detailData?.record?.id) return;
+                if (!window.confirm("Tem certeza que deseja excluir este registro importado? Esta ação é irreversível.")) {
+                  return;
+                }
+                void deleteProcessoMutation.mutateAsync({ importedId: detailData.record.id });
+              }}
+              disabled={deleteProcessoMutation.isPending}
+              icon={<Trash2 className="h-4 w-4" />}
+            >
+              Excluir
+            </Button>
+          </div>
+        }
       >
         {detailQuery.isLoading ? (
           <div className="space-y-4">

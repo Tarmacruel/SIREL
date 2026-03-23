@@ -29,6 +29,21 @@ export function Modal({ open, title, description, onClose, actions, size = "lg",
     };
   }, [open]);
 
+  // ESC key handler for closing modal
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return createPortal(

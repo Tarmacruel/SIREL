@@ -62,6 +62,14 @@ export const importacaoBllUnlinkProcessoInputSchema = z.object({
   importedId: z.number().int().positive(),
 });
 
+export const importacaoBllDeleteProcessoInputSchema = z.object({
+  importedId: z.number().int().positive(),
+});
+
+export const importacaoBllDeleteProcessosInputSchema = z.object({
+  importedIds: z.array(z.number().int().positive()).min(1),
+});
+
 export const importacaoBllSetIgnoredInputSchema = z.object({
   importedId: z.number().int().positive(),
   ignored: z.boolean().default(true),
@@ -99,6 +107,9 @@ export type ImportacaoBllLinkProcessoInput = z.infer<
 >;
 export type ImportacaoBllUnlinkProcessoInput = z.infer<
   typeof importacaoBllUnlinkProcessoInputSchema
+>;
+export type ImportacaoBllDeleteProcessoInput = z.infer<
+  typeof importacaoBllDeleteProcessoInputSchema
 >;
 export type ImportacaoBllSetIgnoredInput = z.infer<
   typeof importacaoBllSetIgnoredInputSchema

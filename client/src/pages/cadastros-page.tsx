@@ -629,10 +629,6 @@ export function CadastrosPage() {
         event.preventDefault();
         searchRef.current?.focus();
       }
-      if (event.key === "Escape" && modalOpen) {
-        event.preventDefault();
-        closeModal();
-      }
     }
 
     window.addEventListener("keydown", handleKeydown);

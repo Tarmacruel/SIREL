@@ -8,6 +8,7 @@ import {
   cotacoes,
   fornecedores,
   importacaoBllItens,
+  importacaoBllLotes,
   importacaoBllProcessos,
   itensProcesso,
   lotes,
@@ -965,6 +966,39 @@ export async function unlinkImportedProcess(importedId: number) {
     .where(eq(importacaoBllProcessos.id, importedId));
 
   await refreshConciliationForImportedIds([importedId]);
+}
+
+export async function deleteImportedProcess(importedId: number) {
+  const db = requireDb();
+  // Itens e lotes possuem onDelete cascade, mas deletamos explicitamente por clareza
+  await db
+    .delete(importacaoBllItens)
+    .where(eq(importacaoBllItens.processoImportadoId, importedId));
+
+  await db
+    .delete(importacaoBllLotes)
+    .where(eq(importacaoBllLotes.processoImportadoId, importedId));
+
+  await db
+    .delete(importacaoBllProcessos)
+    .where(eq(importacaoBllProcessos.id, importedId));
+}
+
+export async function deleteImportedProcesses(importedIds: number[]) {
+  if (!importedIds.length) return;
+  const db = requireDb();
+
+  await db
+    .delete(importacaoBllItens)
+    .where(inArray(importacaoBllItens.processoImportadoId, importedIds));
+
+  await db
+    .delete(importacaoBllLotes)
+    .where(inArray(importacaoBllLotes.processoImportadoId, importedIds));
+
+  await db
+    .delete(importacaoBllProcessos)
+    .where(inArray(importacaoBllProcessos.id, importedIds));
 }
 
 export async function setImportedProcessIgnored(
