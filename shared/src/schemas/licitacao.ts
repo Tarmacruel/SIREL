@@ -29,6 +29,9 @@ export const licitacaoSaveConfiguracaoInputSchema = z.object({
   exigeDeclaracaoNaoFracionamento: z.boolean().optional(),
   publicarNoDou: z.boolean().optional(),
   publicarEmJornal: z.boolean().optional(),
+  inversaoFasesHabilitada: z.boolean().optional(),
+  inversaoFasesJustificativa: z.string().trim().max(2000).optional(),
+  justificativaAuditoria: z.string().trim().max(4000).optional(),
   dataPublicacaoEdital: optionalDateTimeString,
   dataRecebimentoPropostasInicio: optionalDateTimeString,
   dataRecebimentoPropostasFim: optionalDateTimeString,
@@ -43,6 +46,7 @@ export const licitacaoPublishInputSchema = z.object({
   processoId: z.number().int().positive(),
   condutorProcessoId: z.number().int().positive(),
   statusId: z.number().int().positive().optional(),
+  justificativaAuditoria: z.string().trim().max(4000).optional(),
   dataPublicacaoEdital: optionalDateTimeString,
   dataRecebimentoPropostasInicio: optionalDateTimeString,
   dataRecebimentoPropostasFim: optionalDateTimeString,
@@ -51,6 +55,14 @@ export const licitacaoPublishInputSchema = z.object({
   dataFimLances: optionalDateTimeString,
   descricao: z.string().trim().min(3).max(255).optional(),
   observacao: z.string().trim().max(2000).optional(),
+});
+
+export const licitacaoChecklistNaoAplicavelInputSchema = z.object({
+  processoId: z.number().int().positive(),
+  categoria: z.string().trim().min(3).max(160),
+  naoAplicavel: z.boolean(),
+  justificativa: z.string().trim().max(2000).optional(),
+  justificativaAuditoria: z.string().trim().max(4000).optional(),
 });
 
 export const licitacaoSaveLicitanteInputSchema = z.object({
@@ -112,6 +124,7 @@ export const licitacaoAdvanceStageInputSchema = z.object({
   statusLicitacao: z.enum(licitacaoStatusOptions),
   etapaAtual: z.string().trim().min(3).max(255),
   observacao: z.string().trim().max(2000).optional(),
+  justificativaAuditoria: z.string().trim().max(4000).optional(),
 });
 
 export const licitacaoHomologarInputSchema = z.object({
@@ -119,12 +132,14 @@ export const licitacaoHomologarInputSchema = z.object({
   dataHomologacao: optionalDateString,
   observacao: z.string().trim().max(2000).optional(),
   statusId: z.number().int().positive().optional(),
+  justificativaAuditoria: z.string().trim().max(4000).optional(),
 });
 
 export type LicitacaoListInput = z.infer<typeof licitacaoListInputSchema>;
 export type LicitacaoDetailInput = z.infer<typeof licitacaoDetailInputSchema>;
 export type LicitacaoSaveConfiguracaoInput = z.infer<typeof licitacaoSaveConfiguracaoInputSchema>;
 export type LicitacaoPublishInput = z.infer<typeof licitacaoPublishInputSchema>;
+export type LicitacaoChecklistNaoAplicavelInput = z.infer<typeof licitacaoChecklistNaoAplicavelInputSchema>;
 export type LicitacaoSaveLicitanteInput = z.infer<typeof licitacaoSaveLicitanteInputSchema>;
 export type LicitacaoQuickFornecedorInput = z.infer<typeof licitacaoQuickFornecedorInputSchema>;
 export type LicitacaoDeleteLicitanteInput = z.infer<typeof licitacaoDeleteLicitanteInputSchema>;

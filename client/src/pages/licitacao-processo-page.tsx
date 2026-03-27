@@ -18,6 +18,9 @@ import {
   habilitacaoStatusLabels,
   habilitacaoStatusOptions,
   licitacaoStatusLabels,
+  getLicitacaoFlowConfig,
+  getLicitacaoModalidadeHelp,
+  licitacaoFluxoLabels,
   licitacaoStepCatalog,
   modoDisputaLabels,
   propostaSituacaoLabels,
@@ -39,7 +42,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { deleteProcessoDocumento, resolveServerAssetUrl, uploadProcessoDocumento } from "@/lib/document-upload";
-import { formatCurrencyBRL, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
+import {
+  formatCurrencyBRL,
+  formatShortDateBR,
+  formatShortDateTimeBR,
+  maskCurrencyInputBR,
+  normalizeCurrencyInputBR,
+} from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 
 interface LicitacaoProcessoPageProps {
@@ -115,6 +124,25 @@ function toDateTimeStart(value?: string) {
   return value?.trim() ? `${value}T08:00:00` : undefined;
 }
 
+function toDateTimeLocalValue(value: string | Date | null | undefined) {
+  if (!value) return "";
+  const source =
+    value instanceof Date
+      ? value
+      : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)
+        ? new Date(value)
+        : /^\d{4}-\d{2}-\d{2}$/.test(value)
+          ? new Date(`${value}T12:00:00`)
+          : new Date(value);
+  if (Number.isNaN(source.getTime())) return "";
+  const year = source.getFullYear();
+  const month = String(source.getMonth() + 1).padStart(2, "0");
+  const day = String(source.getDate()).padStart(2, "0");
+  const hours = String(source.getHours()).padStart(2, "0");
+  const minutes = String(source.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 function toTimeInputValue(value: string | Date | null | undefined) {
   if (!value) return "08:30";
   const source =
@@ -160,6 +188,18 @@ function parseTimeInput(value?: string) {
     hours: Number(match[1]),
     minutes: Number(match[2]),
   };
+}
+
+function formatAuditValue(value: unknown) {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function buildSchedulePreview(params: {
@@ -263,6 +303,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
     habilitacao: false,
     recursos: false,
     homologacao: false,
+    auditoria: false,
     history: false,
   });
   const [configForm, setConfigForm] = useState({
@@ -271,8 +312,24 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
     exigeDeclaracaoNaoFracionamento: false,
     publicarNoDou: false,
     publicarEmJornal: false,
+    inversaoFasesHabilitada: false,
+    inversaoFasesJustificativa: "",
     observacoes: "",
   });
+  const [manualScheduleForm, setManualScheduleForm] = useState({
+    dataRecebimentoPropostasInicio: "",
+    dataRecebimentoPropostasFim: "",
+    dataAberturaPropostas: "",
+    dataInicioLances: "",
+    dataFimLances: "",
+    dataJulgamento: "",
+  });
+  const [checklistNaoAplicavelForm, setChecklistNaoAplicavelForm] = useState<
+    Record<string, { ativo: boolean; justificativa: string }>
+  >({});
+  const [auditJustification, setAuditJustification] = useState("");
+  const [auditActionFilter, setAuditActionFilter] = useState("");
+  const [auditUserFilter, setAuditUserFilter] = useState("");
   const [publishForm, setPublishForm] = useState({
     condutorProcessoId: "",
     statusId: "",
@@ -299,6 +356,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
   const habilitacaoRef = useRef<HTMLElement | null>(null);
   const recursosRef = useRef<HTMLElement | null>(null);
   const homologacaoRef = useRef<HTMLElement | null>(null);
+  const auditoriaRef = useRef<HTMLElement | null>(null);
   const historyRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -311,7 +369,18 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       exigeDeclaracaoNaoFracionamento: detail.licitacao.exigeDeclaracaoNaoFracionamento ?? false,
       publicarNoDou: detail.licitacao.publicarNoDou ?? false,
       publicarEmJornal: detail.licitacao.publicarEmJornal ?? false,
+      inversaoFasesHabilitada: detail.licitacao.inversaoFasesHabilitada ?? false,
+      inversaoFasesJustificativa: detail.licitacao.inversaoFasesJustificativa ?? "",
       observacoes: detail.licitacao.observacoes ?? "",
+    });
+
+    setManualScheduleForm({
+      dataRecebimentoPropostasInicio: toDateTimeLocalValue(detail.licitacao.dataRecebimentoPropostasInicio),
+      dataRecebimentoPropostasFim: toDateTimeLocalValue(detail.licitacao.dataRecebimentoPropostasFim),
+      dataAberturaPropostas: toDateTimeLocalValue(detail.licitacao.dataAberturaPropostas),
+      dataInicioLances: toDateTimeLocalValue(detail.licitacao.dataInicioLances),
+      dataFimLances: toDateTimeLocalValue(detail.licitacao.dataFimLances),
+      dataJulgamento: toDateTimeLocalValue(detail.licitacao.dataJulgamento),
     });
 
     setPublishForm({
@@ -346,6 +415,19 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       statusId: current.statusId || (detail.processo.statusId ? String(detail.processo.statusId) : ""),
       dataHomologacao: current.dataHomologacao || toDateInputValue(detail.licitacao.dataHomologacao),
     }));
+
+    setChecklistNaoAplicavelForm((current) => {
+      const next = { ...current };
+      detail.checklistInterno?.itens?.forEach((item) => {
+        next[item.category] = {
+          ativo: Boolean(item.naoAplicavel),
+          justificativa: item.justificativaNaoAplicavel ?? "",
+        };
+      });
+      return next;
+    });
+
+    setAuditJustification("");
   }, [catalogsQuery.data, detailQuery.data]);
 
   const saveConfiguracaoMutation = trpc.licitacao.saveConfiguracao.useMutation({
@@ -383,6 +465,17 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       ]);
       setErrorMessage(null);
       setFeedback(`Processo publicado com sucesso. Edital gerado: ${payload.numeroEdital}.`);
+    },
+    onError: (error) => {
+      setFeedback(null);
+      setErrorMessage(error.message);
+    },
+  });
+  const setChecklistNaoAplicavelMutation = trpc.licitacao.setChecklistNaoAplicavel.useMutation({
+    onSuccess: async () => {
+      await refreshAll();
+      setErrorMessage(null);
+      setFeedback("Checklist atualizado com sucesso.");
     },
     onError: (error) => {
       setFeedback(null);
@@ -492,6 +585,47 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
   });
   const detalhe = detailQuery.data;
   const documentos = documentosQuery.data ?? [];
+  const isForaDoFluxo = detalhe?.processo.foraDoFluxo ?? false;
+  const inversaoFasesAtiva = configForm.inversaoFasesHabilitada;
+  const flowConfig = getLicitacaoFlowConfig({
+    modalidadeCodigo: detalhe?.processo.modalidadeCodigo,
+    modoDisputa: detalhe?.processo.modoDisputa,
+    suportaLances: detalhe?.processo.suportaLances,
+  });
+  const fluxoLicitacao = flowConfig.fluxo;
+  const showCompetitivoSteps = flowConfig.showCompetitivoSteps;
+  const showLances = flowConfig.showLances;
+  const showRecursos = flowConfig.showRecursos;
+  const flowStepKeys = flowConfig.stepKeys;
+  const modalidadeHelp = getLicitacaoModalidadeHelp(
+    detalhe?.processo.modalidadeCodigo,
+    detalhe?.processo.modoDisputa,
+  );
+  const auditoriaQuery = trpc.auditoria.list.useQuery(
+    {
+      page: 1,
+      pageSize: 25,
+      processoId,
+      acao: auditActionFilter ? (auditActionFilter as "CREATE" | "UPDATE" | "DELETE") : undefined,
+      usuarioId: auditUserFilter ? Number(auditUserFilter) : undefined,
+    },
+    { enabled: isForaDoFluxo },
+  );
+  const orderedFlowStepKeys = (() => {
+    if (!inversaoFasesAtiva) return flowStepKeys;
+    if (!flowStepKeys.includes("HABILITACAO")) return flowStepKeys;
+    const withoutHabilitacao = flowStepKeys.filter((key) => key !== "HABILITACAO");
+    const publicationIndex = withoutHabilitacao.indexOf("PUBLICACAO");
+    if (publicationIndex === -1) return flowStepKeys;
+    return [
+      ...withoutHabilitacao.slice(0, publicationIndex + 1),
+      "HABILITACAO",
+      ...withoutHabilitacao.slice(publicationIndex + 1),
+    ];
+  })();
+  const flowSteps = orderedFlowStepKeys
+    .map((key) => licitacaoStepCatalog.find((item) => item.key === key))
+    .filter((item): item is (typeof licitacaoStepCatalog)[number] => Boolean(item));
   const docsByCategory = useMemo(() => {
     const grouped = new Map<string, typeof documentos>();
     documentos.forEach((documento) => {
@@ -504,17 +638,32 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
   const checklistItems = detalhe?.checklistInterno.itens ?? [];
   const pendingRequired = detalhe?.checklistInterno.obrigatoriosPendentes ?? [];
   const progressCount = checklistItems.filter((item) => item.concluido).length;
-  const schedulePreview = useMemo(
-    () =>
-      buildSchedulePreview({
-        modalidadeCodigo: detalhe?.processo.modalidadeCodigo ?? null,
-        dataPublicacaoEdital: publishForm.dataPublicacaoEdital,
-        publicarNoDou: configForm.publicarNoDou,
-        publicarEmJornal: configForm.publicarEmJornal,
-        horaDisputa: publishForm.horaDisputa,
-      }),
-    [configForm.publicarEmJornal, configForm.publicarNoDou, detalhe?.processo.modalidadeCodigo, publishForm.dataPublicacaoEdital, publishForm.horaDisputa],
-  );
+  const auditoriaItems = auditoriaQuery.data?.items ?? [];
+  const auditoriaUserOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    auditoriaItems.forEach((item) => {
+      if (!item.usuarioId) return;
+      map.set(item.usuarioId, item.usuarioNome ?? `Usuário #${item.usuarioId}`);
+    });
+    return Array.from(map, ([id, nome]) => ({ id, nome })).sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [auditoriaItems]);
+  const schedulePreview = useMemo(() => {
+    if (isForaDoFluxo) return null;
+    return buildSchedulePreview({
+      modalidadeCodigo: detalhe?.processo.modalidadeCodigo ?? null,
+      dataPublicacaoEdital: publishForm.dataPublicacaoEdital,
+      publicarNoDou: configForm.publicarNoDou,
+      publicarEmJornal: configForm.publicarEmJornal,
+      horaDisputa: publishForm.horaDisputa,
+    });
+  }, [
+    configForm.publicarEmJornal,
+    configForm.publicarNoDou,
+    detalhe?.processo.modalidadeCodigo,
+    publishForm.dataPublicacaoEdital,
+    publishForm.horaDisputa,
+    isForaDoFluxo,
+  ]);
 
   async function refreshAll() {
     await Promise.all([
@@ -526,13 +675,29 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       utils.documentos.summary.invalidate(),
       utils.workflow.byProcesso.invalidate({ processoId }),
       utils.processos.overview.invalidate({ processoId }),
+      utils.auditoria.list.invalidate(),
     ]);
+  }
+
+  function ensureAuditJustification(actionLabel: string) {
+    if (!isForaDoFluxo) return true;
+    if (auditJustification.trim()) return true;
+    setFeedback(null);
+    setErrorMessage(`Informe a justificativa de auditoria para ${actionLabel}.`);
+    return false;
   }
 
   function setUploadState(category: string, updater: (current: UploadFormState) => UploadFormState) {
     setUploadForms((current) => ({
       ...current,
       [category]: updater(getUploadState(current, category)),
+    }));
+  }
+
+  function setChecklistNaoAplicavelState(category: string, updater: (current: { ativo: boolean; justificativa: string }) => { ativo: boolean; justificativa: string }) {
+    setChecklistNaoAplicavelForm((current) => ({
+      ...current,
+      [category]: updater(current[category] ?? { ativo: false, justificativa: "" }),
     }));
   }
 
@@ -543,6 +708,26 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       arquivo: nextFile,
       titulo: current.titulo || nextFile?.name || suggestedTitle,
     }));
+  }
+
+  async function handleChecklistNaoAplicavel(item: (typeof checklistItems)[number]) {
+    if (!isForaDoFluxo) return;
+    const state = checklistNaoAplicavelForm[item.category] ?? { ativo: false, justificativa: "" };
+    const actionLabel = state.ativo ? "marcar o item como não aplicável" : "reativar o item no checklist";
+    if (!ensureAuditJustification(actionLabel)) return;
+    if (state.ativo && !state.justificativa.trim()) {
+      setFeedback(null);
+      setErrorMessage("Informe a justificativa para marcar o item como não aplicável.");
+      return;
+    }
+
+    await setChecklistNaoAplicavelMutation.mutateAsync({
+      processoId,
+      categoria: item.category,
+      naoAplicavel: state.ativo,
+      justificativa: state.ativo ? state.justificativa.trim() : undefined,
+      justificativaAuditoria: auditJustification.trim(),
+    });
   }
 
   async function handleUploadChecklistDocumento(item: (typeof checklistItems)[number]) {
@@ -604,16 +789,31 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       exigeDeclaracaoNaoFracionamento: configForm.exigeDeclaracaoNaoFracionamento,
       publicarNoDou: configForm.publicarNoDou,
       publicarEmJornal: configForm.publicarEmJornal,
+      inversaoFasesHabilitada: configForm.inversaoFasesHabilitada,
+      inversaoFasesJustificativa: configForm.inversaoFasesJustificativa || undefined,
+      justificativaAuditoria: isForaDoFluxo ? auditJustification.trim() : undefined,
       dataPublicacaoEdital: publishForm.dataPublicacaoEdital ? `${publishForm.dataPublicacaoEdital}T00:00:00` : undefined,
-      dataAberturaPropostas: publishForm.dataPublicacaoEdital
-        ? `${publishForm.dataPublicacaoEdital}T${publishForm.horaDisputa || "08:30"}:00`
-        : undefined,
+      dataRecebimentoPropostasInicio: manualScheduleForm.dataRecebimentoPropostasInicio || undefined,
+      dataRecebimentoPropostasFim: manualScheduleForm.dataRecebimentoPropostasFim || undefined,
+      dataAberturaPropostas: manualScheduleForm.dataAberturaPropostas
+        || (publishForm.dataPublicacaoEdital
+          ? `${publishForm.dataPublicacaoEdital}T${publishForm.horaDisputa || "08:30"}:00`
+          : undefined),
+      dataInicioLances: manualScheduleForm.dataInicioLances || undefined,
+      dataFimLances: manualScheduleForm.dataFimLances || undefined,
+      dataJulgamento: manualScheduleForm.dataJulgamento || undefined,
       observacoes: configForm.observacoes || undefined,
     });
   }
 
   async function handleSalvarConfiguracao(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (configForm.inversaoFasesHabilitada && !configForm.inversaoFasesJustificativa.trim()) {
+      setFeedback(null);
+      setErrorMessage("Informe a justificativa para a inversão de fases.");
+      return;
+    }
+    if (!ensureAuditJustification("salvar a configuração interna")) return;
     await persistConfiguracao();
   }
 
@@ -624,15 +824,27 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       setErrorMessage("Selecione o condutor do processo antes de publicar.");
       return;
     }
+    if (!ensureAuditJustification("publicar o processo")) return;
+    if (isForaDoFluxo && (!publishForm.dataPublicacaoEdital || !manualScheduleForm.dataRecebimentoPropostasFim || !manualScheduleForm.dataAberturaPropostas)) {
+      setFeedback(null);
+      setErrorMessage("Informe as datas manuais de publicação, recebimento final e abertura para publicar o processo fora do fluxo.");
+      return;
+    }
 
     await publishMutation.mutateAsync({
       processoId,
       condutorProcessoId: Number(publishForm.condutorProcessoId),
       statusId: publishForm.statusId ? Number(publishForm.statusId) : undefined,
+      justificativaAuditoria: isForaDoFluxo ? auditJustification.trim() : undefined,
       dataPublicacaoEdital: publishForm.dataPublicacaoEdital ? `${publishForm.dataPublicacaoEdital}T00:00:00` : undefined,
-      dataAberturaPropostas: publishForm.dataPublicacaoEdital
-        ? `${publishForm.dataPublicacaoEdital}T${publishForm.horaDisputa || "08:30"}:00`
-        : undefined,
+      dataRecebimentoPropostasInicio: manualScheduleForm.dataRecebimentoPropostasInicio || undefined,
+      dataRecebimentoPropostasFim: manualScheduleForm.dataRecebimentoPropostasFim || undefined,
+      dataAberturaPropostas: manualScheduleForm.dataAberturaPropostas
+        || (publishForm.dataPublicacaoEdital
+          ? `${publishForm.dataPublicacaoEdital}T${publishForm.horaDisputa || "08:30"}:00`
+          : undefined),
+      dataInicioLances: manualScheduleForm.dataInicioLances || undefined,
+      dataFimLances: manualScheduleForm.dataFimLances || undefined,
       descricao: publishForm.descricao || undefined,
       observacao: publishForm.observacao || undefined,
     });
@@ -657,11 +869,19 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       setErrorMessage("Informe licitante, item e valor unitário da proposta.");
       return;
     }
+    const valorUnitarioProposto = normalizeCurrencyInputBR(
+      propostaForm.valorUnitarioProposto,
+    );
+    if (valorUnitarioProposto === undefined) {
+      setFeedback(null);
+      setErrorMessage("Informe um valor unitário válido para a proposta.");
+      return;
+    }
     await savePropostaMutation.mutateAsync({
       processoId,
       licitanteId: Number(propostaForm.licitanteId),
       itemId: Number(propostaForm.itemId),
-      valorUnitarioProposto: Number(String(propostaForm.valorUnitarioProposto).replace(/\./g, "").replace(",", ".")),
+      valorUnitarioProposto,
       dataProposta: toDateTimeStart(propostaForm.dataProposta),
       classificacao: propostaForm.classificacao ? Number(propostaForm.classificacao) : undefined,
       situacao: propostaForm.situacao as "VALIDA" | "DESCLASSIFICADA" | "VENCEDORA",
@@ -676,9 +896,15 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
       setErrorMessage("Selecione a proposta e informe o valor do lance.");
       return;
     }
+    const valorLance = normalizeCurrencyInputBR(lanceForm.valorLance);
+    if (valorLance === undefined) {
+      setFeedback(null);
+      setErrorMessage("Informe um valor de lance válido.");
+      return;
+    }
     await saveLanceMutation.mutateAsync({
       propostaId: Number(lanceForm.propostaId),
-      valorLance: Number(String(lanceForm.valorLance).replace(/\./g, "").replace(",", ".")),
+      valorLance,
       dataLance: toDateTimeStart(lanceForm.dataLance),
       observacao: lanceForm.observacao || undefined,
     });
@@ -717,42 +943,60 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
   }
 
   async function handleAdvanceStage(statusLicitacao: "RECEBIMENTO_PROPOSTAS" | "LANCES" | "JULGAMENTO" | "HABILITACAO" | "RECURSOS", etapaAtual: string, observacao: string) {
+    if (!ensureAuditJustification("alterar a etapa da licitação")) return;
     await advanceStageMutation.mutateAsync({
       processoId,
       statusLicitacao,
       etapaAtual,
       observacao,
+      justificativaAuditoria: isForaDoFluxo ? auditJustification.trim() : undefined,
     });
   }
 
   async function handleHomologar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!ensureAuditJustification("homologar o processo")) return;
     await homologarMutation.mutateAsync({
       processoId,
       dataHomologacao: homologacaoForm.dataHomologacao || undefined,
       observacao: homologacaoForm.observacao || undefined,
       statusId: homologacaoForm.statusId ? Number(homologacaoForm.statusId) : undefined,
+      justificativaAuditoria: isForaDoFluxo ? auditJustification.trim() : undefined,
     });
   }
 
-  const navItems = [
-    { key: "overview", label: "Visão geral", ref: overviewRef },
-    { key: "internal", label: "Fase interna", ref: internalRef },
-    { key: "docs", label: "Documentos do processo", ref: docsRef },
-    { key: "publication", label: "Publicação", ref: publicationRef },
-    { key: "licitantes", label: "Licitantes", ref: licitantesRef },
-    { key: "propostas", label: "Propostas", ref: propostasRef },
-    ...((detalhe?.processo.suportaLances ?? false) ? [{ key: "lances", label: "Lances", ref: lancesRef }] : []),
-    { key: "julgamento", label: "Julgamento", ref: julgamentoRef },
-    { key: "habilitacao", label: "Habilitação", ref: habilitacaoRef },
-    { key: "recursos", label: "Recursos", ref: recursosRef },
-    { key: "homologacao", label: "Homologação", ref: homologacaoRef },
-    { key: "history", label: "Movimentações", ref: historyRef },
-  ];
+  const navItems = (() => {
+    const items = [
+      { key: "overview", label: "Visão geral", ref: overviewRef },
+      { key: "internal", label: "Fase interna", ref: internalRef },
+      { key: "docs", label: "Documentos do processo", ref: docsRef },
+      { key: "publication", label: "Publicação", ref: publicationRef },
+      ...(showCompetitivoSteps ? [{ key: "licitantes", label: "Licitantes", ref: licitantesRef }] : []),
+      ...(showCompetitivoSteps ? [{ key: "propostas", label: "Propostas", ref: propostasRef }] : []),
+      ...(showLances ? [{ key: "lances", label: "Lances", ref: lancesRef }] : []),
+      ...(showCompetitivoSteps ? [{ key: "julgamento", label: "Julgamento", ref: julgamentoRef }] : []),
+      { key: "habilitacao", label: "Habilitação", ref: habilitacaoRef },
+      ...(showRecursos ? [{ key: "recursos", label: "Recursos", ref: recursosRef }] : []),
+      { key: "homologacao", label: "Homologação", ref: homologacaoRef },
+      ...(isForaDoFluxo ? [{ key: "auditoria", label: "Auditoria", ref: auditoriaRef }] : []),
+      { key: "history", label: "Movimentações", ref: historyRef },
+    ];
+
+    if (inversaoFasesAtiva) {
+      const currentIndex = items.findIndex((item) => item.key === "habilitacao");
+      const publicationIndex = items.findIndex((item) => item.key === "publication");
+      if (currentIndex > -1 && publicationIndex > -1 && currentIndex > publicationIndex) {
+        const [habilitacaoItem] = items.splice(currentIndex, 1);
+        items.splice(publicationIndex + 1, 0, habilitacaoItem);
+      }
+    }
+
+    return items;
+  })();
   const currentVisualStep = !(detalhe?.processo.publicado ?? false)
     ? "PREPARACAO_INTERNA"
     : mapStatusToVisualStep(detalhe?.licitacao.statusLicitacao ?? "PREPARACAO");
-  const currentVisualStepIndex = licitacaoStepCatalog.findIndex((item) => item.key === currentVisualStep);
+  const currentVisualStepIndex = Math.max(0, flowSteps.findIndex((item) => item.key === currentVisualStep));
   const currentNavKey = (() => {
     switch (currentVisualStep) {
       case "PREPARACAO_INTERNA":
@@ -775,6 +1019,85 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
         return "overview";
     }
   })();
+
+  const habilitacaoSection = (
+    <section ref={habilitacaoRef}>
+      <CollapsibleSectionCard
+        title="Habilitação"
+        description="Registro da situação documental do licitante classificado e observações da comissão."
+        open={sectionOpen.habilitacao}
+        onToggle={(nextOpen) => setSectionOpen((current) => ({ ...current, habilitacao: nextOpen }))}
+        action={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleAdvanceStage("HABILITACAO", "Licitação / habilitação", "Verificação documental do licitante classificado.")}
+            disabled={advanceStageMutation.isPending}
+          >
+            Definir etapa atual
+          </Button>
+        }
+        collapsedSummary={
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="rounded-full bg-[var(--color-primary-50)] px-3 py-1 font-semibold text-[var(--color-primary-700)]">{detalhe?.licitantes.length ?? 0} licitante(s) para confer?ncia</span>
+          </div>
+        }
+      >
+        <form className="grid gap-4 2xl:grid-cols-2" onSubmit={handleSaveHabilitacao}>
+          <FormField label="Licitante">
+            <Select value={habilitacaoForm.licitanteId} onChange={(event) => setHabilitacaoForm((current) => ({ ...current, licitanteId: event.target.value }))}>
+              <option value="">Selecione</option>
+              {detalhe?.licitantes.map((item) => (
+                <option key={item.id} value={item.id}>{item.razaoSocial}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Status da habilitação">
+            <Select value={habilitacaoForm.statusHabilitacao} onChange={(event) => setHabilitacaoForm((current) => ({ ...current, statusHabilitacao: event.target.value }))}>
+              {habilitacaoStatusOptions.map((item) => (
+                <option key={item} value={item}>{habilitacaoStatusLabels[item]}</option>
+              ))}
+            </Select>
+          </FormField>
+          <FormField label="Observação" className="2xl:col-span-2">
+            <Textarea rows={3} value={habilitacaoForm.observacaoHabilitacao} onChange={(event) => setHabilitacaoForm((current) => ({ ...current, observacaoHabilitacao: event.target.value }))} />
+          </FormField>
+          <div className="xl:col-span-2 flex justify-end">
+            <Button type="submit" disabled={saveHabilitacaoMutation.isPending}>{saveHabilitacaoMutation.isPending ? "Salvando..." : "Salvar habilitação"}</Button>
+          </div>
+        </form>
+
+        <div className="mt-4 overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
+          <Table className="min-w-[920px]">
+            <TableHead>
+              <tr>
+                <TableHeaderCell>Licitante</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+                <TableHeaderCell>Observação</TableHeaderCell>
+              </tr>
+            </TableHead>
+            <TableBody>
+              {detalhe?.licitantes.length ? (
+                detalhe.licitantes.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.razaoSocial}</TableCell>
+                    <TableCell>{habilitacaoStatusLabels[item.statusHabilitacao as keyof typeof habilitacaoStatusLabels] ?? item.statusHabilitacao}</TableCell>
+                    <TableCell>{item.observacaoHabilitacao ?? "-"}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-[var(--color-neutral-500)]">Nenhum licitante cadastrado para habilitação.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CollapsibleSectionCard>
+    </section>
+  );
+
 
   if (detailQuery.isLoading) {
     return (
@@ -810,6 +1133,58 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
           </div>
         }
       >
+        {isForaDoFluxo ? (
+          <div className="mb-6 rounded-[28px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm shadow-[0_10px_24px_-24px_rgba(120,53,15,0.25)]">
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Processo fora do fluxo</div>
+            <div className="mt-2 text-sm text-amber-900">
+              Auditoria reforçada ativa. Alterações críticas exigem justificativa e ficam registradas campo a campo.
+            </div>
+            <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <FormField label="Justificativa de auditoria (obrigatória)">
+                <Textarea
+                  rows={3}
+                  value={auditJustification}
+                  onChange={(event) => setAuditJustification(event.target.value)}
+                  placeholder="Explique o motivo das alterações extemporâneas."
+                />
+              </FormField>
+              <div className="flex items-end text-xs text-amber-700">
+                Use esta justificativa para as próximas ações críticas.
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mb-6 rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(230,240,255,0.7))] px-5 py-4 text-sm shadow-[0_10px_24px_-24px_rgba(15,26,109,0.28)]">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Modalidade</div>
+              <div className="mt-1 font-semibold text-[var(--color-primary-900)]">{detalhe.processo.modalidade ?? "Não definida"}</div>
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Fluxo</div>
+              <div className="mt-1 font-semibold text-[var(--color-primary-900)]">{licitacaoFluxoLabels[fluxoLicitacao]}</div>
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Disputa</div>
+              <div className="mt-1 font-semibold text-[var(--color-primary-900)]">
+                {showCompetitivoSteps ? (showLances ? "Com disputa" : "Sem disputa") : "Não se aplica"}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Inversão de fases</div>
+              <div className="mt-1 font-semibold text-[var(--color-primary-900)]">{inversaoFasesAtiva ? "Ativada" : "Não"}</div>
+            </div>
+          </div>
+        </div>
+
+        {modalidadeHelp ? (
+          <div className="mb-6 rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white px-5 py-4 text-sm shadow-[0_10px_24px_-24px_rgba(15,26,109,0.2)]">
+            <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Ajuda contextual</div>
+            <p className="mt-2 text-sm text-[var(--color-neutral-600)]">{modalidadeHelp}</p>
+          </div>
+        ) : null}
+
         <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
             <div className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(230,240,255,0.74))] p-4 shadow-[0_12px_24px_-22px_rgba(15,26,109,0.2)]">
@@ -904,7 +1279,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </div>
 
                 <div className="mt-4 grid gap-3 xl:grid-cols-4">
-                  {licitacaoStepCatalog.map((item, index) => {
+                  {flowSteps.map((item, index) => {
                     const current = item.key === currentVisualStep;
                     const completed =
                       item.key === "PREPARACAO_INTERNA"
@@ -915,7 +1290,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                       <article
                         key={item.key}
                         onClick={() => {
-                          if (item.key === "LANCES" && !(detalhe?.processo.suportaLances ?? false)) {
+                          if (item.key === "LANCES" && !showLances) {
                             return;
                           }
                           const sectionByStep: Record<string, keyof typeof sectionOpen> = {
@@ -947,7 +1322,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                         }}
                         className={[
                           "rounded-3xl border px-4 py-4 transition",
-                          item.key === "LANCES" && !(detalhe?.processo.suportaLances ?? false) ? "opacity-60" : "cursor-pointer hover:-translate-y-0.5",
+                          item.key === "LANCES" && !showLances ? "opacity-60" : "cursor-pointer hover:-translate-y-0.5",
                           current ? "border-[rgba(102,165,255,0.9)] bg-[var(--color-primary-50)]" : completed ? "border-emerald-200 bg-emerald-50" : "border-[rgba(204,225,255,0.92)] bg-white",
                         ].join(" ")}
                       >
@@ -966,7 +1341,9 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
             <section ref={internalRef}>
               <CollapsibleSectionCard
                 title="Fase interna documental"
-                description="Todos os documentos obrigatórios antes da publicidade. O processo só pode ser publicado quando o checklist estiver completo."
+                description={isForaDoFluxo
+                  ? "Checklist orientativo com auditoria reforçada para processos fora do fluxo."
+                  : "Todos os documentos obrigatórios antes da publicidade. O processo só pode ser publicado quando o checklist estiver completo."}
                 open={sectionOpen.internal}
                 onToggle={(nextOpen) => setSectionOpen((current) => ({ ...current, internal: nextOpen }))}
                 action={
@@ -1028,6 +1405,32 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                     </label>
                   </div>
 
+                  {showCompetitivoSteps ? (
+                    <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-white px-4 py-4">
+                      <div className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Configuração de fluxo</div>
+                      <label className="mt-3 inline-flex items-center gap-3 rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3 text-sm font-semibold text-[var(--color-neutral-700)]">
+                        <Checkbox
+                          checked={configForm.inversaoFasesHabilitada}
+                          onChange={(event) => setConfigForm((current) => ({ ...current, inversaoFasesHabilitada: event.target.checked }))}
+                        />
+                        Inverter ordem das fases (habilitação antes da disputa)
+                      </label>
+                      {configForm.inversaoFasesHabilitada ? (
+                        <FormField label="Justificativa da inversão" className="mt-3">
+                          <Textarea
+                            rows={3}
+                            value={configForm.inversaoFasesJustificativa}
+                            onChange={(event) => setConfigForm((current) => ({ ...current, inversaoFasesJustificativa: event.target.value }))}
+                            placeholder="Explique o motivo e o impacto esperado da inversão."
+                          />
+                        </FormField>
+                      ) : null}
+                      <div className="mt-2 text-xs text-[var(--color-neutral-500)]">
+                        Ao ativar a inversão, o sistema reordena a navegação para iniciar a habilitação antes das fases competitivas.
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="grid gap-3">
                     <FormField label="Observações internas">
                       <Textarea
@@ -1049,8 +1452,10 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </form>
 
                 {pendingRequired.length ? (
-                  <Alert variant="warning" title="Checklist interno pendente">
-                    Ainda faltam documentos obrigatórios antes da publicação: {pendingRequired.map((item) => item.label).join(", ")}.
+                  <Alert variant={isForaDoFluxo ? "info" : "warning"} title={isForaDoFluxo ? "Checklist orientativo" : "Checklist interno pendente"}>
+                    {isForaDoFluxo
+                      ? `Há documentos pendentes nesta fase, mas o processo fora do fluxo pode seguir com justificativa registrada. Pendências: ${pendingRequired.map((item) => item.label).join(", ")}.`
+                      : `Ainda faltam documentos obrigatórios antes da publicação: ${pendingRequired.map((item) => item.label).join(", ")}.`}
                   </Alert>
                 ) : (
                   <Alert variant="success">Checklist interno concluído. O processo está apto para seguir ao cronograma de publicação.</Alert>
@@ -1060,6 +1465,20 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                   {checklistItems.map((item) => {
                     const uploadState = getUploadState(uploadForms, item.category);
                     const latestDocumento = (docsByCategory.get(item.category) ?? []).slice().sort((left, right) => new Date(right.criadoEm).getTime() - new Date(left.criadoEm).getTime())[0];
+                    const naoAplicavelState = checklistNaoAplicavelForm[item.category] ?? {
+                      ativo: Boolean(item.naoAplicavel),
+                      justificativa: item.justificativaNaoAplicavel ?? "",
+                    };
+                    const statusLabel = item.naoAplicavel
+                      ? "Não aplicável"
+                      : item.concluido
+                        ? "Anexado"
+                        : "Pendente";
+                    const statusClass = item.naoAplicavel
+                      ? "bg-slate-100 text-slate-800"
+                      : item.concluido
+                        ? "bg-emerald-100 text-emerald-800"
+                        : "bg-amber-100 text-amber-800";
 
                     return (
                       <article key={item.category} className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white p-4 shadow-[0_10px_24px_-24px_rgba(15,26,109,0.35)]">
@@ -1067,8 +1486,8 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
                               <h4 className="text-base font-black text-[var(--color-primary-900)]">{item.label}</h4>
-                              <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${item.concluido ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                                {item.concluido ? "Anexado" : "Pendente"}
+                              <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${statusClass}`}>
+                                {statusLabel}
                               </span>
                               {!item.obrigatorio ? (
                                 <span className="inline-flex rounded-full bg-[var(--color-neutral-100)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-neutral-700)]">
@@ -1100,6 +1519,59 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                                 onClick={() => void handleDeleteDocumento(latestDocumento.id)}
                               >
                                 {deletingDocumentoId === latestDocumento.id ? "Removendo..." : "Remover"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {isForaDoFluxo ? (
+                          <div className="mt-4 rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-neutral-50)] p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Checkbox
+                                checked={naoAplicavelState.ativo}
+                                onCheckedChange={(checked) =>
+                                  setChecklistNaoAplicavelState(item.category, (current) => ({
+                                    ...current,
+                                    ativo: Boolean(checked),
+                                  }))
+                                }
+                              />
+                              <span className="text-sm font-semibold text-[var(--color-neutral-800)]">Marcar como não aplicável</span>
+                            </div>
+                            {naoAplicavelState.ativo ? (
+                              <div className="mt-3 grid gap-2">
+                                <FormField label="Justificativa (obrigatória)">
+                                  <Textarea
+                                    rows={3}
+                                    value={naoAplicavelState.justificativa}
+                                    onChange={(event) =>
+                                      setChecklistNaoAplicavelState(item.category, (current) => ({
+                                        ...current,
+                                        justificativa: event.target.value,
+                                      }))
+                                    }
+                                    placeholder="Explique por que este item não se aplica ao processo."
+                                  />
+                                </FormField>
+                              </div>
+                            ) : null}
+                            {item.naoAplicavel && item.justificativaNaoAplicavel ? (
+                              <div className="mt-2 text-xs text-[var(--color-neutral-500)]">
+                                Justificativa registrada: {item.justificativaNaoAplicavel}
+                              </div>
+                            ) : null}
+                            <div className="mt-3 flex justify-end">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                disabled={setChecklistNaoAplicavelMutation.isPending}
+                                onClick={() => void handleChecklistNaoAplicavel(item)}
+                              >
+                                {setChecklistNaoAplicavelMutation.isPending
+                                  ? "Salvando..."
+                                  : naoAplicavelState.ativo
+                                    ? "Aplicar justificativa"
+                                    : "Reativar item"}
                               </Button>
                             </div>
                           </div>
@@ -1201,18 +1673,39 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
 
             <section ref={publicationRef}>
               <CollapsibleSectionCard
-                title="Publicação e cronograma automático"
-                description="Depois de concluir a fase interna, o sistema calcula automaticamente o cronograma de publicação e prazos com o acréscimo municipal adotado em Teixeira de Freitas."
+                title={isForaDoFluxo ? "Cronograma manual (processo fora do fluxo)" : "Publicação e cronograma automático"}
+                description={isForaDoFluxo
+                  ? "Edite manualmente todas as datas críticas e registre a justificativa no modo fora do fluxo."
+                  : "Depois de concluir a fase interna, o sistema calcula automaticamente o cronograma de publicação e prazos com o acréscimo municipal adotado em Teixeira de Freitas."}
                 open={sectionOpen.publication}
                 onToggle={(nextOpen) => setSectionOpen((current) => ({ ...current, publication: nextOpen }))}
                 action={
                   <div className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary-100)] px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[var(--color-primary-800)]">
                     <CalendarClock className="h-4 w-4" />
-                    Contador automático
+                    {isForaDoFluxo ? "Modo manual" : "Contador automático"}
                   </div>
                 }
                 collapsedSummary={
-                  schedulePreview ? (
+                  isForaDoFluxo ? (
+                    <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                        <span className="font-semibold text-amber-900">{publishForm.dataPublicacaoEdital ? formatShortDateBR(new Date(`${publishForm.dataPublicacaoEdital}T12:00:00`)) : "Sem data"}</span>
+                        <div className="text-amber-700">Publicação (manual)</div>
+                      </div>
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                        <span className="font-semibold text-amber-900">{manualScheduleForm.dataRecebimentoPropostasInicio ? formatShortDateTimeBR(new Date(manualScheduleForm.dataRecebimentoPropostasInicio)) : "Sem data"}</span>
+                        <div className="text-amber-700">Recebimento inicial</div>
+                      </div>
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                        <span className="font-semibold text-amber-900">{manualScheduleForm.dataRecebimentoPropostasFim ? formatShortDateTimeBR(new Date(manualScheduleForm.dataRecebimentoPropostasFim)) : "Sem data"}</span>
+                        <div className="text-amber-700">Recebimento final</div>
+                      </div>
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                        <span className="font-semibold text-amber-900">{manualScheduleForm.dataAberturaPropostas ? formatShortDateTimeBR(new Date(manualScheduleForm.dataAberturaPropostas)) : "Sem data"}</span>
+                        <div className="text-amber-700">Disputa</div>
+                      </div>
+                    </div>
+                  ) : schedulePreview ? (
                     <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
                       <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3 text-sm"><span className="font-semibold text-[var(--color-primary-900)]">{formatShortDateBR(schedulePreview.dataPublicacaoEdital)}</span><div className="text-[var(--color-neutral-500)]">Publicação</div></div>
                       <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3 text-sm"><span className="font-semibold text-[var(--color-primary-900)]">{formatShortDateTimeBR(schedulePreview.dataRecebimentoPropostasInicio)}</span><div className="text-[var(--color-neutral-500)]">Recebimento inicial</div></div>
@@ -1276,7 +1769,65 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                       <Textarea rows={3} value={publishForm.observacao} onChange={(event) => setPublishForm((current) => ({ ...current, observacao: event.target.value }))} />
                     </FormField>
                   </div>
-                  {schedulePreview ? (
+
+                  {inversaoFasesAtiva ? (
+                    <Alert variant="info">
+                      Inversão de fases ativa: a habilitação é priorizada antes das etapas competitivas. Ajuste o cronograma conforme necessário.
+                    </Alert>
+                  ) : null}
+
+                  {isForaDoFluxo ? (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                      <div className="text-xs font-bold uppercase tracking-[0.18em] text-amber-700">Cronograma manual</div>
+                      <div className="mt-3 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                        <FormField label="Recebimento inicial">
+                          <Input
+                            type="datetime-local"
+                            value={manualScheduleForm.dataRecebimentoPropostasInicio}
+                            onChange={(event) => setManualScheduleForm((current) => ({ ...current, dataRecebimentoPropostasInicio: event.target.value }))}
+                          />
+                        </FormField>
+                        <FormField label="Recebimento final">
+                          <Input
+                            type="datetime-local"
+                            value={manualScheduleForm.dataRecebimentoPropostasFim}
+                            onChange={(event) => setManualScheduleForm((current) => ({ ...current, dataRecebimentoPropostasFim: event.target.value }))}
+                          />
+                        </FormField>
+                        <FormField label="Abertura / disputa">
+                          <Input
+                            type="datetime-local"
+                            value={manualScheduleForm.dataAberturaPropostas}
+                            onChange={(event) => setManualScheduleForm((current) => ({ ...current, dataAberturaPropostas: event.target.value }))}
+                          />
+                        </FormField>
+                        <FormField label="Início dos lances">
+                          <Input
+                            type="datetime-local"
+                            value={manualScheduleForm.dataInicioLances}
+                            onChange={(event) => setManualScheduleForm((current) => ({ ...current, dataInicioLances: event.target.value }))}
+                          />
+                        </FormField>
+                        <FormField label="Fim dos lances">
+                          <Input
+                            type="datetime-local"
+                            value={manualScheduleForm.dataFimLances}
+                            onChange={(event) => setManualScheduleForm((current) => ({ ...current, dataFimLances: event.target.value }))}
+                          />
+                        </FormField>
+                        <FormField label="Julgamento">
+                          <Input
+                            type="datetime-local"
+                            value={manualScheduleForm.dataJulgamento}
+                            onChange={(event) => setManualScheduleForm((current) => ({ ...current, dataJulgamento: event.target.value }))}
+                          />
+                        </FormField>
+                      </div>
+                    </div>
+                  ) : null}
+                  {isForaDoFluxo ? (
+                    <Alert variant="warning">Cronograma manual ativo. As datas acima serão usadas para auditoria e publicação.</Alert>
+                  ) : schedulePreview ? (
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
                       <article className="rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-4">
                         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-primary-600)]">Publicação</p>
@@ -1322,7 +1873,10 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </form>
               </CollapsibleSectionCard>
             </section>
+            {inversaoFasesAtiva ? habilitacaoSection : null}
 
+
+            {showCompetitivoSteps ? (
             <section ref={licitantesRef}>
               <CollapsibleSectionCard
                 title="Licitantes"
@@ -1393,7 +1947,9 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </div>
               </CollapsibleSectionCard>
             </section>
+            ) : null}
 
+            {showCompetitivoSteps ? (
             <section ref={propostasRef}>
               <CollapsibleSectionCard
                 title="Propostas"
@@ -1438,7 +1994,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                     </Select>
                   </FormField>
                   <FormField label="Valor unitário proposto">
-                    <Input value={propostaForm.valorUnitarioProposto} onChange={(event) => setPropostaForm((current) => ({ ...current, valorUnitarioProposto: event.target.value }))} placeholder="0,00" />
+                    <Input value={propostaForm.valorUnitarioProposto} onChange={(event) => setPropostaForm((current) => ({ ...current, valorUnitarioProposto: maskCurrencyInputBR(event.target.value) }))} placeholder="R$ 0,00" />
                   </FormField>
                   <FormField label="Data da proposta">
                     <Input type="date" value={propostaForm.dataProposta} onChange={(event) => setPropostaForm((current) => ({ ...current, dataProposta: event.target.value }))} />
@@ -1500,8 +2056,9 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </div>
               </CollapsibleSectionCard>
             </section>
+            ) : null}
 
-            {detalhe.processo.suportaLances ? (
+            {showLances ? (
               <section ref={lancesRef}>
                 <CollapsibleSectionCard
                   title="Lances"
@@ -1538,7 +2095,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                       </Select>
                     </FormField>
                     <FormField label="Valor do lance">
-                      <Input value={lanceForm.valorLance} onChange={(event) => setLanceForm((current) => ({ ...current, valorLance: event.target.value }))} placeholder="0,00" />
+                      <Input value={lanceForm.valorLance} onChange={(event) => setLanceForm((current) => ({ ...current, valorLance: maskCurrencyInputBR(event.target.value) }))} placeholder="R$ 0,00" />
                     </FormField>
                     <FormField label="Data do lance">
                       <Input type="date" value={lanceForm.dataLance} onChange={(event) => setLanceForm((current) => ({ ...current, dataLance: event.target.value }))} />
@@ -1585,6 +2142,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
               </section>
             ) : null}
 
+            {showCompetitivoSteps ? (
             <section ref={julgamentoRef}>
               <CollapsibleSectionCard
                 title="Julgamento"
@@ -1643,83 +2201,11 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </div>
               </CollapsibleSectionCard>
             </section>
+            ) : null}
 
-            <section ref={habilitacaoRef}>
-              <CollapsibleSectionCard
-                title="Habilitação"
-                description="Registro da situação documental do licitante classificado e observações da comissão."
-                open={sectionOpen.habilitacao}
-                onToggle={(nextOpen) => setSectionOpen((current) => ({ ...current, habilitacao: nextOpen }))}
-                action={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void handleAdvanceStage("HABILITACAO", "Licitação / habilitação", "Verificação documental do licitante classificado.")}
-                    disabled={advanceStageMutation.isPending}
-                  >
-                    Definir etapa atual
-                  </Button>
-                }
-                collapsedSummary={
-                  <div className="flex flex-wrap items-center gap-3 text-sm">
-                    <span className="rounded-full bg-[var(--color-primary-50)] px-3 py-1 font-semibold text-[var(--color-primary-700)]">{detalhe.licitantes.length} licitante(s) para conferência</span>
-                  </div>
-                }
-              >
-                <form className="grid gap-4 2xl:grid-cols-2" onSubmit={handleSaveHabilitacao}>
-                  <FormField label="Licitante">
-                    <Select value={habilitacaoForm.licitanteId} onChange={(event) => setHabilitacaoForm((current) => ({ ...current, licitanteId: event.target.value }))}>
-                      <option value="">Selecione</option>
-                      {detalhe.licitantes.map((item) => (
-                        <option key={item.id} value={item.id}>{item.razaoSocial}</option>
-                      ))}
-                    </Select>
-                  </FormField>
-                  <FormField label="Status da habilitação">
-                    <Select value={habilitacaoForm.statusHabilitacao} onChange={(event) => setHabilitacaoForm((current) => ({ ...current, statusHabilitacao: event.target.value }))}>
-                      {habilitacaoStatusOptions.map((item) => (
-                        <option key={item} value={item}>{habilitacaoStatusLabels[item]}</option>
-                      ))}
-                    </Select>
-                  </FormField>
-                  <FormField label="Observação" className="2xl:col-span-2">
-                    <Textarea rows={3} value={habilitacaoForm.observacaoHabilitacao} onChange={(event) => setHabilitacaoForm((current) => ({ ...current, observacaoHabilitacao: event.target.value }))} />
-                  </FormField>
-                  <div className="xl:col-span-2 flex justify-end">
-                    <Button type="submit" disabled={saveHabilitacaoMutation.isPending}>{saveHabilitacaoMutation.isPending ? "Salvando..." : "Salvar habilitação"}</Button>
-                  </div>
-                </form>
+            {!inversaoFasesAtiva ? habilitacaoSection : null}
 
-                <div className="mt-4 overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
-                  <Table className="min-w-[920px]">
-                    <TableHead>
-                      <tr>
-                        <TableHeaderCell>Licitante</TableHeaderCell>
-                        <TableHeaderCell>Status</TableHeaderCell>
-                        <TableHeaderCell>Observação</TableHeaderCell>
-                      </tr>
-                    </TableHead>
-                    <TableBody>
-                      {detalhe.licitantes.length ? (
-                        detalhe.licitantes.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>{item.razaoSocial}</TableCell>
-                            <TableCell>{habilitacaoStatusLabels[item.statusHabilitacao as keyof typeof habilitacaoStatusLabels] ?? item.statusHabilitacao}</TableCell>
-                            <TableCell>{item.observacaoHabilitacao ?? "-"}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-[var(--color-neutral-500)]">Nenhum licitante cadastrado para habilitação.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CollapsibleSectionCard>
-            </section>
-
+            {showRecursos ? (
             <section ref={recursosRef}>
               <CollapsibleSectionCard
                 title="Recursos"
@@ -1808,6 +2294,7 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </div>
               </CollapsibleSectionCard>
             </section>
+            ) : null}
 
             <section ref={homologacaoRef}>
               <CollapsibleSectionCard
@@ -1844,6 +2331,95 @@ export function LicitacaoProcessoPage({ processoId }: LicitacaoProcessoPageProps
                 </form>
               </CollapsibleSectionCard>
             </section>
+
+            {isForaDoFluxo ? (
+              <section ref={auditoriaRef}>
+                <CollapsibleSectionCard
+                  title="Auditoria reforçada"
+                  description="Log detalhado de alterações campo a campo para processos fora do fluxo."
+                  open={sectionOpen.auditoria}
+                  onToggle={(nextOpen) => setSectionOpen((current) => ({ ...current, auditoria: nextOpen }))}
+                  collapsedSummary={
+                    auditoriaItems.length ? (
+                      <div className="rounded-2xl border border-[rgba(204,225,255,0.92)] bg-[var(--color-primary-50)] px-4 py-3 text-sm">
+                        <span className="font-semibold text-[var(--color-primary-900)]">{auditoriaItems[0]?.descricao}</span>
+                        <div className="text-[var(--color-neutral-500)]">{formatShortDateTimeBR(auditoriaItems[0]?.criadoEm)}</div>
+                      </div>
+                    ) : (
+                      <Alert variant="info">Nenhuma auditoria registrada para este processo.</Alert>
+                    )
+                  }
+                >
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <FormField label="Ação">
+                      <Select value={auditActionFilter} onChange={(event) => setAuditActionFilter(event.target.value)}>
+                        <option value="">Todas</option>
+                        <option value="CREATE">CREATE</option>
+                        <option value="UPDATE">UPDATE</option>
+                        <option value="DELETE">DELETE</option>
+                      </Select>
+                    </FormField>
+                    <FormField label="Usuário">
+                      <Select value={auditUserFilter} onChange={(event) => setAuditUserFilter(event.target.value)}>
+                        <option value="">Todos</option>
+                        {auditoriaUserOptions.map((user) => (
+                          <option key={user.id} value={user.id}>{user.nome}</option>
+                        ))}
+                      </Select>
+                    </FormField>
+                  </div>
+
+                  {auditoriaQuery.isLoading ? (
+                    <div className="mt-4 grid gap-3">
+                      {[0, 1].map((item) => (
+                        <Skeleton key={item} className="h-24 rounded-[28px]" />
+                      ))}
+                    </div>
+                  ) : auditoriaItems.length ? (
+                    <div className="mt-4 overflow-x-auto rounded-[28px] border border-[rgba(204,225,255,0.92)] bg-white shadow-[0_12px_24px_-24px_rgba(15,26,109,0.22)]">
+                      <Table className="min-w-[1080px]">
+                        <TableHead>
+                          <tr>
+                            <TableHeaderCell>Data</TableHeaderCell>
+                            <TableHeaderCell>Usuário</TableHeaderCell>
+                            <TableHeaderCell>Ação</TableHeaderCell>
+                            <TableHeaderCell>Tabela</TableHeaderCell>
+                            <TableHeaderCell>Campo</TableHeaderCell>
+                            <TableHeaderCell>Valor anterior</TableHeaderCell>
+                            <TableHeaderCell>Valor novo</TableHeaderCell>
+                            <TableHeaderCell>Descrição</TableHeaderCell>
+                          </tr>
+                        </TableHead>
+                        <TableBody>
+                          {auditoriaItems.map((item) => {
+                            const campo = (item.dadosNovos as { campo?: string } | null)?.campo
+                              ?? (item.dadosAnteriores as { campo?: string } | null)?.campo
+                              ?? "-";
+                            const valorAnterior = (item.dadosAnteriores as { valor?: unknown } | null)?.valor ?? item.dadosAnteriores;
+                            const valorNovo = (item.dadosNovos as { valor?: unknown } | null)?.valor ?? item.dadosNovos;
+
+                            return (
+                              <TableRow key={item.id}>
+                                <TableCell>{formatShortDateTimeBR(item.criadoEm)}</TableCell>
+                                <TableCell>{item.usuarioNome ?? "Sistema"}</TableCell>
+                                <TableCell>{item.acao}</TableCell>
+                                <TableCell>{item.tabela}</TableCell>
+                                <TableCell>{campo}</TableCell>
+                                <TableCell className="max-w-[220px] whitespace-pre-wrap text-[var(--color-neutral-600)]">{formatAuditValue(valorAnterior)}</TableCell>
+                                <TableCell className="max-w-[220px] whitespace-pre-wrap text-[var(--color-neutral-600)]">{formatAuditValue(valorNovo)}</TableCell>
+                                <TableCell className="max-w-[260px] whitespace-pre-wrap text-[var(--color-neutral-600)]">{item.descricao}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <Alert variant="info" className="mt-4">Nenhuma auditoria registrada para este processo.</Alert>
+                  )}
+                </CollapsibleSectionCard>
+              </section>
+            ) : null}
 
             <section ref={historyRef}>
               <CollapsibleSectionCard

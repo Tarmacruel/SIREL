@@ -1,4 +1,4 @@
-export const workflowModuleOptions = [
+﻿export const workflowModuleOptions = [
   "PLANEJAMENTO",
   "COMPRAS",
   "LICITACAO",
@@ -60,6 +60,10 @@ export const licitacaoInternalDocumentCategories = [
   "LICITACAO_DECRETO_ORDENADOR_DESPESAS",
   "LICITACAO_ATO_AUTORIZACAO_AUTORIDADE",
   "LICITACAO_DECLARACAO_NAO_FRACIONAMENTO",
+  "LICITACAO_JUSTIFICATIVA_DISPENSA",
+  "LICITACAO_JUSTIFICATIVA_INEXIGIBILIDADE",
+  "LICITACAO_COMPROVANTE_EXCLUSIVIDADE",
+  "LICITACAO_PESQUISA_PRECOS",
   "LICITACAO_MINUTA_AVISO",
   "LICITACAO_COMUNICACAO_PARECER_JURIDICO",
   "LICITACAO_PARECER_JURIDICO",
@@ -115,6 +119,25 @@ export const prazoProcessualStatusOptions = [
   "PENDENTE",
   "EM_ATRASO",
   "CONCLUIDO",
+] as const;
+
+export const tarefaEquipeStatusOptions = [
+  "PENDENTE",
+  "EM_ANDAMENTO",
+  "AGUARDANDO",
+  "BLOQUEADO",
+  "CONCLUIDO",
+] as const;
+
+export const tarefaEquipePrioridadeOptions = [
+  "BAIXA",
+  "MEDIA",
+  "ALTA",
+] as const;
+
+export const agendaCompartilhamentoPermissaoOptions = [
+  "SOMENTE_VISUALIZACAO",
+  "COMENTARIOS",
 ] as const;
 
 export const modoDisputaLabels: Record<(typeof modoDisputaOptions)[number], string> = {
@@ -195,6 +218,25 @@ export const prazoProcessualStatusLabels: Record<(typeof prazoProcessualStatusOp
   CONCLUIDO: "Concluído",
 };
 
+export const tarefaEquipeStatusLabels: Record<(typeof tarefaEquipeStatusOptions)[number], string> = {
+  PENDENTE: "Pendente",
+  EM_ANDAMENTO: "Em andamento",
+  AGUARDANDO: "Aguardando",
+  BLOQUEADO: "Bloqueado",
+  CONCLUIDO: "Concluído",
+};
+
+export const tarefaEquipePrioridadeLabels: Record<(typeof tarefaEquipePrioridadeOptions)[number], string> = {
+  BAIXA: "Baixa",
+  MEDIA: "Média",
+  ALTA: "Alta",
+};
+
+export const agendaCompartilhamentoPermissaoLabels: Record<(typeof agendaCompartilhamentoPermissaoOptions)[number], string> = {
+  SOMENTE_VISUALIZACAO: "Somente visualizacao",
+  COMENTARIOS: "Comentarios",
+};
+
 export const licitacaoStepCatalog = [
   {
     key: "PREPARACAO_INTERNA",
@@ -237,6 +279,192 @@ export const licitacaoStepCatalog = [
     description: "Encerramento da fase licitatória e aprovação do resultado.",
   },
 ] as const;
+
+export const licitacaoFluxoOptions = [
+  "COMPETITIVO_COMPLETO",
+  "COMPETITIVO_SIMPLIFICADO",
+  "CONTRATACAO_DIRETA",
+] as const;
+
+export const licitacaoFluxoLabels: Record<(typeof licitacaoFluxoOptions)[number], string> = {
+  COMPETITIVO_COMPLETO: "Competitivo completo",
+  COMPETITIVO_SIMPLIFICADO: "Competitivo simplificado",
+  CONTRATACAO_DIRETA: "Contratação direta",
+};
+
+export const licitacaoFluxoStepKeys: Record<(typeof licitacaoFluxoOptions)[number], (typeof licitacaoStepCatalog)[number]["key"][]> = {
+  COMPETITIVO_COMPLETO: [
+    "PREPARACAO_INTERNA",
+    "PUBLICACAO",
+    "RECEBIMENTO_PROPOSTAS",
+    "LANCES",
+    "JULGAMENTO",
+    "HABILITACAO",
+    "RECURSOS",
+    "HOMOLOGACAO",
+  ],
+  COMPETITIVO_SIMPLIFICADO: [
+    "PREPARACAO_INTERNA",
+    "PUBLICACAO",
+    "RECEBIMENTO_PROPOSTAS",
+    "LANCES",
+    "JULGAMENTO",
+    "HABILITACAO",
+    "HOMOLOGACAO",
+  ],
+  CONTRATACAO_DIRETA: [
+    "PREPARACAO_INTERNA",
+    "PUBLICACAO",
+    "HABILITACAO",
+    "HOMOLOGACAO",
+  ],
+};
+
+export function getLicitacaoFluxo(modalidadeCodigo?: string | null, modoDisputa?: string | null) {
+  if (!modalidadeCodigo) {
+    return "COMPETITIVO_COMPLETO" as const;
+  }
+
+  if (/INEXIGIBILIDADE/.test(modalidadeCodigo)) {
+    return "CONTRATACAO_DIRETA" as const;
+  }
+
+  if (/DISPENSA/.test(modalidadeCodigo)) {
+    return modoDisputa && modoDisputa !== "NAO_SE_APLICA"
+      ? ("COMPETITIVO_SIMPLIFICADO" as const)
+      : ("CONTRATACAO_DIRETA" as const);
+  }
+
+  if (/CREDENCIAMENTO/.test(modalidadeCodigo)) {
+    return "CONTRATACAO_DIRETA" as const;
+  }
+
+  if (/PREGAO|CONCORRENCIA|LEILAO/.test(modalidadeCodigo)) {
+    return "COMPETITIVO_COMPLETO" as const;
+  }
+
+  return "COMPETITIVO_COMPLETO" as const;
+}
+
+export function getLicitacaoFlowConfig(params: {
+  modalidadeCodigo?: string | null;
+  modoDisputa?: string | null;
+  suportaLances?: boolean | null;
+}) {
+  const fluxo = getLicitacaoFluxo(params.modalidadeCodigo, params.modoDisputa);
+  const hasDisputa = (params.modoDisputa ?? "NAO_SE_APLICA") !== "NAO_SE_APLICA";
+  const showCompetitivoSteps = fluxo !== "CONTRATACAO_DIRETA";
+  const showLances = showCompetitivoSteps && (Boolean(params.suportaLances) || hasDisputa);
+  const showRecursos = fluxo === "COMPETITIVO_COMPLETO";
+  const stepKeys = licitacaoFluxoStepKeys[fluxo].filter((key) => {
+    if (key === "LANCES") return showLances;
+    if (key === "RECURSOS") return showRecursos;
+    if (key === "RECEBIMENTO_PROPOSTAS") return showCompetitivoSteps;
+    if (key === "JULGAMENTO") return showCompetitivoSteps;
+    return true;
+  });
+
+  return {
+    fluxo,
+    showCompetitivoSteps,
+    showLances,
+    showRecursos,
+    stepKeys,
+  };
+}
+
+export function getLicitacaoModalidadeHelp(modalidadeCodigo?: string | null, modoDisputa?: string | null) {
+  if (!modalidadeCodigo) return null;
+
+  if (/INEXIGIBILIDADE/.test(modalidadeCodigo)) {
+    return "Contratação direta por inexigibilidade. Garanta a justificativa legal (art. 74) e o comprovante de exclusividade.";
+  }
+
+  if (/DISPENSA/.test(modalidadeCodigo)) {
+    return modoDisputa && modoDisputa !== "NAO_SE_APLICA"
+      ? "Dispensa com disputa: rito simplificado com disputa e julgamento. Avalie inversão e prazos antes de publicar."
+      : "Dispensa sem disputa: fluxo documental direto com justificativa e pesquisa de preços obrigatórias.";
+  }
+
+  if (/CREDENCIAMENTO/.test(modalidadeCodigo)) {
+    return "Credenciamento segue contratação direta. Mantenha a documentação mínima e a justificativa da forma de contratação.";
+  }
+
+  if (/PREGAO/.test(modalidadeCodigo)) {
+    return "Pregão eletrônico segue rito comum (art. 17). Disputa é obrigatória e a inversão de fases exige justificativa.";
+  }
+
+  if (/CONCORRENCIA/.test(modalidadeCodigo)) {
+    return "Concorrência eletrônica segue rito comum e admite critérios técnicos. Verifique o critério de julgamento adequado.";
+  }
+
+  if (/LEILAO/.test(modalidadeCodigo)) {
+    return "Leilão eletrônico com disputa obrigatória. Garanta a definição do critério e do cronograma antes da publicação.";
+  }
+
+  return null;
+}
+
+const licitacaoChecklistBase = [
+  "LICITACAO_RESERVA_ORCAMENTARIA",
+  "LICITACAO_ATO_AUTORIZACAO_AUTORIDADE",
+];
+
+const licitacaoChecklistDispensa = [
+  ...licitacaoChecklistBase,
+  "LICITACAO_JUSTIFICATIVA_DISPENSA",
+  "LICITACAO_PESQUISA_PRECOS",
+];
+
+const licitacaoChecklistInexigibilidade = [
+  ...licitacaoChecklistBase,
+  "LICITACAO_JUSTIFICATIVA_INEXIGIBILIDADE",
+  "LICITACAO_COMPROVANTE_EXCLUSIVIDADE",
+];
+
+const licitacaoChecklistCompetitivoCompleto = [
+  "LICITACAO_DECRETO_COMISSAO",
+  "LICITACAO_DECRETO_EQUIPE_APOIO",
+  "LICITACAO_COMUNICACAO_RESERVA_ORCAMENTARIA",
+  "LICITACAO_RESERVA_ORCAMENTARIA",
+  "LICITACAO_DECRETO_ORDENADOR_DESPESAS",
+  "LICITACAO_ATO_AUTORIZACAO_AUTORIDADE",
+  "LICITACAO_DECLARACAO_NAO_FRACIONAMENTO",
+  "LICITACAO_MINUTA_AVISO",
+  "LICITACAO_COMUNICACAO_PARECER_JURIDICO",
+  "LICITACAO_PARECER_JURIDICO",
+  "LICITACAO_AVISO",
+  "LICITACAO_TERMO_AUTUACAO",
+  "LICITACAO_DECRETO_AGENTE_CONTRATACAO",
+];
+
+const licitacaoChecklistCompetitivoSimplificado = [
+  ...licitacaoChecklistDispensa,
+  "LICITACAO_MINUTA_AVISO",
+  "LICITACAO_PARECER_JURIDICO",
+];
+
+export function getLicitacaoChecklistCategories(params: { modalidadeCodigo?: string | null; modoDisputa?: string | null }) {
+  const fluxo = getLicitacaoFluxo(params.modalidadeCodigo, params.modoDisputa);
+
+  if (fluxo === "COMPETITIVO_COMPLETO") {
+    return licitacaoChecklistCompetitivoCompleto;
+  }
+
+  if (fluxo === "COMPETITIVO_SIMPLIFICADO") {
+    return licitacaoChecklistCompetitivoSimplificado;
+  }
+
+  if (/INEXIGIBILIDADE/.test(params.modalidadeCodigo ?? "")) {
+    return licitacaoChecklistInexigibilidade;
+  }
+
+  if (/DISPENSA/.test(params.modalidadeCodigo ?? "")) {
+    return licitacaoChecklistDispensa;
+  }
+
+  return licitacaoChecklistBase;
+}
 
 export const licitacaoInternalDocumentChecklist = [
   {
@@ -288,6 +516,34 @@ export const licitacaoInternalDocumentChecklist = [
     tipo: "OUTRO",
     obrigatorio: false,
     condicional: "DECLARACAO_NAO_FRACIONAMENTO",
+  },
+  {
+    category: "LICITACAO_JUSTIFICATIVA_DISPENSA",
+    label: "Justificativa da dispensa",
+    description: "Justificativa formal da dispensa, indicando o fundamento legal aplicável.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_JUSTIFICATIVA_INEXIGIBILIDADE",
+    label: "Justificativa de inexigibilidade (Art. 74)",
+    description: "Justificativa formal demonstrando a inviabilidade de competição.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_COMPROVANTE_EXCLUSIVIDADE",
+    label: "Comprovante de fornecedor exclusivo",
+    description: "Documento comprobatório da exclusividade do fornecedor ou representante.",
+    tipo: "OUTRO",
+    obrigatorio: true,
+  },
+  {
+    category: "LICITACAO_PESQUISA_PRECOS",
+    label: "Pesquisa de preços",
+    description: "Pesquisa de preços para aferição do valor estimado na contratação.",
+    tipo: "OUTRO",
+    obrigatorio: true,
   },
   {
     category: "LICITACAO_MINUTA_AVISO",

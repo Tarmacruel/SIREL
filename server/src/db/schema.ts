@@ -92,6 +92,29 @@ export const notificacaoPrioridadeEnum = pgEnum("notificacao_prioridade", [
   "ALTA",
   "URGENTE",
 ]);
+export const notificacaoFrequenciaEnum = pgEnum("notificacao_frequencia", [
+  "IMEDIATA",
+  "RESUMO_DIARIO",
+  "RESUMO_SEMANAL",
+]);
+export const notificacaoEscopoEnum = pgEnum("notificacao_escopo", [
+  "MEUS_ITENS",
+  "EQUIPE",
+  "CRITICOS",
+]);
+export const notificacaoCanalEnum = pgEnum("notificacao_canal", [
+  "IN_APP",
+  "EMAIL",
+  "PUSH",
+]);
+export const notificacaoEnvioStatusEnum = pgEnum(
+  "notificacao_envio_status",
+  ["ENVIADO", "FALHA", "IGNORADO"],
+);
+export const agendaCompartilhamentoPermissaoEnum = pgEnum(
+  "agenda_compartilhamento_permissao",
+  ["SOMENTE_VISUALIZACAO", "COMENTARIOS"],
+);
 export const authEventTypeEnum = pgEnum("auth_event_type", [
   "LOGIN_SUCCESS",
   "LOGIN_FAILURE",
@@ -134,6 +157,18 @@ export const prazoProcessualStatusEnum = pgEnum("prazo_processual_status", [
   "PENDENTE",
   "EM_ATRASO",
   "CONCLUIDO",
+]);
+export const tarefaEquipeStatusEnum = pgEnum("tarefa_equipe_status", [
+  "PENDENTE",
+  "EM_ANDAMENTO",
+  "AGUARDANDO",
+  "BLOQUEADO",
+  "CONCLUIDO",
+]);
+export const tarefaEquipePrioridadeEnum = pgEnum("tarefa_equipe_prioridade", [
+  "BAIXA",
+  "MEDIA",
+  "ALTA",
 ]);
 export const cotacaoStatusEnum = pgEnum("cotacao_status", [
   "ATIVA",
@@ -200,6 +235,10 @@ export const importacaoBllLoteTipoEnum = pgEnum("importacao_bll_lote_tipo", [
 export const importacaoBllEdicaoOrigemEnum = pgEnum(
   "importacao_bll_edicao_origem",
   ["MANUAL", "IMPORTACAO_BLL", "PNCP_SYNC"],
+);
+export const importacaoPncpStatusExecucaoEnum = pgEnum(
+  "importacao_pncp_status_execucao",
+  ["PROCESSANDO", "CONCLUIDA", "ERRO"],
 );
 
 export const secretarias = pgTable("secretarias", {
@@ -393,6 +432,8 @@ export const processos = pgTable(
       () => pessoas.id,
     ),
     dataAbertura: date("data_abertura"),
+    dataPublicacao: timestamp("data_publicacao", { withTimezone: true }),
+    dataDisputaSessao: timestamp("data_disputa_sessao", { withTimezone: true }),
     dataEncerramento: date("data_encerramento"),
     ativo: boolean("ativo").notNull().default(true),
     publicado: boolean("publicado").notNull().default(false),
@@ -799,6 +840,10 @@ export const licitacoes = pgTable(
     dataFimLances: timestamp("data_fim_lances", { withTimezone: true }),
     dataJulgamento: timestamp("data_julgamento", { withTimezone: true }),
     dataHomologacao: timestamp("data_homologacao", { withTimezone: true }),
+    inversaoFasesHabilitada: boolean("inversao_fases_habilitada")
+      .notNull()
+      .default(false),
+    inversaoFasesJustificativa: text("inversao_fases_justificativa"),
     observacoes: text("observacoes"),
     criadoEm: timestamp("criado_em", { withTimezone: true })
       .notNull()
@@ -809,6 +854,32 @@ export const licitacoes = pgTable(
   },
   (table) => ({
     idxStatus: index("licitacoes_status_idx").on(table.statusLicitacao),
+  }),
+);
+
+export const licitacaoChecklistExcecoes = pgTable(
+  "licitacao_checklist_excecoes",
+  {
+    id: serial("id").primaryKey(),
+    processoId: integer("processo_id")
+      .notNull()
+      .references(() => processos.id, { onDelete: "cascade" }),
+    categoria: varchar("categoria", { length: 160 }).notNull(),
+    naoAplicavel: boolean("nao_aplicavel").notNull().default(false),
+    justificativa: text("justificativa"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxProcesso: index("licitacao_checklist_excecoes_processo_idx").on(table.processoId),
+    uqProcessoCategoria: uniqueIndex("licitacao_checklist_excecoes_processo_categoria_uq").on(
+      table.processoId,
+      table.categoria,
+    ),
   }),
 );
 
@@ -992,6 +1063,7 @@ export const prazosProcessuais = pgTable(
     dataPrevista: date("data_prevista").notNull(),
     dataRealizada: date("data_realizada"),
     status: prazoProcessualStatusEnum("status").notNull().default("PENDENTE"),
+    responsavelId: integer("responsavel_id").references(() => users.id),
     alertasConfig: jsonb("alertas_config")
       .$type<{ lembretes: number[]; canais: string[] }>()
       .notNull()
@@ -1009,8 +1081,57 @@ export const prazosProcessuais = pgTable(
     idxProcesso: index("prazos_processuais_processo_idx").on(table.processoId),
     idxStatus: index("prazos_processuais_status_idx").on(table.status),
     idxTipo: index("prazos_processuais_tipo_idx").on(table.tipo),
+    idxResponsavel: index("prazos_processuais_responsavel_idx").on(
+      table.responsavelId,
+    ),
     idxDataPrevista: index("prazos_processuais_data_prevista_idx").on(
       table.dataPrevista,
+    ),
+  }),
+);
+
+export const tarefasEquipe = pgTable(
+  "tarefas_equipe",
+  {
+    id: serial("id").primaryKey(),
+    processoId: integer("processo_id").references(() => processos.id, {
+      onDelete: "set null",
+    }),
+    prazoId: integer("prazo_id").references(() => prazosProcessuais.id, {
+      onDelete: "set null",
+    }),
+    titulo: varchar("titulo", { length: 200 }).notNull(),
+    descricao: text("descricao"),
+    dataEntrega: date("data_entrega").notNull(),
+    prioridade: tarefaEquipePrioridadeEnum("prioridade")
+      .notNull()
+      .default("MEDIA"),
+    status: tarefaEquipeStatusEnum("status").notNull().default("PENDENTE"),
+    delegadoPorId: integer("delegado_por_id").references(() => users.id),
+    responsavelId: integer("responsavel_id")
+      .notNull()
+      .references(() => users.id),
+    notificarResponsavel: boolean("notificar_responsavel")
+      .notNull()
+      .default(true),
+    concluidaEm: timestamp("concluida_em", { withTimezone: true }),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxProcesso: index("tarefas_equipe_processo_idx").on(table.processoId),
+    idxPrazo: index("tarefas_equipe_prazo_idx").on(table.prazoId),
+    idxStatus: index("tarefas_equipe_status_idx").on(table.status),
+    idxPrioridade: index("tarefas_equipe_prioridade_idx").on(table.prioridade),
+    idxResponsavel: index("tarefas_equipe_responsavel_idx").on(
+      table.responsavelId,
+    ),
+    idxDataEntrega: index("tarefas_equipe_data_entrega_idx").on(
+      table.dataEntrega,
     ),
   }),
 );
@@ -1179,6 +1300,138 @@ export const notificacoesUsuario = pgTable(
   }),
 );
 
+export const notificacoesPreferencias = pgTable(
+  "notificacoes_preferencias",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    frequencia: notificacaoFrequenciaEnum("frequencia")
+      .notNull()
+      .default("IMEDIATA"),
+    escopo: notificacaoEscopoEnum("escopo")
+      .notNull()
+      .default("MEUS_ITENS"),
+    canalInApp: boolean("canal_in_app").notNull().default(true),
+    canalEmail: boolean("canal_email").notNull().default(false),
+    canalPush: boolean("canal_push").notNull().default(false),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqUser: uniqueIndex("notificacoes_preferencias_user_uq").on(table.userId),
+  }),
+);
+
+export const notificacoesPushSubscriptions = pgTable(
+  "notificacoes_push_subscriptions",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: varchar("p256dh", { length: 255 }).notNull(),
+    auth: varchar("auth", { length: 255 }).notNull(),
+    expirationTime: timestamp("expiration_time", { withTimezone: true }),
+    userAgent: varchar("user_agent", { length: 255 }),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqUserEndpoint: uniqueIndex("notificacoes_push_user_endpoint_uq").on(
+      table.userId,
+      table.endpoint,
+    ),
+    idxUser: index("notificacoes_push_user_idx").on(table.userId),
+  }),
+);
+
+export const notificacoesEnvios = pgTable(
+  "notificacoes_envios",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    chave: varchar("chave", { length: 255 }).notNull(),
+    canal: notificacaoCanalEnum("canal").notNull(),
+    status: notificacaoEnvioStatusEnum("status")
+      .notNull()
+      .default("ENVIADO"),
+    destino: varchar("destino", { length: 255 }),
+    erro: text("erro"),
+    tentativas: integer("tentativas").notNull().default(0),
+    ultimoEnvioEm: timestamp("ultimo_envio_em", { withTimezone: true }),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqUserChaveCanal: uniqueIndex("notificacoes_envios_user_chave_uq").on(
+      table.userId,
+      table.chave,
+      table.canal,
+    ),
+    idxUser: index("notificacoes_envios_user_idx").on(table.userId),
+    idxStatus: index("notificacoes_envios_status_idx").on(table.status),
+  }),
+);
+
+export const prazosAgendaCompartilhamentos = pgTable(
+  "prazos_agenda_compartilhamentos",
+  {
+    id: serial("id").primaryKey(),
+    token: varchar("token", { length: 64 }).notNull(),
+    compartilhadoPorId: integer("compartilhado_por_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    compartilhadoComId: integer("compartilhado_com_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
+    permissao: agendaCompartilhamentoPermissaoEnum("permissao")
+      .notNull()
+      .default("SOMENTE_VISUALIZACAO"),
+    filtros: jsonb("filtros").notNull().default({}),
+    ativo: boolean("ativo").notNull().default(true),
+    expiraEm: timestamp("expira_em", { withTimezone: true }),
+    ultimoAcessoEm: timestamp("ultimo_acesso_em", { withTimezone: true }),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqToken: uniqueIndex("prazos_agenda_compartilhamentos_token_uq").on(
+      table.token,
+    ),
+    idxCompartilhadoPor: index(
+      "prazos_agenda_compartilhamentos_compartilhado_por_idx",
+    ).on(table.compartilhadoPorId),
+    idxCompartilhadoCom: index(
+      "prazos_agenda_compartilhamentos_compartilhado_com_idx",
+    ).on(table.compartilhadoComId),
+    idxAtivo: index("prazos_agenda_compartilhamentos_ativo_idx").on(
+      table.ativo,
+    ),
+  }),
+);
+
 export const importacaoBllExecucoes = pgTable(
   "importacao_bll_execucoes",
   {
@@ -1325,6 +1578,32 @@ export const importacaoBllProcessos = pgTable(
   }),
 );
 
+export const importacaoBllFornecedores = pgTable(
+  "importacao_bll_fornecedores",
+  {
+    id: serial("id").primaryKey(),
+    nome: varchar("nome", { length: 255 }).notNull(),
+    nomeNormalizado: varchar("nome_normalizado", { length: 255 }).notNull(),
+    documento: varchar("documento", { length: 20 }),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxNome: index("importacao_bll_fornecedores_nome_idx").on(table.nome),
+    uqNome: uniqueIndex("importacao_bll_fornecedores_nome_uq").on(
+      table.nomeNormalizado,
+    ),
+    uqDocumento: uniqueIndex(
+      "importacao_bll_fornecedores_documento_uq",
+    ).on(table.documento),
+  }),
+);
+
 export const importacaoBllItens = pgTable(
   "importacao_bll_itens",
   {
@@ -1332,6 +1611,10 @@ export const importacaoBllItens = pgTable(
     processoImportadoId: integer("processo_importado_id")
       .notNull()
       .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
+    fornecedorImportadoId: integer("fornecedor_importado_id").references(
+      () => importacaoBllFornecedores.id,
+      { onDelete: "set null" },
+    ),
     loteNumero: varchar("lote_numero", { length: 32 }),
     itemNumero: varchar("item_numero", { length: 32 }),
     descricao: text("descricao").notNull(),
@@ -1357,6 +1640,9 @@ export const importacaoBllItens = pgTable(
     idxProcessoImportado: index("importacao_bll_itens_processo_idx").on(
       table.processoImportadoId,
     ),
+    idxFornecedorImportado: index(
+      "importacao_bll_itens_espec_fornecedor_idx",
+    ).on(table.fornecedorImportadoId),
     idxLoteNumero: index("importacao_bll_itens_lote_idx").on(table.loteNumero),
     idxFornecedor: index("importacao_bll_itens_fornecedor_idx").on(
       table.fornecedorNome,
@@ -1372,6 +1658,10 @@ export const importacaoBllLotes = pgTable(
     processoImportadoId: integer("processo_importado_id")
       .notNull()
       .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
+    vencedorFornecedorId: integer("vencedor_fornecedor_id").references(
+      () => importacaoBllFornecedores.id,
+      { onDelete: "set null" },
+    ),
     numero: varchar("numero", { length: 32 }).notNull(),
     titulo: text("titulo").notNull(),
     tipo: importacaoBllLoteTipoEnum("tipo"),
@@ -1398,6 +1688,9 @@ export const importacaoBllLotes = pgTable(
     idxProcesso: index("importacao_bll_lotes_processo_idx").on(
       table.processoImportadoId,
     ),
+    idxVencedorFornecedor: index(
+      "importacao_bll_lotes_vencedor_fornecedor_idx",
+    ).on(table.vencedorFornecedorId),
     idxVencedor: index("importacao_bll_lotes_vencedor_idx").on(table.vencedor),
     idxTipo: index("importacao_bll_lotes_tipo_idx").on(table.tipo),
     uqProcessoNumero: uniqueIndex("importacao_bll_lotes_processo_numero_uq").on(
@@ -1418,6 +1711,10 @@ export const importacaoBllItensEspecificados = pgTable(
     processoImportadoId: integer("processo_importado_id")
       .notNull()
       .references(() => importacaoBllProcessos.id, { onDelete: "cascade" }),
+    fornecedorImportadoId: integer("fornecedor_importado_id").references(
+      () => importacaoBllFornecedores.id,
+      { onDelete: "set null" },
+    ),
     numeroItem: varchar("numero_item", { length: 32 }).notNull(),
     codigoCatalogo: varchar("codigo_catalogo", { length: 64 }),
     descricaoResumida: text("descricao_resumida").notNull(),
@@ -1464,6 +1761,9 @@ export const importacaoBllItensEspecificados = pgTable(
       table.processoImportadoId,
     ),
     idxLote: index("importacao_bll_itens_lote_idx").on(table.loteImportadoId),
+    idxFornecedorImportado: index(
+      "importacao_bll_itens_fornecedor_importado_idx",
+    ).on(table.fornecedorImportadoId),
     idxCatalogo: index("importacao_bll_itens_catalogo_idx").on(
       table.catalogoInternoId,
     ),
@@ -1501,6 +1801,345 @@ export const importacaoBllEdicoesAudit = pgTable(
     ),
     idxUsuario: index("importacao_bll_edicoes_audit_usuario_idx").on(
       table.usuarioId,
+    ),
+  }),
+);
+
+export const importacaoPncpExecucoes = pgTable(
+  "importacao_pncp_execucoes",
+  {
+    id: serial("id").primaryKey(),
+    dataInicio: date("data_inicio"),
+    dataFim: date("data_fim"),
+    status: importacaoPncpStatusExecucaoEnum("status")
+      .notNull()
+      .default("PROCESSANDO"),
+    agendada: boolean("agendada").notNull().default(false),
+    totalContratacoes: integer("total_contratacoes").notNull().default(0),
+    totalItensContratacao: integer("total_itens_contratacao")
+      .notNull()
+      .default(0),
+    totalAtas: integer("total_atas").notNull().default(0),
+    totalItensAta: integer("total_itens_ata").notNull().default(0),
+    totalContratos: integer("total_contratos").notNull().default(0),
+    totalAditivos: integer("total_aditivos").notNull().default(0),
+    totalFornecedores: integer("total_fornecedores").notNull().default(0),
+    mensagem: text("mensagem"),
+    erros: jsonb("erros"),
+    detalhes: jsonb("detalhes"),
+    criadoPor: integer("criado_por").references(() => users.id),
+    iniciadoEm: timestamp("iniciado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    finalizadoEm: timestamp("finalizado_em", { withTimezone: true }),
+  },
+  (table) => ({
+    idxStatus: index("importacao_pncp_execucoes_status_idx").on(table.status),
+    idxPeriodo: index("importacao_pncp_execucoes_periodo_idx").on(
+      table.dataInicio,
+      table.dataFim,
+    ),
+  }),
+);
+
+export const importacaoPncpFornecedores = pgTable(
+  "importacao_pncp_fornecedores",
+  {
+    id: serial("id").primaryKey(),
+    documento: varchar("documento", { length: 32 }),
+    nome: varchar("nome", { length: 255 }).notNull(),
+    tipo: varchar("tipo", { length: 8 }),
+    municipio: varchar("municipio", { length: 120 }),
+    uf: varchar("uf", { length: 2 }),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqDocumento: uniqueIndex("importacao_pncp_fornecedores_documento_uq").on(
+      table.documento,
+    ),
+    idxNome: index("importacao_pncp_fornecedores_nome_idx").on(table.nome),
+  }),
+);
+
+export const importacaoPncpContratacoes = pgTable(
+  "importacao_pncp_contratacoes",
+  {
+    id: serial("id").primaryKey(),
+    numeroControlePncp: varchar("numero_controle_pncp", { length: 120 })
+      .notNull(),
+    anoCompra: integer("ano_compra"),
+    sequencialCompra: integer("sequencial_compra"),
+    modalidade: varchar("modalidade", { length: 160 }),
+    modoDisputa: varchar("modo_disputa", { length: 160 }),
+    criterioJulgamento: varchar("criterio_julgamento", { length: 160 }),
+    objeto: text("objeto"),
+    valorTotalEstimado: numeric("valor_total_estimado", {
+      precision: 14,
+      scale: 2,
+    }),
+    dataPublicacao: timestamp("data_publicacao", { withTimezone: true }),
+    dataAberturaProposta: timestamp("data_abertura_proposta", {
+      withTimezone: true,
+    }),
+    dataEncerramentoProposta: timestamp("data_encerramento_proposta", {
+      withTimezone: true,
+    }),
+    orgaoEntidadeNome: varchar("orgao_entidade_nome", { length: 255 }),
+    orgaoEntidadeCnpj: varchar("orgao_entidade_cnpj", { length: 32 }),
+    unidadeNome: varchar("unidade_nome", { length: 255 }),
+    situacao: varchar("situacao", { length: 160 }),
+    urlProcesso: varchar("url_processo", { length: 500 }),
+    processoInternoId: integer("processo_interno_id").references(
+      () => processos.id,
+      { onDelete: "set null" },
+    ),
+    dadosOriginais: jsonb("dados_originais"),
+    ultimaExecucaoId: integer("ultima_execucao_id").references(
+      () => importacaoPncpExecucoes.id,
+      { onDelete: "set null" },
+    ),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqControle: uniqueIndex("importacao_pncp_contratacoes_controle_uq").on(
+      table.numeroControlePncp,
+    ),
+    idxPublicacao: index("importacao_pncp_contratacoes_publicacao_idx").on(
+      table.dataPublicacao,
+    ),
+    idxProcessoInterno: index(
+      "importacao_pncp_contratacoes_processo_interno_idx",
+    ).on(table.processoInternoId),
+  }),
+);
+
+export const importacaoPncpItensContratacao = pgTable(
+  "importacao_pncp_itens_contratacao",
+  {
+    id: serial("id").primaryKey(),
+    contratacaoId: integer("contratacao_id")
+      .notNull()
+      .references(() => importacaoPncpContratacoes.id, {
+        onDelete: "cascade",
+      }),
+    numeroItem: varchar("numero_item", { length: 64 }),
+    descricao: text("descricao"),
+    unidade: varchar("unidade", { length: 64 }),
+    quantidade: numeric("quantidade", { precision: 14, scale: 4 }),
+    valorUnitario: numeric("valor_unitario", { precision: 14, scale: 2 }),
+    valorTotal: numeric("valor_total", { precision: 14, scale: 2 }),
+    situacao: varchar("situacao", { length: 120 }),
+    fornecedorNome: varchar("fornecedor_nome", { length: 255 }),
+    fornecedorDocumento: varchar("fornecedor_documento", { length: 32 }),
+    fornecedorImportadoId: integer("fornecedor_importado_id").references(
+      () => importacaoPncpFornecedores.id,
+      { onDelete: "set null" },
+    ),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxContratacao: index("importacao_pncp_itens_contratacao_idx").on(
+      table.contratacaoId,
+    ),
+    uqContratacaoItem: uniqueIndex(
+      "importacao_pncp_itens_contratacao_uq",
+    ).on(table.contratacaoId, table.numeroItem),
+  }),
+);
+
+export const importacaoPncpAtas = pgTable(
+  "importacao_pncp_atas",
+  {
+    id: serial("id").primaryKey(),
+    idAtaPncp: varchar("id_ata_pncp", { length: 120 }).notNull(),
+    numeroAta: varchar("numero_ata", { length: 120 }),
+    objeto: text("objeto"),
+    valorGlobal: numeric("valor_global", { precision: 14, scale: 2 }),
+    dataAssinatura: timestamp("data_assinatura", { withTimezone: true }),
+    dataInicioVigencia: timestamp("data_inicio_vigencia", {
+      withTimezone: true,
+    }),
+    dataFimVigencia: timestamp("data_fim_vigencia", {
+      withTimezone: true,
+    }),
+    situacao: varchar("situacao", { length: 120 }),
+    orgaoGerenciadorNome: varchar("orgao_gerenciador_nome", { length: 255 }),
+    orgaoGerenciadorCnpj: varchar("orgao_gerenciador_cnpj", { length: 32 }),
+    fornecedorNome: varchar("fornecedor_nome", { length: 255 }),
+    fornecedorDocumento: varchar("fornecedor_documento", { length: 32 }),
+    fornecedorImportadoId: integer("fornecedor_importado_id").references(
+      () => importacaoPncpFornecedores.id,
+      { onDelete: "set null" },
+    ),
+    urlAta: varchar("url_ata", { length: 500 }),
+    processoInternoId: integer("processo_interno_id").references(
+      () => processos.id,
+      { onDelete: "set null" },
+    ),
+    dadosOriginais: jsonb("dados_originais"),
+    ultimaExecucaoId: integer("ultima_execucao_id").references(
+      () => importacaoPncpExecucoes.id,
+      { onDelete: "set null" },
+    ),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqAta: uniqueIndex("importacao_pncp_atas_id_uq").on(table.idAtaPncp),
+    idxVigencia: index("importacao_pncp_atas_vigencia_idx").on(
+      table.dataInicioVigencia,
+      table.dataFimVigencia,
+    ),
+    idxProcessoInterno: index("importacao_pncp_atas_processo_interno_idx").on(
+      table.processoInternoId,
+    ),
+  }),
+);
+
+export const importacaoPncpItensAta = pgTable(
+  "importacao_pncp_itens_ata",
+  {
+    id: serial("id").primaryKey(),
+    ataId: integer("ata_id")
+      .notNull()
+      .references(() => importacaoPncpAtas.id, { onDelete: "cascade" }),
+    numeroItem: varchar("numero_item", { length: 64 }),
+    descricao: text("descricao"),
+    unidade: varchar("unidade", { length: 64 }),
+    quantidade: numeric("quantidade", { precision: 14, scale: 4 }),
+    valorUnitario: numeric("valor_unitario", { precision: 14, scale: 2 }),
+    valorTotal: numeric("valor_total", { precision: 14, scale: 2 }),
+    fornecedorNome: varchar("fornecedor_nome", { length: 255 }),
+    fornecedorDocumento: varchar("fornecedor_documento", { length: 32 }),
+    fornecedorImportadoId: integer("fornecedor_importado_id").references(
+      () => importacaoPncpFornecedores.id,
+      { onDelete: "set null" },
+    ),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxAta: index("importacao_pncp_itens_ata_idx").on(table.ataId),
+    uqAtaItem: uniqueIndex("importacao_pncp_itens_ata_uq").on(
+      table.ataId,
+      table.numeroItem,
+    ),
+  }),
+);
+
+export const importacaoPncpContratos = pgTable(
+  "importacao_pncp_contratos",
+  {
+    id: serial("id").primaryKey(),
+    idContratoPncp: varchar("id_contrato_pncp", { length: 120 }).notNull(),
+    numeroContrato: varchar("numero_contrato", { length: 120 }),
+    objeto: text("objeto"),
+    modalidade: varchar("modalidade", { length: 160 }),
+    valorTotal: numeric("valor_total", { precision: 14, scale: 2 }),
+    dataAssinatura: timestamp("data_assinatura", { withTimezone: true }),
+    dataInicioVigencia: timestamp("data_inicio_vigencia", {
+      withTimezone: true,
+    }),
+    dataFimVigencia: timestamp("data_fim_vigencia", {
+      withTimezone: true,
+    }),
+    dataEncerramento: timestamp("data_encerramento", { withTimezone: true }),
+    situacao: varchar("situacao", { length: 120 }),
+    fornecedorNome: varchar("fornecedor_nome", { length: 255 }),
+    fornecedorDocumento: varchar("fornecedor_documento", { length: 32 }),
+    fornecedorImportadoId: integer("fornecedor_importado_id").references(
+      () => importacaoPncpFornecedores.id,
+      { onDelete: "set null" },
+    ),
+    urlContrato: varchar("url_contrato", { length: 500 }),
+    processoInternoId: integer("processo_interno_id").references(
+      () => processos.id,
+      { onDelete: "set null" },
+    ),
+    dadosOriginais: jsonb("dados_originais"),
+    ultimaExecucaoId: integer("ultima_execucao_id").references(
+      () => importacaoPncpExecucoes.id,
+      { onDelete: "set null" },
+    ),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    uqContrato: uniqueIndex("importacao_pncp_contratos_id_uq").on(
+      table.idContratoPncp,
+    ),
+    idxVigencia: index("importacao_pncp_contratos_vigencia_idx").on(
+      table.dataInicioVigencia,
+      table.dataFimVigencia,
+    ),
+    idxProcessoInterno: index(
+      "importacao_pncp_contratos_processo_interno_idx",
+    ).on(table.processoInternoId),
+  }),
+);
+
+export const importacaoPncpAditivos = pgTable(
+  "importacao_pncp_aditivos",
+  {
+    id: serial("id").primaryKey(),
+    contratoId: integer("contrato_id")
+      .notNull()
+      .references(() => importacaoPncpContratos.id, { onDelete: "cascade" }),
+    idAditivoPncp: varchar("id_aditivo_pncp", { length: 120 }),
+    numeroAditivo: varchar("numero_aditivo", { length: 120 }),
+    tipoAditivo: varchar("tipo_aditivo", { length: 160 }),
+    objeto: text("objeto"),
+    valorAditivo: numeric("valor_aditivo", { precision: 14, scale: 2 }),
+    dataAssinatura: timestamp("data_assinatura", { withTimezone: true }),
+    dataInicioVigencia: timestamp("data_inicio_vigencia", {
+      withTimezone: true,
+    }),
+    dataFimVigencia: timestamp("data_fim_vigencia", { withTimezone: true }),
+    dadosOriginais: jsonb("dados_originais"),
+    criadoEm: timestamp("criado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    idxContrato: index("importacao_pncp_aditivos_contrato_idx").on(
+      table.contratoId,
+    ),
+    uqContratoAditivo: uniqueIndex("importacao_pncp_aditivos_uq").on(
+      table.contratoId,
+      table.idAditivoPncp,
     ),
   }),
 );

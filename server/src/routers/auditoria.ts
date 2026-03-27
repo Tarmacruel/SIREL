@@ -6,6 +6,7 @@ import { requireDb } from "../db/client.js";
 import {
   auditoriaLog,
   documentos,
+  licitacaoChecklistExcecoes,
   licitacoes,
   prazosProcessuais,
   processos,
@@ -82,6 +83,10 @@ export const auditoriaRouter = router({
       const [lic] = await db.select({ id: licitacoes.id }).from(licitacoes).where(eq(licitacoes.processoId, input.processoId)).limit(1);
       const prazoIds = await db.select({ id: prazosProcessuais.id }).from(prazosProcessuais).where(eq(prazosProcessuais.processoId, input.processoId));
       const documentoIds = await db.select({ id: documentos.id }).from(documentos).where(eq(documentos.processoId, input.processoId));
+      const checklistExcecaoIds = await db
+        .select({ id: licitacaoChecklistExcecoes.id })
+        .from(licitacaoChecklistExcecoes)
+        .where(eq(licitacaoChecklistExcecoes.processoId, input.processoId));
 
       const relatedConditions = [
         and(eq(auditoriaLog.tabela, "processos"), eq(auditoriaLog.registroId, input.processoId)),
@@ -89,6 +94,9 @@ export const auditoriaRouter = router({
         lic ? and(eq(auditoriaLog.tabela, "licitacoes"), eq(auditoriaLog.registroId, lic.id)) : undefined,
         prazoIds.length ? and(eq(auditoriaLog.tabela, "prazos_processuais"), inArray(auditoriaLog.registroId, prazoIds.map((item) => item.id))) : undefined,
         documentoIds.length ? and(eq(auditoriaLog.tabela, "documentos"), inArray(auditoriaLog.registroId, documentoIds.map((item) => item.id))) : undefined,
+        checklistExcecaoIds.length
+          ? and(eq(auditoriaLog.tabela, "licitacao_checklist_excecoes"), inArray(auditoriaLog.registroId, checklistExcecaoIds.map((item) => item.id)))
+          : undefined,
       ].filter(Boolean) as any[];
 
       if (relatedConditions.length) {
@@ -127,6 +135,7 @@ export const auditoriaRouter = router({
     const licitacaoIds = rows.filter((row) => row.tabela === "licitacoes").map((row) => row.registroId);
     const prazoIds = rows.filter((row) => row.tabela === "prazos_processuais").map((row) => row.registroId);
     const workflowIds = rows.filter((row) => row.tabela === "workflow_processo").map((row) => row.registroId);
+    const checklistExcecaoIds = rows.filter((row) => row.tabela === "licitacao_checklist_excecoes").map((row) => row.registroId);
 
     rows.forEach((row) => {
       if (row.tabela === "processos") processIds.add(row.registroId);
@@ -152,6 +161,14 @@ export const auditoriaRouter = router({
       : [];
     workflowRows.forEach((row) => processIds.add(row.processoId));
 
+    const checklistExcecaoRows = checklistExcecaoIds.length
+      ? await db
+        .select({ id: licitacaoChecklistExcecoes.id, processoId: licitacaoChecklistExcecoes.processoId })
+        .from(licitacaoChecklistExcecoes)
+        .where(inArray(licitacaoChecklistExcecoes.id, checklistExcecaoIds))
+      : [];
+    checklistExcecaoRows.forEach((row) => processIds.add(row.processoId));
+
     const processoRows = processIds.size
       ? await db.select({ id: processos.id, numeroSirel: processos.numeroSirel, objeto: processos.objeto }).from(processos).where(inArray(processos.id, Array.from(processIds)))
       : [];
@@ -160,6 +177,7 @@ export const auditoriaRouter = router({
     const licitacaoMap = new Map(licitacaoRows.map((row) => [row.id, row]));
     const prazoMap = new Map(prazoRows.map((row) => [row.id, row]));
     const workflowMap = new Map(workflowRows.map((row) => [row.id, row]));
+    const checklistExcecaoMap = new Map(checklistExcecaoRows.map((row) => [row.id, row]));
     const processoMap = new Map(processoRows.map((row) => [row.id, row]));
 
     return {
@@ -171,10 +189,11 @@ export const auditoriaRouter = router({
         const licitacao = licitacaoMap.get(row.registroId);
         const prazo = prazoMap.get(row.registroId);
         const workflow = workflowMap.get(row.registroId);
+        const checklistExcecao = checklistExcecaoMap.get(row.registroId);
         const processoId =
           row.tabela === "processos"
             ? row.registroId
-            : documento?.processoId ?? licitacao?.processoId ?? prazo?.processoId ?? workflow?.processoId ?? null;
+            : documento?.processoId ?? licitacao?.processoId ?? prazo?.processoId ?? workflow?.processoId ?? checklistExcecao?.processoId ?? null;
         const processo = processoId ? processoMap.get(processoId) : null;
 
         return {

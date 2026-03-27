@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 
 import {
+  getLicitacaoChecklistCategories,
   licitacaoInternalDocumentChecklist,
   licitacaoPrazoBasePorModalidade,
   prazoProcessualTipoLabels,
@@ -11,6 +12,7 @@ import {
   licitacaoDetailInputSchema,
   licitacaoDeleteLicitanteInputSchema,
   licitacaoHomologarInputSchema,
+  licitacaoChecklistNaoAplicavelInputSchema,
   licitacaoListInputSchema,
   licitacaoPublishInputSchema,
   licitacaoQuickFornecedorInputSchema,
@@ -22,6 +24,7 @@ import {
   licitacaoSaveRecursoInputSchema,
 } from "@sirel/shared/schemas/licitacao";
 
+import type { AppContext } from "../_core/context.js";
 import { logAuditoria } from "../db/auditoria.js";
 import { requireDb } from "../db/client.js";
 import {
@@ -29,6 +32,7 @@ import {
   fornecedores,
   itensProcesso,
   lancesLicitacao,
+  licitacaoChecklistExcecoes,
   licitacaoStatusEnum,
   licitacoes,
   licitantes,
@@ -59,6 +63,16 @@ function parseOptionalTimestamp(value?: string | null) {
   }
   return parsed;
 }
+
+function parseOptionalTimestampLoose(value?: string | Date | null) {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: `Data/hora inválida: ${value}` });
+  }
+  return parsed;
+}
+
 
 function parseOptionalDate(value?: string | null) {
   if (!value?.trim()) return null;
@@ -186,6 +200,76 @@ async function buildPublicationSchedule(db: DbClient, params: {
   };
 }
 
+function buildManualSchedule(params: {
+  dataPublicacaoEdital?: string | Date | null;
+  dataRecebimentoPropostasInicio?: string | Date | null;
+  dataRecebimentoPropostasFim?: string | Date | null;
+  dataAberturaPropostas?: string | Date | null;
+}) {
+  const dataPublicacaoEdital = parseOptionalTimestampLoose(params.dataPublicacaoEdital);
+  const dataRecebimentoPropostasInicio = parseOptionalTimestampLoose(params.dataRecebimentoPropostasInicio);
+  const dataRecebimentoPropostasFim = parseOptionalTimestampLoose(params.dataRecebimentoPropostasFim);
+  const dataAberturaPropostas = parseOptionalTimestampLoose(params.dataAberturaPropostas);
+
+  if (!dataPublicacaoEdital || !dataRecebimentoPropostasFim || !dataAberturaPropostas) {
+    return null;
+  }
+
+  return {
+    baseDays: 0,
+    municipioExtra: 0,
+    canaisExtra: 0,
+    startOffset: 0,
+    totalBusinessDays: 0,
+    dataPublicacaoEdital,
+    dataRecebimentoPropostasInicio: dataRecebimentoPropostasInicio ?? dataPublicacaoEdital,
+    dataRecebimentoPropostasFim,
+    dataAberturaPropostas,
+  };
+}
+
+function normalizeAuditValue(value: unknown) {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return value ?? null;
+}
+
+function buildAuditChanges<T extends Record<string, unknown>>(before: T, after: T, fields: { key: keyof T; label: string }[]) {
+  return fields
+    .map((field) => {
+      const previous = normalizeAuditValue(before[field.key]);
+      const next = normalizeAuditValue(after[field.key]);
+      return { ...field, previous, next, changed: previous !== next };
+    })
+    .filter((item) => item.changed);
+}
+
+async function logAuditoriaDetalhada(
+  ctx: AppContext,
+  params: {
+    tabela: string;
+    registroId: number;
+    changes: { key: string | number | symbol; label: string; previous: unknown; next: unknown }[];
+    justificativa?: string | null;
+    prefixo?: string;
+  },
+) {
+  if (!params.changes.length) return;
+  await Promise.all(
+    params.changes.map((change) =>
+      logAuditoria(ctx, {
+        tabela: params.tabela,
+        registroId: params.registroId,
+        acao: "UPDATE",
+        dadosAnteriores: { campo: change.label, valor: change.previous },
+        dadosNovos: { campo: change.label, valor: change.next },
+        descricao: `${params.prefixo ?? "Alteração fora do fluxo"}: ${String(change.label)} ajustado${params.justificativa ? ` | Justificativa: ${params.justificativa}` : ""}`,
+      }),
+    ),
+  );
+}
+
 async function getChecklistDocuments(db: DbClient, processoId: number) {
   const rows = await db
     .select({
@@ -202,8 +286,35 @@ async function getChecklistDocuments(db: DbClient, processoId: number) {
   return rows.map((item) => ({ ...item, arquivoUrl: buildDocumentoUrl(item.id) }));
 }
 
-async function buildInternalChecklist(db: DbClient, processoId: number, exigeDeclaracaoNaoFracionamento: boolean) {
+async function getChecklistOverrides(db: DbClient, processoId: number) {
+  const rows = await db
+    .select({
+      id: licitacaoChecklistExcecoes.id,
+      categoria: licitacaoChecklistExcecoes.categoria,
+      naoAplicavel: licitacaoChecklistExcecoes.naoAplicavel,
+      justificativa: licitacaoChecklistExcecoes.justificativa,
+    })
+    .from(licitacaoChecklistExcecoes)
+    .where(eq(licitacaoChecklistExcecoes.processoId, processoId));
+
+  const overrides = new Map<string, (typeof rows)[number]>();
+  rows.forEach((row) => {
+    const category = row.categoria?.trim();
+    if (!category) return;
+    overrides.set(category, row);
+  });
+  return overrides;
+}
+
+async function buildInternalChecklist(
+  db: DbClient,
+  processoId: number,
+  exigeDeclaracaoNaoFracionamento: boolean,
+  modalidadeCodigo?: string | null,
+  modoDisputa?: string | null,
+) {
   const docs = await getChecklistDocuments(db, processoId);
+  const overrides = await getChecklistOverrides(db, processoId);
   const byCategory = new Map<string, (typeof docs)[number][]>();
 
   docs.forEach((documento) => {
@@ -212,13 +323,22 @@ async function buildInternalChecklist(db: DbClient, processoId: number, exigeDec
     byCategory.set(category, [...(byCategory.get(category) ?? []), documento]);
   });
 
+  const allowedCategories = new Set(
+    getLicitacaoChecklistCategories({ modalidadeCodigo, modoDisputa }),
+  );
+
   const itens = licitacaoInternalDocumentChecklist
+    .filter((item) => allowedCategories.has(item.category))
     .filter((item) => !("condicional" in item) || item.condicional !== "DECLARACAO_NAO_FRACIONAMENTO" || exigeDeclaracaoNaoFracionamento)
     .map((item) => {
       const documentosCategoria = byCategory.get(item.category) ?? [];
+      const override = overrides.get(item.category);
+      const naoAplicavel = Boolean(override?.naoAplicavel);
       return {
         ...item,
-        concluido: documentosCategoria.length > 0,
+        concluido: documentosCategoria.length > 0 || naoAplicavel,
+        naoAplicavel,
+        justificativaNaoAplicavel: override?.justificativa ?? null,
         documentos: documentosCategoria,
       };
     });
@@ -364,6 +484,7 @@ async function getBaseProcesso(db: DbClient, processoId: number) {
       numeroAdministrativo: processos.numeroAdministrativo,
       objeto: processos.objeto,
       anoReferencia: processos.anoReferencia,
+      foraDoFluxo: processos.foraDoFluxo,
       secretariaId: processos.secretariaId,
       secretaria: secretarias.nome,
       modalidadeId: processos.modalidadeId,
@@ -687,6 +808,8 @@ export const licitacaoRouter = router({
             dataFimLances: null,
             dataJulgamento: null,
             dataHomologacao: null,
+            inversaoFasesHabilitada: false,
+            inversaoFasesJustificativa: null,
             observacoes: null,
           },
       itens,
@@ -710,15 +833,24 @@ export const licitacaoRouter = router({
         db,
         input.processoId,
         Boolean(licitacao?.exigeDeclaracaoNaoFracionamento),
+        processo.modalidadeCodigo,
+        processo.modoDisputa,
       ),
-      calendarioPublicacao: await buildPublicationSchedule(db, {
-        modalidadeCodigo: processo.modalidadeCodigo,
-        tipoObjeto: processo.tipoObjeto,
-        dataPublicacaoEdital: licitacao?.dataPublicacaoEdital ?? null,
-        publicarNoDou: licitacao?.publicarNoDou ?? false,
-        publicarEmJornal: licitacao?.publicarEmJornal ?? false,
-        dataAberturaPropostas: licitacao?.dataAberturaPropostas ?? null,
-      }),
+      calendarioPublicacao: processo.foraDoFluxo
+        ? buildManualSchedule({
+            dataPublicacaoEdital: licitacao?.dataPublicacaoEdital ?? null,
+            dataRecebimentoPropostasInicio: licitacao?.dataRecebimentoPropostasInicio ?? null,
+            dataRecebimentoPropostasFim: licitacao?.dataRecebimentoPropostasFim ?? null,
+            dataAberturaPropostas: licitacao?.dataAberturaPropostas ?? null,
+          })
+        : await buildPublicationSchedule(db, {
+            modalidadeCodigo: processo.modalidadeCodigo,
+            tipoObjeto: processo.tipoObjeto,
+            dataPublicacaoEdital: licitacao?.dataPublicacaoEdital ?? null,
+            publicarNoDou: licitacao?.publicarNoDou ?? false,
+            publicarEmJornal: licitacao?.publicarEmJornal ?? false,
+            dataAberturaPropostas: licitacao?.dataAberturaPropostas ?? null,
+          }),
       resumo: {
         totalItens: itens.length,
         totalLicitantes: licitantesRows.length,
@@ -737,16 +869,38 @@ export const licitacaoRouter = router({
     }
 
     const licitacao = await ensureLicitacao(db, input.processoId);
+    const justificativaAuditoria = toNullableText(input.justificativaAuditoria);
+    if (processo.foraDoFluxo && !justificativaAuditoria) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa de auditoria para alterar processos fora do fluxo." });
+    }
+
+
+    const inversaoFasesHabilitada = Boolean(input.inversaoFasesHabilitada);
+    const inversaoFasesJustificativa = inversaoFasesHabilitada ? toNullableText(input.inversaoFasesJustificativa) : null;
+    if (inversaoFasesHabilitada && !inversaoFasesJustificativa) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa para a inversão de fases." });
+    }
+
     const configuredPublicationDate = parseOptionalTimestamp(input.dataPublicacaoEdital);
     const configuredDisputeDate = parseOptionalTimestamp(input.dataAberturaPropostas);
-    const schedule = await buildPublicationSchedule(db, {
-      modalidadeCodigo: processo.modalidadeCodigo,
-      tipoObjeto: processo.tipoObjeto,
-      dataPublicacaoEdital: configuredPublicationDate,
-      publicarNoDou: input.publicarNoDou,
-      publicarEmJornal: input.publicarEmJornal,
-      dataAberturaPropostas: configuredDisputeDate,
-    });
+    const manualSchedule = processo.foraDoFluxo
+      ? buildManualSchedule({
+          dataPublicacaoEdital: configuredPublicationDate,
+          dataRecebimentoPropostasInicio: input.dataRecebimentoPropostasInicio,
+          dataRecebimentoPropostasFim: input.dataRecebimentoPropostasFim,
+          dataAberturaPropostas: input.dataAberturaPropostas,
+        })
+      : null;
+    const schedule = processo.foraDoFluxo
+      ? manualSchedule
+      : await buildPublicationSchedule(db, {
+          modalidadeCodigo: processo.modalidadeCodigo,
+          tipoObjeto: processo.tipoObjeto,
+          dataPublicacaoEdital: configuredPublicationDate,
+          publicarNoDou: input.publicarNoDou,
+          publicarEmJornal: input.publicarEmJornal,
+          dataAberturaPropostas: configuredDisputeDate,
+        });
     const patch = {
       exigeDeclaracaoNaoFracionamento: Boolean(input.exigeDeclaracaoNaoFracionamento),
       publicarNoDou: Boolean(input.publicarNoDou),
@@ -758,23 +912,26 @@ export const licitacaoRouter = router({
       dataInicioLances: parseOptionalTimestamp(input.dataInicioLances),
       dataFimLances: parseOptionalTimestamp(input.dataFimLances),
       dataJulgamento: parseOptionalTimestamp(input.dataJulgamento),
+      inversaoFasesHabilitada,
+      inversaoFasesJustificativa,
       observacoes: toNullableText(input.observacoes),
+      atualizadoEm: new Date(),
+    };
+    const processoPatch = {
+      criterioJulgamento: toNullableText(input.criterioJulgamento),
+      modoDisputa: toNullableText(input.modoDisputa),
       atualizadoEm: new Date(),
     };
 
     await db.update(licitacoes).set(patch).where(eq(licitacoes.id, licitacao.id));
-    await db.update(processos).set({
-      criterioJulgamento: toNullableText(input.criterioJulgamento),
-      modoDisputa: toNullableText(input.modoDisputa),
-      atualizadoEm: new Date(),
-    }).where(eq(processos.id, input.processoId));
+    await db.update(processos).set(processoPatch).where(eq(processos.id, input.processoId));
     await syncWorkflowStep(db, input.processoId, "Licitação / preparação interna e publicidade");
     await syncPublicationDeadlines(db, input.processoId, schedule, ctx.user?.id ?? null);
     await appendMovement(db, {
       processoId: input.processoId,
       usuarioId: ctx.user?.id ?? null,
       descricao: "Configuração da Licitação atualizada",
-      observacao: toNullableText(input.observacoes),
+      observacao: [toNullableText(input.observacoes), processo.foraDoFluxo ? justificativaAuditoria : null].filter(Boolean).join(" | ") || null,
     });
 
     await logAuditoria(ctx, {
@@ -786,8 +943,124 @@ export const licitacaoRouter = router({
       descricao: `Configuração da licitação do processo ${processo.numeroSirel} atualizada`,
     });
 
+    if (processo.foraDoFluxo) {
+      const licitacaoAfter = { ...licitacao, ...patch };
+      const processoAfter = { ...processo, ...processoPatch };
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "licitacoes",
+        registroId: licitacao.id,
+        changes: buildAuditChanges(licitacao, licitacaoAfter, [
+          { key: "exigeDeclaracaoNaoFracionamento", label: "Exigir declaração de não fracionamento" },
+          { key: "publicarNoDou", label: "Publicação no DOU" },
+          { key: "publicarEmJornal", label: "Publicação em jornal" },
+          { key: "dataPublicacaoEdital", label: "Data de publicação do edital" },
+          { key: "dataRecebimentoPropostasInicio", label: "Recebimento de propostas (in?cio)" },
+          { key: "dataRecebimentoPropostasFim", label: "Recebimento de propostas (fim)" },
+          { key: "dataAberturaPropostas", label: "Abertura de propostas" },
+          { key: "dataInicioLances", label: "In?cio dos lances" },
+          { key: "dataFimLances", label: "Fim dos lances" },
+          { key: "dataJulgamento", label: "Data de julgamento" },
+          { key: "inversaoFasesHabilitada", label: "Invers?o de fases habilitada" },
+          { key: "inversaoFasesJustificativa", label: "Justificativa de invers?o de fases" },
+          { key: "observacoes", label: "Observações internas" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Configuração fora do fluxo",
+      });
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "processos",
+        registroId: input.processoId,
+        changes: buildAuditChanges(processo, processoAfter, [
+          { key: "criterioJulgamento", label: "Crit?rio de julgamento" },
+          { key: "modoDisputa", label: "Modo de disputa" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Configuração fora do fluxo",
+      });
+    }
+
     return { success: true };
   }),
+
+  setChecklistNaoAplicavel: operadorProcedure
+    .input(licitacaoChecklistNaoAplicavelInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+      const processo = await getBaseProcesso(db, input.processoId);
+      if (!processo.foraDoFluxo) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A marcação de não aplicável só está disponível para processos fora do fluxo." });
+      }
+
+      const justificativaAuditoria = toNullableText(input.justificativaAuditoria);
+      if (!justificativaAuditoria) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa de auditoria para atualizar o checklist fora do fluxo." });
+      }
+
+      const categoria = input.categoria.trim();
+      const naoAplicavel = Boolean(input.naoAplicavel);
+      const justificativa = naoAplicavel ? toNullableText(input.justificativa) : null;
+      if (naoAplicavel && !justificativa) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa para marcar o item como não aplicável." });
+      }
+
+      const [existing] = await db
+        .select()
+        .from(licitacaoChecklistExcecoes)
+        .where(and(eq(licitacaoChecklistExcecoes.processoId, input.processoId), eq(licitacaoChecklistExcecoes.categoria, categoria)))
+        .limit(1);
+
+      const now = new Date();
+      let registroId = existing?.id ?? null;
+
+      if (existing) {
+        await db
+          .update(licitacaoChecklistExcecoes)
+          .set({
+            naoAplicavel,
+            justificativa,
+            atualizadoEm: now,
+          })
+          .where(eq(licitacaoChecklistExcecoes.id, existing.id));
+      } else {
+        const [inserted] = await db
+          .insert(licitacaoChecklistExcecoes)
+          .values({
+            processoId: input.processoId,
+            categoria,
+            naoAplicavel,
+            justificativa,
+            criadoEm: now,
+            atualizadoEm: now,
+          })
+          .returning({ id: licitacaoChecklistExcecoes.id });
+        registroId = inserted?.id ?? null;
+      }
+
+      const previousSnapshot = {
+        naoAplicavel: existing?.naoAplicavel ?? false,
+        justificativa: existing?.justificativa ?? null,
+      };
+      const nextSnapshot = {
+        naoAplicavel,
+        justificativa,
+      };
+
+      if (registroId) {
+        const logJustificativa = [justificativaAuditoria, justificativa].filter(Boolean).join(" | ") || undefined;
+        await logAuditoriaDetalhada(ctx, {
+          tabela: "licitacao_checklist_excecoes",
+          registroId,
+          changes: buildAuditChanges(previousSnapshot, nextSnapshot, [
+            { key: "naoAplicavel", label: "Item marcado como não aplicável" },
+            { key: "justificativa", label: "Justificativa do item não aplicável" },
+          ]),
+          justificativa: logJustificativa,
+          prefixo: "Checklist fora do fluxo",
+        });
+      }
+
+      return { success: true };
+    }),
 
   publish: operadorProcedure.input(licitacaoPublishInputSchema).mutation(async ({ ctx, input }) => {
     const db = requireDb();
@@ -802,37 +1075,69 @@ export const licitacaoRouter = router({
     }
 
     const licitacao = await ensureLicitacao(db, input.processoId);
-    const checklist = await buildInternalChecklist(db, input.processoId, Boolean(licitacao.exigeDeclaracaoNaoFracionamento));
-    if (checklist.obrigatoriosPendentes.length) {
+    const justificativaAuditoria = toNullableText(input.justificativaAuditoria);
+    if (processo.foraDoFluxo && !justificativaAuditoria) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa de auditoria para publicar processos fora do fluxo." });
+    }
+
+    const checklist = await buildInternalChecklist(
+      db,
+      input.processoId,
+      Boolean(licitacao.exigeDeclaracaoNaoFracionamento),
+      processo.modalidadeCodigo,
+      processo.modoDisputa,
+    );
+    if (!processo.foraDoFluxo && checklist.obrigatoriosPendentes.length) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: "Conclua todos os documentos obrigatórios da fase interna antes de publicar o processo.",
       });
     }
 
-    const schedule = await buildPublicationSchedule(db, {
-      modalidadeCodigo: processo.modalidadeCodigo,
-      tipoObjeto: processo.tipoObjeto,
-      dataPublicacaoEdital: parseOptionalTimestamp(input.dataPublicacaoEdital) ?? licitacao.dataPublicacaoEdital ?? new Date(),
-      publicarNoDou: licitacao.publicarNoDou,
-      publicarEmJornal: licitacao.publicarEmJornal,
-      dataAberturaPropostas: parseOptionalTimestamp(input.dataAberturaPropostas) ?? licitacao.dataAberturaPropostas ?? null,
-    });
+    const manualSchedule = processo.foraDoFluxo
+      ? buildManualSchedule({
+          dataPublicacaoEdital: input.dataPublicacaoEdital ?? licitacao.dataPublicacaoEdital,
+          dataRecebimentoPropostasInicio: input.dataRecebimentoPropostasInicio ?? licitacao.dataRecebimentoPropostasInicio,
+          dataRecebimentoPropostasFim: input.dataRecebimentoPropostasFim ?? licitacao.dataRecebimentoPropostasFim,
+          dataAberturaPropostas: input.dataAberturaPropostas ?? licitacao.dataAberturaPropostas,
+        })
+      : null;
+    const schedule = processo.foraDoFluxo
+      ? manualSchedule
+      : await buildPublicationSchedule(db, {
+          modalidadeCodigo: processo.modalidadeCodigo,
+          tipoObjeto: processo.tipoObjeto,
+          dataPublicacaoEdital: parseOptionalTimestamp(input.dataPublicacaoEdital) ?? licitacao.dataPublicacaoEdital ?? new Date(),
+          publicarNoDou: licitacao.publicarNoDou,
+          publicarEmJornal: licitacao.publicarEmJornal,
+          dataAberturaPropostas: parseOptionalTimestamp(input.dataAberturaPropostas) ?? licitacao.dataAberturaPropostas ?? null,
+        });
     if (!schedule) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a data prevista de publicação para gerar o cronograma automático." });
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: processo.foraDoFluxo
+          ? "Informe as datas manuais de publicação, recebimento e abertura para concluir a publicação fora do fluxo."
+          : "Informe a data prevista de publicação para gerar o cronograma automático.",
+      });
     }
+
+    const dataPublicacaoEdital = schedule.dataPublicacaoEdital ?? parseOptionalTimestamp(input.dataPublicacaoEdital) ?? licitacao.dataPublicacaoEdital ?? new Date();
+    const dataRecebimentoPropostasInicio = schedule.dataRecebimentoPropostasInicio ?? parseOptionalTimestamp(input.dataRecebimentoPropostasInicio) ?? licitacao.dataRecebimentoPropostasInicio ?? null;
+    const dataRecebimentoPropostasFim = schedule.dataRecebimentoPropostasFim ?? parseOptionalTimestamp(input.dataRecebimentoPropostasFim) ?? licitacao.dataRecebimentoPropostasFim ?? null;
+    const dataAberturaPropostas = schedule.dataAberturaPropostas ?? parseOptionalTimestamp(input.dataAberturaPropostas) ?? licitacao.dataAberturaPropostas ?? null;
 
     const numeroEdital = processo.numeroEdital ?? await getNextNumeroEdital(db, processo.anoReferencia, processo.modalidadeCodigo);
     const licitacaoPatch = {
       statusLicitacao: "RECEBIMENTO_PROPOSTAS" as LicitacaoStatus,
-      dataPublicacaoEdital: schedule.dataPublicacaoEdital,
-      dataRecebimentoPropostasInicio: schedule.dataRecebimentoPropostasInicio,
-      dataRecebimentoPropostasFim: schedule.dataRecebimentoPropostasFim,
-      dataAberturaPropostas: schedule.dataAberturaPropostas,
-      dataInicioLances: parseOptionalTimestamp(input.dataInicioLances),
-      dataFimLances: parseOptionalTimestamp(input.dataFimLances),
+      dataPublicacaoEdital,
+      dataRecebimentoPropostasInicio,
+      dataRecebimentoPropostasFim,
+      dataAberturaPropostas,
+      dataInicioLances: parseOptionalTimestamp(input.dataInicioLances) ?? licitacao.dataInicioLances ?? null,
+      dataFimLances: parseOptionalTimestamp(input.dataFimLances) ?? licitacao.dataFimLances ?? null,
       atualizadoEm: new Date(),
     };
+
 
     await db.update(licitacoes).set(licitacaoPatch).where(eq(licitacoes.id, licitacao.id));
     await db.update(processos).set({
@@ -848,7 +1153,7 @@ export const licitacaoRouter = router({
       processoId: input.processoId,
       usuarioId: ctx.user?.id ?? null,
       descricao: input.descricao?.trim() || `Processo publicado com edital ${numeroEdital}`,
-      observacao: toNullableText(input.observacao),
+      observacao: [toNullableText(input.observacao), processo.foraDoFluxo ? justificativaAuditoria : null].filter(Boolean).join(" | ") || null,
     });
 
     await logAuditoria(ctx, {
@@ -860,11 +1165,49 @@ export const licitacaoRouter = router({
         numeroEdital,
         condutorProcessoId: input.condutorProcessoId,
         publicado: true,
-        dataRecebimentoPropostasFim: schedule.dataRecebimentoPropostasFim,
-        dataAberturaPropostas: schedule.dataAberturaPropostas,
+        dataRecebimentoPropostasFim,
+        dataAberturaPropostas,
       },
       descricao: `Processo ${processo.numeroSirel} publicado na fase de licitação`,
     });
+
+    if (processo.foraDoFluxo) {
+      const licitacaoAfter = { ...licitacao, ...licitacaoPatch };
+      const processoAfter = {
+        ...processo,
+        numeroEdital,
+        condutorProcessoId: input.condutorProcessoId,
+        publicado: true,
+        statusId: input.statusId ?? processo.statusId,
+      };
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "licitacoes",
+        registroId: licitacao.id,
+        changes: buildAuditChanges(licitacao, licitacaoAfter, [
+          { key: "statusLicitacao", label: "Status da licitação" },
+          { key: "dataPublicacaoEdital", label: "Data de publicação do edital" },
+          { key: "dataRecebimentoPropostasInicio", label: "Recebimento de propostas (in?cio)" },
+          { key: "dataRecebimentoPropostasFim", label: "Recebimento de propostas (fim)" },
+          { key: "dataAberturaPropostas", label: "Abertura de propostas" },
+          { key: "dataInicioLances", label: "In?cio dos lances" },
+          { key: "dataFimLances", label: "Fim dos lances" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Publicação fora do fluxo",
+      });
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "processos",
+        registroId: input.processoId,
+        changes: buildAuditChanges(processo, processoAfter, [
+          { key: "numeroEdital", label: "N?mero do edital" },
+          { key: "condutorProcessoId", label: "Condutor do processo" },
+          { key: "publicado", label: "Processo publicado" },
+          { key: "statusId", label: "Status do processo" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Publicação fora do fluxo",
+      });
+    }
 
     return {
       success: true,
@@ -1212,6 +1555,12 @@ export const licitacaoRouter = router({
 
   advanceStage: operadorProcedure.input(licitacaoAdvanceStageInputSchema).mutation(async ({ ctx, input }) => {
     const db = requireDb();
+    const processo = await getBaseProcesso(db, input.processoId);
+    const justificativaAuditoria = toNullableText(input.justificativaAuditoria);
+    if (processo.foraDoFluxo && !justificativaAuditoria) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa de auditoria para alterar o status fora do fluxo." });
+    }
+
     const licitacao = await ensureLicitacao(db, input.processoId);
     await db.update(licitacoes).set({
       statusLicitacao: input.statusLicitacao,
@@ -1222,8 +1571,20 @@ export const licitacaoRouter = router({
       processoId: input.processoId,
       usuarioId: ctx.user?.id ?? null,
       descricao: `Etapa da Licitação alterada para ${input.etapaAtual}`,
-      observacao: toNullableText(input.observacao),
+      observacao: [toNullableText(input.observacao), processo.foraDoFluxo ? justificativaAuditoria : null].filter(Boolean).join(" | ") || null,
     });
+
+    if (processo.foraDoFluxo) {
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "licitacoes",
+        registroId: licitacao.id,
+        changes: buildAuditChanges(licitacao, { ...licitacao, statusLicitacao: input.statusLicitacao }, [
+          { key: "statusLicitacao", label: "Status da licitação" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Alteração fora do fluxo",
+      });
+    }
 
     return { success: true };
   }),
@@ -1232,6 +1593,10 @@ export const licitacaoRouter = router({
     const db = requireDb();
     const processo = await getBaseProcesso(db, input.processoId);
     const licitacao = await ensureLicitacao(db, input.processoId);
+    const justificativaAuditoria = toNullableText(input.justificativaAuditoria);
+    if (processo.foraDoFluxo && !justificativaAuditoria) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Informe a justificativa de auditoria para homologar processos fora do fluxo." });
+    }
     const dataHomologacao = parseOptionalDate(input.dataHomologacao);
 
     await db.update(licitacoes).set({
@@ -1249,7 +1614,7 @@ export const licitacaoRouter = router({
       processoId: input.processoId,
       usuarioId: ctx.user?.id ?? null,
       descricao: "Licitação homologada",
-      observacao: toNullableText(input.observacao),
+      observacao: [toNullableText(input.observacao), processo.foraDoFluxo ? justificativaAuditoria : null].filter(Boolean).join(" | ") || null,
     });
     await logAuditoria(ctx, {
       tabela: "processos",
@@ -1260,7 +1625,31 @@ export const licitacaoRouter = router({
       descricao: `Processo ${processo.numeroSirel} homologado`,
     });
 
+    if (processo.foraDoFluxo) {
+      const licitacaoAfter = { ...licitacao, statusLicitacao: "HOMOLOGACAO", dataHomologacao: dataHomologacao ? new Date(`${dataHomologacao}T12:00:00`) : new Date() };
+      const processoAfter = { ...processo, homologado: true, statusId: input.statusId ?? processo.statusId };
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "licitacoes",
+        registroId: licitacao.id,
+        changes: buildAuditChanges(licitacao, licitacaoAfter, [
+          { key: "statusLicitacao", label: "Status da licitação" },
+          { key: "dataHomologacao", label: "Data de homologação" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Homologação fora do fluxo",
+      });
+      await logAuditoriaDetalhada(ctx, {
+        tabela: "processos",
+        registroId: input.processoId,
+        changes: buildAuditChanges(processo, processoAfter, [
+          { key: "homologado", label: "Processo homologado" },
+          { key: "statusId", label: "Status do processo" },
+        ]),
+        justificativa: justificativaAuditoria,
+        prefixo: "Homologação fora do fluxo",
+      });
+    }
+
     return { success: true };
   }),
 });
-
