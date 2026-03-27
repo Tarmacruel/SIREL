@@ -1,0 +1,70 @@
+
+> sirel-modern@0.1.0 dev:client
+> npm run dev --workspace client
+
+
+> @sirel/client@0.1.0 dev
+> vite
+
+[2m14:23:23[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because lockfile has changed
+
+  [32m[1mVITE[22m v6.4.1[39m  [2mready in [0m[1m552[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.18.103:[1m5173[22m/[39m
+[2m14:39:07[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/app-shell.tsx, /src/styles.css, /src/pages/prazos-page.tsx, /@fs/C:\BD_Licitação\Versões SIREL\sirel-modern\client\src\components\processos\processo-create-modal.tsx[22m
+[2m15:20:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:20:43[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:20:52[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:21:01[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:21:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:21:26[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:21:45[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:21:54[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:22:11[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:22:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:22:37[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:22:51[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:22:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:23:15[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:23:27[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:23:38[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:24:08[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:24:16[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:24:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:24:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:24:59[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:25:10[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:25:47[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:32:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:32:33[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:35:44[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:38:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:50:12[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:50:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:50:30[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:53:00[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:53:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:53:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m15:54:19[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:42:19[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:42:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:42:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:42:49[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:43:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:45:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/app-shell.tsx, /src/styles.css, /src/pages/prazos-page.tsx, /@fs/C:\BD_Licitação\Versões SIREL\sirel-modern\client\src\components\processos\processo-create-modal.tsx, /src/pages/licitacao-page.tsx, /src/pages/licitacao-processo-page.tsx, /src/pages/workflow-page.tsx, /src/pages/importacoes-page.tsx, /src/pages/processos-page.tsx[22m
+[2m17:45:25[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:46:05[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:46:51[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/components/layout/app-shell.tsx, /src/styles.css, /src/pages/prazos-page.tsx, /@fs/C:\BD_Licitação\Versões SIREL\sirel-modern\client\src\components\processos\processo-create-modal.tsx, /src/pages/licitacao-page.tsx, /src/pages/licitacao-processo-page.tsx, /src/pages/workflow-page.tsx, /src/pages/importacoes-page.tsx, /src/pages/processos-page.tsx[22m
+[2m17:46:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:47:04[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:47:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:50:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:50:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:50:29[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:50:46[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:50:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:51:06[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:51:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m17:53:39[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m
+[2m18:25:56[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/licitacao-processo-page.tsx, /src/styles.css[22m

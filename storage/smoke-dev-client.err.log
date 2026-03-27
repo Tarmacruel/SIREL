@@ -1,0 +1,98 @@
+[2m14:39:07[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/notificacoes.list,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor?batch=1&input=%7B%220%22%3A%7B%22json%22%3A%7B%22search%22%3Anull%2C%22type%22%3Anull%2C%22priority%22%3Anull%2C%22unreadOnly%22%3Anull%2C%22page%22%3A1%2C%22pageSize%22%3A12%7D%2C%22meta%22%3A%7B%22values%22%3A%7B%22search%22%3A%5B%22undefined%22%5D%2C%22type%22%3A%5B%22undefined%22%5D%2C%22priority%22%3A%5B%22undefined%22%5D%2C%22unreadOnly%22%3A%5B%22undefined%22%5D%7D%2C%22v%22%3A1%7D%7D%2C%221%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.NOME_ORGAO%22%7D%7D%2C%222%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.CNPJ_ORGAO%22%7D%7D%2C%223%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.ENDERECO%22%7D%7D%2C%224%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.LOGO_URL%22%7D%7D%2C%225%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.COR_PRIMARIA%22%7D%7D%2C%226%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.COR_SECUNDARIA%22%7D%7D%2C%227%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22SISTEMA.RODAPE%22%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
+[2m15:27:25[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/notificacoes.summary?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%7D[39m
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:216:20)
+[2m15:31:26[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/notificacoes.summary?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
+[2m15:31:27[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/processos.list?batch=1&input=%7B%220%22%3A%7B%22json%22%3A%7B%22page%22%3A1%2C%22pageSize%22%3A12%2C%22search%22%3Anull%2C%22secretariaId%22%3Anull%2C%22statusId%22%3Anull%2C%22moduloAtual%22%3Anull%2C%22foraDoFluxo%22%3Afalse%2C%22paradosHaMaisDeSeteDias%22%3Anull%2C%22ativo%22%3Atrue%7D%2C%22meta%22%3A%7B%22values%22%3A%7B%22search%22%3A%5B%22undefined%22%5D%2C%22secretariaId%22%3A%5B%22undefined%22%5D%2C%22statusId%22%3A%5B%22undefined%22%5D%2C%22moduloAtual%22%3A%5B%22undefined%22%5D%2C%22paradosHaMaisDeSeteDias%22%3A%5B%22undefined%22%5D%7D%2C%22v%22%3A1%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
+[2m15:50:30[22m [31m[1m[vite][22m[39m [31mInternal server error: C:\BD_Licitação\Versões SIREL\sirel-modern\client\src\pages\licitacao-processo-page.tsx: Unexpected token (932:13)
+
+[0m [90m 930 |[31m
+ [90m 931 |[31m   [36mconst[31m habilitacaoSection [33m=[31m (
+[31m[1m>[22m[31m[90m 932 |[31m             {[33m![31minversaoFasesAtiva [33m?[31m habilitacaoSection [33m:[31m [36mnull[31m}
+ [90m     |[31m              [31m[1m^[22m[31m
+ [90m 933 |[31m   )[33m;[31m
+ [90m 934 |[31m
+ [90m 935 |[31m[0m[39m
+  Plugin: [35mvite:react-babel[39m
+  File: [36mC:/BD_Licitação/Versões SIREL/sirel-modern/client/src/pages/licitacao-processo-page.tsx[39m:932:13
+[33m  957|          action={
+  958|            <div className="flex flex-wrap justify-end gap-2">
+  959|              <Button type="button" variant="outline" onClick={() => setShowAllDocsModal(true)}>
+     |                   ^
+  960|                <FileStack className="h-4 w-4" />
+  961|                Documentos do processo[39m
+      at constructor (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:365:19)
+      at TypeScriptParserMixin.raise (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:6599:19)
+      at TypeScriptParserMixin.unexpected (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:6619:16)
+      at TypeScriptParserMixin.parsePropertyName (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12024:18)
+      at TypeScriptParserMixin.parsePropertyDefinition (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11889:10)
+      at TypeScriptParserMixin.parseObjectLike (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11832:21)
+      at TypeScriptParserMixin.parseExprAtom (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11339:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9786:20)
+      at C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12426:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseMaybeAssignAllowInOrVoidPattern (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12493:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11675:28)
+      at TypeScriptParserMixin.parseExprAtom (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11331:23)
+      at TypeScriptParserMixin.parseExprAtom (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:4764:20)
+      at TypeScriptParserMixin.parseExprSubscripts (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11081:23)
+      at TypeScriptParserMixin.parseUpdate (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11066:21)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:11046:23)
+      at TypeScriptParserMixin.parseMaybeUnary (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9837:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10899:61)
+      at TypeScriptParserMixin.parseExprOps (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10904:23)
+      at TypeScriptParserMixin.parseMaybeConditional (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10881:23)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10831:21)
+      at TypeScriptParserMixin.parseMaybeAssign (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9786:20)
+      at C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10800:39
+      at TypeScriptParserMixin.allowInAnd (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12421:16)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:10800:17)
+      at TypeScriptParserMixin.parseVar (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:13384:91)
+      at TypeScriptParserMixin.parseVarStatement (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:13230:10)
+      at TypeScriptParserMixin.parseVarStatement (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9408:31)
+      at TypeScriptParserMixin.parseStatementContent (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12851:23)
+      at TypeScriptParserMixin.parseStatementContent (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9508:18)
+      at TypeScriptParserMixin.parseStatementLike (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12767:17)
+      at TypeScriptParserMixin.parseStatementListItem (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12747:17)
+      at TypeScriptParserMixin.parseBlockOrModuleBlockBody (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:13316:61)
+      at TypeScriptParserMixin.parseBlockBody (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:13309:10)
+      at TypeScriptParserMixin.parseBlock (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:13297:10)
+      at TypeScriptParserMixin.parseFunctionBody (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12100:24)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:12086:10)
+      at TypeScriptParserMixin.parseFunctionBodyAndFinish (C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:9172:18)
+      at C:\BD_Licitação\Versões SIREL\sirel-modern\node_modules\@babel\parser\lib\index.js:13445:12
+[2m17:45:13[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/licitacao.summary,licitacao.list,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%2C%221%22%3A%7B%22json%22%3A%7B%22page%22%3A1%2C%22pageSize%22%3A12%2C%22search%22%3Anull%2C%22statusLicitacao%22%3Anull%7D%2C%22meta%22%3A%7B%22values%22%3A%7B%22search%22%3A%5B%22undefined%22%5D%2C%22statusLicitacao%22%3A%5B%22undefined%22%5D%7D%2C%22v%22%3A1%7D%7D%2C%222%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.NOME_ORGAO%22%7D%7D%2C%223%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.CNPJ_ORGAO%22%7D%7D%2C%224%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.ENDERECO%22%7D%7D%2C%225%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.LOGO_URL%22%7D%7D%2C%226%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.COR_PRIMARIA%22%7D%7D%2C%227%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.COR_SECUNDARIA%22%7D%7D%2C%228%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22SISTEMA.RODAPE%22%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
+[2m17:45:14[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/licitacao.detail,documentos.listByProcesso,cadastros.formOptions,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor,parametros.obterValor?batch=1&input=%7B%220%22%3A%7B%22json%22%3A%7B%22processoId%22%3A147%7D%7D%2C%221%22%3A%7B%22json%22%3A%7B%22processoId%22%3A147%7D%7D%2C%222%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%2C%223%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.NOME_ORGAO%22%7D%7D%2C%224%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.CNPJ_ORGAO%22%7D%7D%2C%225%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22INSTITUCIONAL.ENDERECO%22%7D%7D%2C%226%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.LOGO_URL%22%7D%7D%2C%227%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.COR_PRIMARIA%22%7D%7D%2C%228%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22VISUAL.COR_SECUNDARIA%22%7D%7D%2C%229%22%3A%7B%22json%22%3A%7B%22chave%22%3A%22SISTEMA.RODAPE%22%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
+[2m17:46:51[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/licitacao.detail,documentos.listByProcesso,cadastros.formOptions?batch=1&input=%7B%220%22%3A%7B%22json%22%3A%7B%22processoId%22%3A147%7D%7D%2C%221%22%3A%7B%22json%22%3A%7B%22processoId%22%3A147%7D%7D%2C%222%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
+[2m17:52:54[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/trpc/notificacoes.summary?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%7D[39m
+AggregateError [ECONNREFUSED]: 
+    at internalConnectMultiple (node:net:1142:49)
+    at afterConnectMultiple (node:net:1723:7)
