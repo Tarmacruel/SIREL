@@ -55,6 +55,11 @@ Já implementado:
 - catálogo de itens e seleção em formato de carrinho;
 - geração e persistência de HTML/PDF da DFD, mapa comparativo e TR base;
 - módulo de Licitação com subetapas, licitantes, propostas, lances, recursos e documentos da fase;
+- fluxo da Licitação adaptativo por modalidade (competitivo completo, simplificado e contratação direta);
+- inversão de fases configurável por processo, com reordenação visual;
+- cronograma manual no modo fora do fluxo;
+- checklist documental dinâmico com opção de "não aplicável" e justificativa;
+- auditoria reforçada campo-a-campo para alterações fora do fluxo;
 - módulo de Itens com rastreabilidade por processo e contrato;
 - módulo de Importações para sincronização pública da BLL via JSON consolidado ou CSV manual;
 - módulo de Usuários com consulta de acessos recentes;
