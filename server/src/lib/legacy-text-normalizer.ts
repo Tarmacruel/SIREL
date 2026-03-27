@@ -1,4 +1,4 @@
-import { LEGACY_ADMIN_TERM_REPLACEMENTS, LEGACY_CATALOG_DICTIONARY } from "./legacy-semantic-dictionary.js";
+﻿import { LEGACY_ADMIN_TERM_REPLACEMENTS, LEGACY_CATALOG_DICTIONARY } from "./legacy-semantic-dictionary.js";
 
 const MOJIBAKE_SEGMENT_RE = /(?:Ã.|Â.|â.|ï»¿|�)+/g;
 const ACCENT_RE = /[ÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç]/g;
@@ -6,7 +6,10 @@ const ACCENT_RE = /[ÁÀÂÃÉÊÍÓÔÕÚÇáàâãéêíóôõúç]/g;
 export type LegacyCatalogField = keyof typeof LEGACY_CATALOG_DICTIONARY;
 
 function suspiciousScore(text: string): number {
-  return text.split("Ã").length - 1 + text.split("Â").length - 1 + text.split("â").length - 1 + text.split("�").length - 1;
+  return text.split("Ã").length - 1
+    + text.split("Â").length - 1
+    + text.split("â").length - 1
+    + text.split("�").length - 1;
 }
 
 function accentScore(text: string): number {

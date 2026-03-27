@@ -1,0 +1,512 @@
+- generic [ref=e50]:
+  - generic [ref=e557]:
+    - button "Fechar menu" [ref=e558]
+    - generic [ref=e559]:
+      - generic [ref=e560]:
+        - generic [ref=e561]:
+          - generic [ref=e562]:
+            - generic [ref=e563]: SIREL
+            - button "Recolher menu" [ref=e564]:
+              - img [ref=e565]
+          - heading "SIREL" [level=1] [ref=e568]
+          - paragraph [ref=e569]: Base executiva para licitações, documentos, contratos, workflow e auditoria.
+        - navigation [ref=e570]:
+          - link "Dashboard" [ref=e571] [cursor=pointer]:
+            - /url: /
+            - img [ref=e572]
+            - generic [ref=e577]: Dashboard
+          - link "Notificações 2" [ref=e578] [cursor=pointer]:
+            - /url: /notificacoes
+            - img [ref=e579]
+            - generic [ref=e584]: Notificações
+            - generic [ref=e585]: "2"
+          - link "Consultas" [ref=e586] [cursor=pointer]:
+            - /url: /consultas
+            - img [ref=e587]
+            - generic [ref=e590]: Consultas
+          - link "Relatórios" [ref=e591] [cursor=pointer]:
+            - /url: /relatorios
+            - img [ref=e592]
+            - generic [ref=e594]: Relatórios
+          - link "Prazos" [ref=e595] [cursor=pointer]:
+            - /url: /prazos
+            - img [ref=e596]
+            - generic [ref=e599]: Prazos
+          - link "Importações" [ref=e600] [cursor=pointer]:
+            - /url: /importacoes
+            - img [ref=e601]
+            - generic [ref=e606]: Importações
+          - link "Cadastros" [ref=e607] [cursor=pointer]:
+            - /url: /cadastros
+            - img [ref=e608]
+            - generic [ref=e612]: Cadastros
+          - link "Processos" [ref=e613] [cursor=pointer]:
+            - /url: /processos
+            - img [ref=e614]
+            - generic [ref=e617]: Processos
+          - link "Itens" [ref=e618] [cursor=pointer]:
+            - /url: /itens
+            - img [ref=e619]
+            - generic [ref=e629]: Itens
+          - link "Planejamento" [ref=e630] [cursor=pointer]:
+            - /url: /planejamento
+            - img [ref=e631]
+            - generic [ref=e633]: Planejamento
+          - link "Compras" [ref=e634] [cursor=pointer]:
+            - /url: /compras
+            - img [ref=e635]
+            - generic [ref=e638]: Compras
+          - link "Licitação" [ref=e639] [cursor=pointer]:
+            - /url: /licitacao
+            - img [ref=e640]
+            - generic [ref=e643]: Licitação
+          - link "Documentos" [ref=e644] [cursor=pointer]:
+            - /url: /documentos
+            - img [ref=e645]
+            - generic [ref=e648]: Documentos
+          - link "Contratos" [ref=e649] [cursor=pointer]:
+            - /url: /contratos
+            - img [ref=e650]
+            - generic [ref=e653]: Contratos
+          - link "Workflow" [ref=e654] [cursor=pointer]:
+            - /url: /workflow
+            - img [ref=e655]
+            - generic [ref=e659]: Workflow
+          - link "Auditoria" [ref=e660] [cursor=pointer]:
+            - /url: /auditoria
+            - img [ref=e661]
+            - generic [ref=e664]: Auditoria
+          - link "Parâmetros" [ref=e665] [cursor=pointer]:
+            - /url: /parametros
+            - img [ref=e666]
+            - generic [ref=e669]: Parâmetros
+          - link "Usuários" [ref=e670] [cursor=pointer]:
+            - /url: /usuarios
+            - img [ref=e671]
+            - generic [ref=e676]: Usuários
+        - generic [ref=e677]: Sistema de Registro e Gestão de Licitações - SIREL
+      - button [ref=e678]:
+        - img [ref=e679]
+  - main [ref=e51]:
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - button [active] [ref=e55]:
+          - img [ref=e56]
+        - generic [ref=e57]:
+          - img "Prefeitura Municipal de Teixeira de Freitas" [ref=e58]
+          - paragraph [ref=e59]: MUNICIPIO DE TEIXEIRA DE FREITAS
+          - heading "SIREL - Gestão integrada de licitações" [level=2] [ref=e60]
+          - paragraph [ref=e61]: "Prefeitura Municipal de Teixeira de Freitas · CNPJ: 13.650.403/0001-28"
+          - paragraph [ref=e62]: Av. Marechal Castelo Branco, 100, Centro, 45985-000, Teixeira de Freitas, BA
+      - generic [ref=e63]:
+        - link "2" [ref=e64] [cursor=pointer]:
+          - /url: /notificacoes
+          - img [ref=e65]
+          - generic [ref=e70]: "2"
+        - generic [ref=e71]:
+          - paragraph [ref=e72]: Sessão autenticada
+          - paragraph [ref=e73]: JONATAS DA SILVA SOUSA
+          - paragraph [ref=e74]: admin | jonatas.sousa
+        - button "Sair" [ref=e75]:
+          - img [ref=e76]
+          - text: Sair
+    - generic [ref=e80]:
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - generic [ref=e83]: Filtrar por ano
+          - combobox "Filtrar por ano" [ref=e84]:
+            - option "Todos os anos"
+            - option "2017"
+            - option "2018"
+            - option "2019"
+            - option "2020"
+            - option "2021"
+            - option "2022"
+            - option "2023"
+            - option "2024"
+            - option "2025"
+            - option "2026" [selected]
+        - paragraph [ref=e85]: Dados do ano selecionado
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - heading "Alertas críticos de prazo" [level=3] [ref=e89]
+          - link "Abrir painel de prazos" [ref=e91] [cursor=pointer]:
+            - /url: /prazos
+            - button "Abrir painel de prazos" [ref=e92]:
+              - text: Abrir painel de prazos
+              - img [ref=e93]
+        - generic [ref=e95]:
+          - paragraph [ref=e96]: Prazos do dia e da janela de 48 horas que precisam ficar visíveis logo na abertura do sistema.
+          - generic [ref=e97]:
+            - generic [ref=e100]:
+              - generic [ref=e101]:
+                - paragraph [ref=e102]: Vencendo hoje
+                - paragraph [ref=e104]: "0"
+                - paragraph [ref=e105]: Eventos que exigem atuação hoje.
+              - img [ref=e107]
+            - generic [ref=e113]:
+              - generic [ref=e114]:
+                - paragraph [ref=e115]: Próximas 24h
+                - paragraph [ref=e117]: "0"
+                - paragraph [ref=e118]: Prazos com virada operacional imediata.
+              - img [ref=e120]
+            - generic [ref=e125]:
+              - generic [ref=e126]:
+                - paragraph [ref=e127]: Até 48h
+                - paragraph [ref=e129]: "0"
+                - paragraph [ref=e130]: Janela curta para alinhamento das equipes.
+              - img [ref=e132]
+            - generic [ref=e137]:
+              - generic [ref=e138]:
+                - paragraph [ref=e139]: Em atraso
+                - paragraph [ref=e141]: "0"
+                - paragraph [ref=e142]: Ocorrências que pedem correção prioritária.
+              - img [ref=e144]
+            - generic [ref=e146]:
+              - paragraph [ref=e147]: Fila crítica
+              - generic [ref=e150]:
+                - img [ref=e152]
+                - generic [ref=e155]: Nenhum prazo crítico na janela monitorada.
+      - generic [ref=e156]:
+        - generic [ref=e159]:
+          - generic [ref=e160]:
+            - paragraph [ref=e161]: Processos ativos
+            - paragraph [ref=e163]: "47"
+            - paragraph [ref=e164]: Processos em andamento na base do SIREL.
+          - img [ref=e166]
+        - generic [ref=e171]:
+          - generic [ref=e172]:
+            - paragraph [ref=e173]: Contratos vigentes
+            - paragraph [ref=e175]: "0"
+            - paragraph [ref=e176]: Contratos vinculados a processos formalizados.
+          - img [ref=e178]
+        - generic [ref=e184]:
+          - generic [ref=e185]:
+            - paragraph [ref=e186]: Tarefas pendentes
+            - paragraph [ref=e188]: "2"
+            - paragraph [ref=e189]: Notificações ainda não tratadas pelo usuário.
+          - img [ref=e191]
+        - generic [ref=e196]:
+          - generic [ref=e197]:
+            - paragraph [ref=e198]: Movimentações 24h
+            - paragraph [ref=e200]: "6"
+            - paragraph [ref=e201]: Eventos registrados nas últimas 24 horas.
+          - img [ref=e203]
+        - generic [ref=e212]:
+          - generic [ref=e213]:
+            - paragraph [ref=e214]: Valor global
+            - paragraph [ref=e216]: R$ 84.338.478,46
+            - paragraph [ref=e217]: Soma dos valores estimados cadastrados.
+          - img [ref=e219]
+        - generic [ref=e223]:
+          - generic [ref=e224]:
+            - paragraph [ref=e225]: Notificações pendentes
+            - paragraph [ref=e227]: "2"
+            - paragraph [ref=e228]: Consulte o detalhe na Central de Notificações.
+          - img [ref=e230]
+      - generic [ref=e235]:
+        - generic [ref=e236]:
+          - generic [ref=e237]:
+            - heading "Busca global inteligente" [level=3] [ref=e239]
+            - link "Ir para Consultas" [ref=e241] [cursor=pointer]:
+              - /url: /consultas
+              - button "Ir para Consultas" [ref=e242]:
+                - text: Ir para Consultas
+                - img [ref=e243]
+          - generic [ref=e245]:
+            - paragraph [ref=e246]: Localize processos por número SIREL, objeto, fornecedor e filtros rápidos de status ou modalidade.
+            - generic [ref=e247]:
+              - generic [ref=e248]:
+                - text: Busca textual
+                - textbox "Busca textual" [ref=e249]:
+                  - /placeholder: Número SIREL, objeto ou fornecedor
+              - generic [ref=e250]:
+                - text: Status
+                - combobox "Status" [ref=e251]:
+                  - option "Todos" [selected]
+                  - option "ADJUDICADO"
+                  - option "ANÁLISE DE PROPOSTAS"
+                  - option "ANULADO"
+                  - option "DESERTO"
+                  - option "DISPUTA"
+                  - option "EM FINALIZAÇÃO"
+                  - option "EM LICITAÇÃO"
+                  - option "EM PLANEJAMENTO"
+                  - option "FRACASSADO"
+                  - option "HABILITAÇÃO"
+                  - option "HOMOLOGADO"
+                  - option "PUBLICADO"
+                  - option "RECEPÇÃO DE PROPOSTAS"
+                  - option "REVOGADO"
+                  - option "SUSPENSO"
+              - generic [ref=e252]:
+                - text: Modalidade
+                - combobox "Modalidade" [ref=e253]:
+                  - option "Todas" [selected]
+                  - option "Concorrência Eletrônica"
+                  - option "Concorrência Presencial"
+                  - option "Credenciamento"
+                  - option "Dispensa Simplificada"
+                  - option "Dispensa Eletrônica"
+                  - option "Inexigibilidade"
+                  - option "Leilão Eletrônico"
+                  - option "Pregão Eletrônico"
+                  - option "Pregão Presencial"
+            - generic [ref=e256]:
+              - img [ref=e258]
+              - generic [ref=e261]: Digite um termo ou aplique filtros para receber sugestões rápidas com debounce automático.
+        - generic [ref=e262]:
+          - generic [ref=e263]:
+            - heading "Minha agenda" [level=3] [ref=e265]
+            - link "Central de Notificações" [ref=e267] [cursor=pointer]:
+              - /url: /notificacoes
+              - button "Central de Notificações" [ref=e268]:
+                - text: Central de Notificações
+                - img [ref=e269]
+          - generic [ref=e271]:
+            - paragraph [ref=e272]: Próximas tarefas do usuário, prazos críticos do dia e atalhos frequentes para operação.
+            - generic [ref=e273]:
+              - generic [ref=e274]:
+                - generic [ref=e275]:
+                  - generic [ref=e276]: Movimentação
+                  - generic [ref=e277]: Baixa
+                - paragraph [ref=e278]: 0047/2026 - Workflow atualizado
+                - paragraph [ref=e279]: Processo fora do fluxo criado em CONTRATOS
+                - paragraph [ref=e280]: 26/03/2026, 16:10
+              - generic [ref=e281]:
+                - generic [ref=e282]:
+                  - generic [ref=e283]: Movimentação
+                  - generic [ref=e284]: Baixa
+                - paragraph [ref=e285]: 0046/2026 - Workflow atualizado
+                - paragraph [ref=e286]: Processo fora do fluxo criado em LICITACAO
+                - paragraph [ref=e287]: 26/03/2026, 15:58
+            - generic [ref=e288]:
+              - button "Novo processo" [ref=e289]
+              - link "Abrir prazos" [ref=e290] [cursor=pointer]:
+                - /url: /prazos
+                - button "Abrir prazos" [ref=e291]
+              - link "Gerar relatório" [ref=e292] [cursor=pointer]:
+                - /url: /relatorios
+                - button "Gerar relatório" [ref=e293]
+      - generic [ref=e294]:
+        - heading "Processos por secretaria" [level=3] [ref=e297]
+        - generic [ref=e298]:
+          - paragraph [ref=e299]: Distribuição atual dos processos ativos por secretaria.
+          - generic [ref=e301]:
+            - generic [ref=e303]:
+              - generic [ref=e304]: Total
+              - generic [ref=e305]: "42"
+            - generic [ref=e306]:
+              - button "SECRETARIA DE ADMINISTRAÇÃO 10 23,8%" [ref=e307]:
+                - generic [ref=e308]:
+                  - generic [ref=e311]: SECRETARIA DE ADMINISTRAÇÃO
+                  - generic [ref=e312]: "10"
+                - generic [ref=e313]: 23,8%
+              - button "SECRETARIA DE EDUCAÇÃO 10 23,8%" [ref=e314]:
+                - generic [ref=e315]:
+                  - generic [ref=e318]: SECRETARIA DE EDUCAÇÃO
+                  - generic [ref=e319]: "10"
+                - generic [ref=e320]: 23,8%
+              - button "SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS 10 23,8%" [ref=e321]:
+                - generic [ref=e322]:
+                  - generic [ref=e325]: SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS
+                  - generic [ref=e326]: "10"
+                - generic [ref=e327]: 23,8%
+              - button "SECRETARIA DE SAÚDE 7 16,7%" [ref=e328]:
+                - generic [ref=e329]:
+                  - generic [ref=e332]: SECRETARIA DE SAÚDE
+                  - generic [ref=e333]: "7"
+                - generic [ref=e334]: 16,7%
+              - button "GABINETE DO PREFEITO 3 7,1%" [ref=e335]:
+                - generic [ref=e336]:
+                  - generic [ref=e339]: GABINETE DO PREFEITO
+                  - generic [ref=e340]: "3"
+                - generic [ref=e341]: 7,1%
+              - button "CONTROLADORIA GERAL DO MUNICÍPIO 2 4,8%" [ref=e342]:
+                - generic [ref=e343]:
+                  - generic [ref=e346]: CONTROLADORIA GERAL DO MUNICÍPIO
+                  - generic [ref=e347]: "2"
+                - generic [ref=e348]: 4,8%
+      - generic [ref=e349]:
+        - generic [ref=e350]:
+          - heading "Evolução mensal" [level=3] [ref=e353]
+          - generic [ref=e354]:
+            - paragraph [ref=e355]: Quantidade de processos criados nos últimos meses.
+            - generic [ref=e357]:
+              - img [ref=e358]:
+                - 'generic "03/2026: 47" [ref=e359]'
+              - generic [ref=e362]:
+                - paragraph [ref=e363]: 03/2026
+                - paragraph [ref=e364]: "47"
+        - generic [ref=e365]:
+          - heading "Modalidades mais utilizadas" [level=3] [ref=e368]
+          - generic [ref=e369]:
+            - paragraph [ref=e370]: Volume recente por modalidade cadastrada.
+            - generic [ref=e372]:
+              - 'button "Dispensa Eletrônica 20 Dispensa Eletrônica: 20" [ref=e373]':
+                - generic [ref=e374]:
+                  - generic [ref=e375]: Dispensa Eletrônica
+                  - generic [ref=e376]: "20"
+                - 'generic "Dispensa Eletrônica: 20" [ref=e378]'
+              - 'button "Pregão Eletrônico 16 Pregão Eletrônico: 16" [ref=e379]':
+                - generic [ref=e380]:
+                  - generic [ref=e381]: Pregão Eletrônico
+                  - generic [ref=e382]: "16"
+                - 'generic "Pregão Eletrônico: 16" [ref=e384]'
+              - 'button "Inexigibilidade 8 Inexigibilidade: 8" [ref=e385]':
+                - generic [ref=e386]:
+                  - generic [ref=e387]: Inexigibilidade
+                  - generic [ref=e388]: "8"
+                - 'generic "Inexigibilidade: 8" [ref=e390]'
+              - 'button "Concorrência Eletrônica 3 Concorrência Eletrônica: 3" [ref=e391]':
+                - generic [ref=e392]:
+                  - generic [ref=e393]: Concorrência Eletrônica
+                  - generic [ref=e394]: "3"
+                - 'generic "Concorrência Eletrônica: 3" [ref=e396]'
+        - generic [ref=e397]:
+          - heading "Ranking de condutores" [level=3] [ref=e400]
+          - generic [ref=e401]:
+            - paragraph [ref=e402]: Top 5 condutores por número de processos no ano selecionado.
+            - generic [ref=e404]:
+              - 'button "ISLA LIMA SILVA 15 ISLA LIMA SILVA: 15" [ref=e405]':
+                - generic [ref=e406]:
+                  - generic [ref=e407]: ISLA LIMA SILVA
+                  - generic [ref=e408]: "15"
+                - 'generic "ISLA LIMA SILVA: 15" [ref=e410]'
+              - 'button "ISAQUE SILVA DOS SANTOS 9 ISAQUE SILVA DOS SANTOS: 9" [ref=e411]':
+                - generic [ref=e412]:
+                  - generic [ref=e413]: ISAQUE SILVA DOS SANTOS
+                  - generic [ref=e414]: "9"
+                - 'generic "ISAQUE SILVA DOS SANTOS: 9" [ref=e416]'
+              - 'button "JONATAS DA SILVA SOUSA 9 JONATAS DA SILVA SOUSA: 9" [ref=e417]':
+                - generic [ref=e418]:
+                  - generic [ref=e419]: JONATAS DA SILVA SOUSA
+                  - generic [ref=e420]: "9"
+                - 'generic "JONATAS DA SILVA SOUSA: 9" [ref=e422]'
+              - 'button "SERGIO CARNEIRO CAVALCANTI DE AZEVEDO 5 SERGIO CARNEIRO CAVALCANTI DE AZEVEDO: 5" [ref=e423]':
+                - generic [ref=e424]:
+                  - generic [ref=e425]: SERGIO CARNEIRO CAVALCANTI DE AZEVEDO
+                  - generic [ref=e426]: "5"
+                - 'generic "SERGIO CARNEIRO CAVALCANTI DE AZEVEDO: 5" [ref=e428]'
+              - 'button "DAVIDSON SILVA ARAUJO 4 DAVIDSON SILVA ARAUJO: 4" [ref=e429]':
+                - generic [ref=e430]:
+                  - generic [ref=e431]: DAVIDSON SILVA ARAUJO
+                  - generic [ref=e432]: "4"
+                - 'generic "DAVIDSON SILVA ARAUJO: 4" [ref=e434]'
+      - generic [ref=e435]:
+        - generic [ref=e436]:
+          - heading "Últimas movimentações do time" [level=3] [ref=e439]
+          - generic [ref=e440]:
+            - paragraph [ref=e441]: Feed operacional recente do workflow para acompanhamento gerencial.
+            - generic [ref=e442]:
+              - article [ref=e443]:
+                - generic [ref=e444]:
+                  - generic [ref=e445]:
+                    - paragraph [ref=e446]: 0047/2026
+                    - paragraph [ref=e447]: Processo fora do fluxo criado em CONTRATOS
+                    - paragraph [ref=e448]: 26/03/2026, 16:10
+                  - generic [ref=e449]: CONTRATOS
+              - article [ref=e450]:
+                - generic [ref=e451]:
+                  - generic [ref=e452]:
+                    - paragraph [ref=e453]: 0046/2026
+                    - paragraph [ref=e454]: Processo fora do fluxo criado em LICITACAO
+                    - paragraph [ref=e455]: 26/03/2026, 15:57
+                  - generic [ref=e456]: LICITACAO
+              - article [ref=e457]:
+                - generic [ref=e458]:
+                  - generic [ref=e459]:
+                    - paragraph [ref=e460]: 0045/2026
+                    - paragraph [ref=e461]: Processo fora do fluxo criado em LICITACAO
+                    - paragraph [ref=e462]: 26/03/2026, 09:26
+                  - generic [ref=e463]: LICITACAO
+              - article [ref=e464]:
+                - generic [ref=e465]:
+                  - generic [ref=e466]:
+                    - paragraph [ref=e467]: 0044/2026
+                    - paragraph [ref=e468]: Processo fora do fluxo criado em DOCUMENTOS
+                    - paragraph [ref=e469]: 26/03/2026, 09:08
+                  - generic [ref=e470]: DOCUMENTOS
+              - article [ref=e471]:
+                - generic [ref=e472]:
+                  - generic [ref=e473]:
+                    - paragraph [ref=e474]: 0043/2026
+                    - paragraph [ref=e475]: Processo fora do fluxo criado em DOCUMENTOS
+                    - paragraph [ref=e476]: 26/03/2026, 09:06
+                  - generic [ref=e477]: DOCUMENTOS
+              - article [ref=e478]:
+                - generic [ref=e479]:
+                  - generic [ref=e480]:
+                    - paragraph [ref=e481]: 0042/2026
+                    - paragraph [ref=e482]: Processo fora do fluxo criado em LICITACAO
+                    - paragraph [ref=e483]: 25/03/2026, 23:40
+                  - generic [ref=e484]: LICITACAO
+              - article [ref=e485]:
+                - generic [ref=e486]:
+                  - generic [ref=e487]:
+                    - paragraph [ref=e488]: 0027/2025
+                    - paragraph [ref=e489]: Configuração da Licitação atualizada
+                    - paragraph [ref=e490]: 23/03/2026, 15:07
+                  - generic [ref=e491]: LICITACAO
+              - article [ref=e492]:
+                - generic [ref=e493]:
+                  - generic [ref=e494]:
+                    - paragraph [ref=e495]: 0002/2024
+                    - paragraph [ref=e496]: Processo fora do fluxo criado em DOCUMENTOS
+                    - paragraph [ref=e497]: 23/03/2026, 10:54
+                  - generic [ref=e498]: DOCUMENTOS
+        - generic [ref=e499]:
+          - heading "Processos recentes" [level=3] [ref=e502]
+          - generic [ref=e503]:
+            - paragraph [ref=e504]: Amostra operacional dos últimos processos cadastrados ou atualizados.
+            - table [ref=e506]:
+              - rowgroup [ref=e507]:
+                - row "Processo Objeto Módulo Valor estimado" [ref=e508]:
+                  - columnheader "Processo" [ref=e509]
+                  - columnheader "Objeto" [ref=e510]
+                  - columnheader "Módulo" [ref=e511]
+                  - columnheader "Valor estimado" [ref=e512]
+              - rowgroup [ref=e513]:
+                - row "0047/2026 GABINETE DO PREFEITO empresa SERVIÇO DE APOIO ÀS MICRO E PEQUENAS EMPRESAS DO ESTADO DA BAHIA (SEBRAE) para LOCAÇÃO DE ESTANDE NO EVENTO SALÃO SEBRAE DAS CIDADES EMPREENDEDORAS 2026, a fim de atender as demandas do Gabinete do Prefeito do Município de Teixeira de Freitas. CONTRATOS -" [ref=e514]:
+                  - cell "0047/2026 GABINETE DO PREFEITO" [ref=e515]:
+                    - generic [ref=e516]: 0047/2026
+                    - generic [ref=e517]: GABINETE DO PREFEITO
+                  - cell "empresa SERVIÇO DE APOIO ÀS MICRO E PEQUENAS EMPRESAS DO ESTADO DA BAHIA (SEBRAE) para LOCAÇÃO DE ESTANDE NO EVENTO SALÃO SEBRAE DAS CIDADES EMPREENDEDORAS 2026, a fim de atender as demandas do Gabinete do Prefeito do Município de Teixeira de Freitas." [ref=e518]
+                  - cell "CONTRATOS" [ref=e519]
+                  - cell "-" [ref=e520]
+                - row "0046/2026 SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS Contratação de empresa especializada em serviços de engenharia para o fornecimento de bancas em estruturas metálicas (bancas de frutas e verduras), no município de Teixeira de Freitas – BA. LICITACAO R$ 1.200.887,10" [ref=e521]:
+                  - cell "0046/2026 SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS" [ref=e522]:
+                    - generic [ref=e523]: 0046/2026
+                    - generic [ref=e524]: SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS
+                  - cell "Contratação de empresa especializada em serviços de engenharia para o fornecimento de bancas em estruturas metálicas (bancas de frutas e verduras), no município de Teixeira de Freitas – BA." [ref=e525]
+                  - cell "LICITACAO" [ref=e526]
+                  - cell "R$ 1.200.887,10" [ref=e527]
+                - row "0045/2026 SECRETARIA DE ADMINISTRAÇÃO Contratação de empresa especializada em fornecimento de MATERIAIS ESPORTIVOS (material de consumo), a fim de atender as demandas da Secretaria Municipal de Administração e demais secretarias. LICITACAO R$ 174.703,20" [ref=e528]:
+                  - cell "0045/2026 SECRETARIA DE ADMINISTRAÇÃO" [ref=e529]:
+                    - generic [ref=e530]: 0045/2026
+                    - generic [ref=e531]: SECRETARIA DE ADMINISTRAÇÃO
+                  - cell "Contratação de empresa especializada em fornecimento de MATERIAIS ESPORTIVOS (material de consumo), a fim de atender as demandas da Secretaria Municipal de Administração e demais secretarias." [ref=e532]
+                  - cell "LICITACAO" [ref=e533]
+                  - cell "R$ 174.703,20" [ref=e534]
+                - row "0044/2026 CONTROLADORIA GERAL DO MUNICÍPIO Contratação de empresa especializada em fornecimento de [KIT LANCHE PRONTO E MARMITEX (materiais de consumo)], a fim de atender às necessidades da Secretaria Municipal de Esporte e Lazer. DOCUMENTOS -" [ref=e535]:
+                  - cell "0044/2026 CONTROLADORIA GERAL DO MUNICÍPIO" [ref=e536]:
+                    - generic [ref=e537]: 0044/2026
+                    - generic [ref=e538]: CONTROLADORIA GERAL DO MUNICÍPIO
+                  - cell "Contratação de empresa especializada em fornecimento de [KIT LANCHE PRONTO E MARMITEX (materiais de consumo)], a fim de atender às necessidades da Secretaria Municipal de Esporte e Lazer." [ref=e539]
+                  - cell "DOCUMENTOS" [ref=e540]
+                  - cell "-" [ref=e541]
+                - row "0043/2026 CONTROLADORIA GERAL DO MUNICÍPIO Contratação de empresa especializada em fornecimento de [KIT LANCHE PRONTO E MARMITEX (materiais de consumo)], a fim de atender às necessidades da Secretaria Municipal de Esporte e Lazer. DOCUMENTOS -" [ref=e542]:
+                  - cell "0043/2026 CONTROLADORIA GERAL DO MUNICÍPIO" [ref=e543]:
+                    - generic [ref=e544]: 0043/2026
+                    - generic [ref=e545]: CONTROLADORIA GERAL DO MUNICÍPIO
+                  - cell "Contratação de empresa especializada em fornecimento de [KIT LANCHE PRONTO E MARMITEX (materiais de consumo)], a fim de atender às necessidades da Secretaria Municipal de Esporte e Lazer." [ref=e546]
+                  - cell "DOCUMENTOS" [ref=e547]
+                  - cell "-" [ref=e548]
+                - row "0042/2026 SECRETARIA DE ESPORTE E LAZER Contratação de empresa especializada em fornecimento de [KIT LANCHE PRONTO E MARMITEX (materiais de consumo)], a fim de atender às necessidades da Secretaria Municipal de Esporte e Lazer. LICITACAO R$ 13.986,00" [ref=e549]:
+                  - cell "0042/2026 SECRETARIA DE ESPORTE E LAZER" [ref=e550]:
+                    - generic [ref=e551]: 0042/2026
+                    - generic [ref=e552]: SECRETARIA DE ESPORTE E LAZER
+                  - cell "Contratação de empresa especializada em fornecimento de [KIT LANCHE PRONTO E MARMITEX (materiais de consumo)], a fim de atender às necessidades da Secretaria Municipal de Esporte e Lazer." [ref=e553]
+                  - cell "LICITACAO" [ref=e554]
+                  - cell "R$ 13.986,00" [ref=e555]
+    - generic [ref=e556]: Sistema de Registro e Gestão de Licitações - SIREL

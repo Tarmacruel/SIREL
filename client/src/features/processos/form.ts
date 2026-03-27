@@ -1,4 +1,5 @@
 import { processoCreateInputSchema } from "@sirel/shared/schemas/processos";
+import { normalizeCurrencyInputBR } from "@/lib/formatters";
 
 export interface ProcessoFormState {
   numeroAdministrativo: string;
@@ -16,6 +17,9 @@ export interface ProcessoFormState {
   tipoObjeto: string;
   tipoContratacao: string;
   dataAbertura: string;
+  dataPublicacao: string;
+  dataDisputaSessao: string;
+  situacao: string;
   condutorProcessoId?: string;
   foraDoFluxo: boolean;
   moduloInicial: string;
@@ -27,10 +31,7 @@ function toOptionalId(value: string) {
 }
 
 function toOptionalNumber(value: string) {
-  const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-  if (!normalized) return undefined;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return normalizeCurrencyInputBR(value);
 }
 
 export function buildProcessoPayload(form: ProcessoFormState) {
@@ -50,6 +51,15 @@ export function buildProcessoPayload(form: ProcessoFormState) {
     tipoObjeto: form.tipoObjeto as "PRODUTO" | "SERVICO" | "OBRA" | "SERVICO_ENG",
     tipoContratacao: form.tipoContratacao as "AQUISICAO" | "REGISTRO_PRECO" | "AQUISICAO_PARCELADA",
     dataAbertura: form.dataAbertura || undefined,
+    dataPublicacao: form.dataPublicacao || undefined,
+    dataDisputaSessao: form.dataDisputaSessao || undefined,
+    situacao: (form.situacao || undefined) as
+      | "RASCUNHO"
+      | "EM_ANDAMENTO"
+      | "AGUARDANDO"
+      | "CONCLUIDO"
+      | "SUSPENSO"
+      | undefined,
     condutorProcessoId: form.condutorProcessoId ? Number(form.condutorProcessoId) : undefined,
     foraDoFluxo: form.foraDoFluxo,
     moduloInicial: form.foraDoFluxo ? (form.moduloInicial as any) : undefined,

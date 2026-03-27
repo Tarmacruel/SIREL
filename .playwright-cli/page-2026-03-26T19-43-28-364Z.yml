@@ -1,0 +1,304 @@
+- main [ref=e51]:
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - button [ref=e55]:
+        - img [ref=e56]
+      - generic [ref=e57]:
+        - img "Prefeitura Municipal de Teixeira de Freitas" [ref=e58]
+        - paragraph [ref=e59]: MUNICIPIO DE TEIXEIRA DE FREITAS
+        - heading "SIREL - Gestão integrada de licitações" [level=2] [ref=e60]
+        - paragraph [ref=e61]: "Prefeitura Municipal de Teixeira de Freitas · CNPJ: 13.650.403/0001-28"
+        - paragraph [ref=e62]: Av. Marechal Castelo Branco, 100, Centro, 45985-000, Teixeira de Freitas, BA
+    - generic [ref=e63]:
+      - link "2" [ref=e64] [cursor=pointer]:
+        - /url: /notificacoes
+        - img [ref=e65]
+        - generic [ref=e70]: "2"
+      - generic [ref=e71]:
+        - paragraph [ref=e72]: Sessão autenticada
+        - paragraph [ref=e73]: JONATAS DA SILVA SOUSA
+        - paragraph [ref=e74]: admin | jonatas.sousa
+      - button "Sair" [ref=e75]:
+        - img [ref=e76]
+        - text: Sair
+  - generic [ref=e682]:
+    - generic [ref=e683]:
+      - article [ref=e684]:
+        - paragraph [ref=e685]: Em Licitação
+        - paragraph [ref=e686]: "47"
+        - paragraph [ref=e687]: Processos ativos dentro do módulo de Licitação.
+      - article [ref=e688]:
+        - paragraph [ref=e689]: Publicados
+        - paragraph [ref=e690]: "0"
+        - paragraph [ref=e691]: Com edital numerado e cronograma oficial em andamento.
+      - article [ref=e692]:
+        - paragraph [ref=e693]: Aguardando publicidade
+        - paragraph [ref=e694]: "47"
+        - paragraph [ref=e695]: Com fase interna pendente ou cronograma ainda não fechado.
+      - article [ref=e696]:
+        - paragraph [ref=e697]: Recursos pendentes
+        - paragraph [ref=e698]: "0"
+        - paragraph [ref=e699]: Demandas recursais ainda sem decisão registrada.
+    - generic [ref=e700]:
+      - heading "Módulo de Licitação" [level=3] [ref=e703]
+      - generic [ref=e704]:
+        - paragraph [ref=e705]: Fila operacional do módulo. Cada processo abre em tela própria para trabalhar a fase interna, os documentos do processo e a publicação com mais espaço.
+        - generic [ref=e706]:
+          - generic [ref=e707]:
+            - text: Buscar processo
+            - generic [ref=e708]:
+              - img [ref=e709]
+              - textbox "Buscar processo" [ref=e712]:
+                - /placeholder: Processo, objeto, edital ou secretaria
+          - generic [ref=e713]:
+            - text: Status da Licitação
+            - combobox "Status da Licitação" [ref=e714]:
+              - option "Todos" [selected]
+              - option "Preparação do edital"
+              - option "Publicação do edital"
+              - option "Recebimento de propostas"
+              - option "Abertura de propostas"
+              - option "Fase de lances"
+              - option "Julgamento"
+              - option "Habilitação"
+              - option "Recursos"
+              - option "Homologação"
+              - option "Contratação"
+              - option "Licitação fracassada"
+              - option "Licitação cancelada"
+          - generic [ref=e715]:
+            - text: Por página
+            - combobox "Por página" [ref=e716]:
+              - option "12" [selected]
+              - option "24"
+              - option "48"
+        - generic [ref=e717]:
+          - table [ref=e719]:
+            - rowgroup [ref=e720]:
+              - row "Processo Secretaria Etapa Status Edital Atualizado em Ações" [ref=e721]:
+                - columnheader "Processo" [ref=e722]
+                - columnheader "Secretaria" [ref=e723]
+                - columnheader "Etapa" [ref=e724]
+                - columnheader "Status" [ref=e725]
+                - columnheader "Edital" [ref=e726]
+                - columnheader "Atualizado em" [ref=e727]
+                - columnheader "Ações" [ref=e728]
+            - rowgroup [ref=e729]:
+              - row "0046/2026 Pregão Eletrônico SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital PE-053-2026 26/03/2026, 15:57 Abrir fase" [ref=e730]:
+                - cell "0046/2026 Pregão Eletrônico" [ref=e731]:
+                  - generic [ref=e732]: 0046/2026
+                  - generic [ref=e733]: Pregão Eletrônico
+                - cell "SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS" [ref=e734]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e735]:
+                  - generic [ref=e736]: Cadastro inicial fora do fluxo
+                  - generic [ref=e737]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e738]:
+                  - generic [ref=e739]: Preparação do edital
+                - cell "PE-053-2026" [ref=e740]
+                - cell "26/03/2026, 15:57" [ref=e741]
+                - cell "Abrir fase" [ref=e742]:
+                  - link "Abrir fase" [ref=e743] [cursor=pointer]:
+                    - /url: /licitacao/157
+                    - text: Abrir fase
+                    - img [ref=e745]
+              - row "0045/2026 Pregão Eletrônico SECRETARIA DE ADMINISTRAÇÃO Cadastro inicial fora do fluxo JONATAS DA SILVA SOUSA Preparação do edital PE-039-2026 26/03/2026, 09:26 Abrir fase" [ref=e747]:
+                - cell "0045/2026 Pregão Eletrônico" [ref=e748]:
+                  - generic [ref=e749]: 0045/2026
+                  - generic [ref=e750]: Pregão Eletrônico
+                - cell "SECRETARIA DE ADMINISTRAÇÃO" [ref=e751]
+                - cell "Cadastro inicial fora do fluxo JONATAS DA SILVA SOUSA" [ref=e752]:
+                  - generic [ref=e753]: Cadastro inicial fora do fluxo
+                  - generic [ref=e754]: JONATAS DA SILVA SOUSA
+                - cell "Preparação do edital" [ref=e755]:
+                  - generic [ref=e756]: Preparação do edital
+                - cell "PE-039-2026" [ref=e757]
+                - cell "26/03/2026, 09:26" [ref=e758]
+                - cell "Abrir fase" [ref=e759]:
+                  - link "Abrir fase" [ref=e760] [cursor=pointer]:
+                    - /url: /licitacao/147
+                    - text: Abrir fase
+                    - img [ref=e762]
+              - row "0042/2026 Dispensa Eletrônica SECRETARIA DE ESPORTE E LAZER Cadastro inicial fora do fluxo ISAQUE SILVA DOS SANTOS Preparação do edital 2-DLE-033 25/03/2026, 23:40 Abrir fase" [ref=e764]:
+                - cell "0042/2026 Dispensa Eletrônica" [ref=e765]:
+                  - generic [ref=e766]: 0042/2026
+                  - generic [ref=e767]: Dispensa Eletrônica
+                - cell "SECRETARIA DE ESPORTE E LAZER" [ref=e768]
+                - cell "Cadastro inicial fora do fluxo ISAQUE SILVA DOS SANTOS" [ref=e769]:
+                  - generic [ref=e770]: Cadastro inicial fora do fluxo
+                  - generic [ref=e771]: ISAQUE SILVA DOS SANTOS
+                - cell "Preparação do edital" [ref=e772]:
+                  - generic [ref=e773]: Preparação do edital
+                - cell "2-DLE-033" [ref=e774]
+                - cell "25/03/2026, 23:40" [ref=e775]
+                - cell "Abrir fase" [ref=e776]:
+                  - link "Abrir fase" [ref=e777] [cursor=pointer]:
+                    - /url: /licitacao/144
+                    - text: Abrir fase
+                    - img [ref=e779]
+              - row "0027/2025 Concorrência Eletrônica SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS Licitação / preparação interna e publicidade DAVIDSON SILVA ARAUJO Preparação do edital CE-015-2025 23/03/2026, 15:07 Abrir fase" [ref=e781]:
+                - cell "0027/2025 Concorrência Eletrônica" [ref=e782]:
+                  - generic [ref=e783]: 0027/2025
+                  - generic [ref=e784]: Concorrência Eletrônica
+                - cell "SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS" [ref=e785]
+                - cell "Licitação / preparação interna e publicidade DAVIDSON SILVA ARAUJO" [ref=e786]:
+                  - generic [ref=e787]: Licitação / preparação interna e publicidade
+                  - generic [ref=e788]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e789]:
+                  - generic [ref=e790]: Preparação do edital
+                - cell "CE-015-2025" [ref=e791]
+                - cell "23/03/2026, 15:07" [ref=e792]
+                - cell "Abrir fase" [ref=e793]:
+                  - link "Abrir fase" [ref=e794] [cursor=pointer]:
+                    - /url: /licitacao/133
+                    - text: Abrir fase
+                    - img [ref=e796]
+              - row "0026/2025 Concorrência Eletrônica SECRETARIA DE EDUCAÇÃO Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-017-2025 21/03/2026, 12:29 Abrir fase" [ref=e798]:
+                - cell "0026/2025 Concorrência Eletrônica" [ref=e799]:
+                  - generic [ref=e800]: 0026/2025
+                  - generic [ref=e801]: Concorrência Eletrônica
+                - cell "SECRETARIA DE EDUCAÇÃO" [ref=e802]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e803]:
+                  - generic [ref=e804]: Cadastro inicial fora do fluxo
+                  - generic [ref=e805]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e806]:
+                  - generic [ref=e807]: Preparação do edital
+                - cell "CE-017-2025" [ref=e808]
+                - cell "21/03/2026, 12:29" [ref=e809]
+                - cell "Abrir fase" [ref=e810]:
+                  - link "Abrir fase" [ref=e811] [cursor=pointer]:
+                    - /url: /licitacao/131
+                    - text: Abrir fase
+                    - img [ref=e813]
+              - row "0025/2025 Credenciamento SECRETARIA DE ADMINISTRAÇÃO Cadastro inicial fora do fluxo MAGDA DE SELES GUIMARAES Preparação do edital CD-009-2025 21/03/2026, 12:29 Abrir fase" [ref=e815]:
+                - cell "0025/2025 Credenciamento" [ref=e816]:
+                  - generic [ref=e817]: 0025/2025
+                  - generic [ref=e818]: Credenciamento
+                - cell "SECRETARIA DE ADMINISTRAÇÃO" [ref=e819]
+                - cell "Cadastro inicial fora do fluxo MAGDA DE SELES GUIMARAES" [ref=e820]:
+                  - generic [ref=e821]: Cadastro inicial fora do fluxo
+                  - generic [ref=e822]: MAGDA DE SELES GUIMARAES
+                - cell "Preparação do edital" [ref=e823]:
+                  - generic [ref=e824]: Preparação do edital
+                - cell "CD-009-2025" [ref=e825]
+                - cell "21/03/2026, 12:29" [ref=e826]
+                - cell "Abrir fase" [ref=e827]:
+                  - link "Abrir fase" [ref=e828] [cursor=pointer]:
+                    - /url: /licitacao/129
+                    - text: Abrir fase
+                    - img [ref=e830]
+              - row "0024/2025 Concorrência Eletrônica SECRETARIA DE EDUCAÇÃO Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-018-2025 21/03/2026, 12:26 Abrir fase" [ref=e832]:
+                - cell "0024/2025 Concorrência Eletrônica" [ref=e833]:
+                  - generic [ref=e834]: 0024/2025
+                  - generic [ref=e835]: Concorrência Eletrônica
+                - cell "SECRETARIA DE EDUCAÇÃO" [ref=e836]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e837]:
+                  - generic [ref=e838]: Cadastro inicial fora do fluxo
+                  - generic [ref=e839]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e840]:
+                  - generic [ref=e841]: Preparação do edital
+                - cell "CE-018-2025" [ref=e842]
+                - cell "21/03/2026, 12:26" [ref=e843]
+                - cell "Abrir fase" [ref=e844]:
+                  - link "Abrir fase" [ref=e845] [cursor=pointer]:
+                    - /url: /licitacao/126
+                    - text: Abrir fase
+                    - img [ref=e847]
+              - row "0023/2025 Concorrência Eletrônica SECRETARIA DE CULTURA E TURISMO Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-020-2025 21/03/2026, 12:26 Abrir fase" [ref=e849]:
+                - cell "0023/2025 Concorrência Eletrônica" [ref=e850]:
+                  - generic [ref=e851]: 0023/2025
+                  - generic [ref=e852]: Concorrência Eletrônica
+                - cell "SECRETARIA DE CULTURA E TURISMO" [ref=e853]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e854]:
+                  - generic [ref=e855]: Cadastro inicial fora do fluxo
+                  - generic [ref=e856]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e857]:
+                  - generic [ref=e858]: Preparação do edital
+                - cell "CE-020-2025" [ref=e859]
+                - cell "21/03/2026, 12:26" [ref=e860]
+                - cell "Abrir fase" [ref=e861]:
+                  - link "Abrir fase" [ref=e862] [cursor=pointer]:
+                    - /url: /licitacao/124
+                    - text: Abrir fase
+                    - img [ref=e864]
+              - row "0022/2025 Concorrência Eletrônica SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-019-2025 21/03/2026, 12:25 Abrir fase" [ref=e866]:
+                - cell "0022/2025 Concorrência Eletrônica" [ref=e867]:
+                  - generic [ref=e868]: 0022/2025
+                  - generic [ref=e869]: Concorrência Eletrônica
+                - cell "SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS" [ref=e870]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e871]:
+                  - generic [ref=e872]: Cadastro inicial fora do fluxo
+                  - generic [ref=e873]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e874]:
+                  - generic [ref=e875]: Preparação do edital
+                - cell "CE-019-2025" [ref=e876]
+                - cell "21/03/2026, 12:25" [ref=e877]
+                - cell "Abrir fase" [ref=e878]:
+                  - link "Abrir fase" [ref=e879] [cursor=pointer]:
+                    - /url: /licitacao/122
+                    - text: Abrir fase
+                    - img [ref=e881]
+              - row "0021/2025 Concorrência Eletrônica SECRETARIA DE EDUCAÇÃO Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-022-2025 21/03/2026, 12:25 Abrir fase" [ref=e883]:
+                - cell "0021/2025 Concorrência Eletrônica" [ref=e884]:
+                  - generic [ref=e885]: 0021/2025
+                  - generic [ref=e886]: Concorrência Eletrônica
+                - cell "SECRETARIA DE EDUCAÇÃO" [ref=e887]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e888]:
+                  - generic [ref=e889]: Cadastro inicial fora do fluxo
+                  - generic [ref=e890]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e891]:
+                  - generic [ref=e892]: Preparação do edital
+                - cell "CE-022-2025" [ref=e893]
+                - cell "21/03/2026, 12:25" [ref=e894]
+                - cell "Abrir fase" [ref=e895]:
+                  - link "Abrir fase" [ref=e896] [cursor=pointer]:
+                    - /url: /licitacao/121
+                    - text: Abrir fase
+                    - img [ref=e898]
+              - row "0019/2025 Concorrência Eletrônica SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-023-2025 21/03/2026, 12:24 Abrir fase" [ref=e900]:
+                - cell "0019/2025 Concorrência Eletrônica" [ref=e901]:
+                  - generic [ref=e902]: 0019/2025
+                  - generic [ref=e903]: Concorrência Eletrônica
+                - cell "SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS" [ref=e904]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e905]:
+                  - generic [ref=e906]: Cadastro inicial fora do fluxo
+                  - generic [ref=e907]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e908]:
+                  - generic [ref=e909]: Preparação do edital
+                - cell "CE-023-2025" [ref=e910]
+                - cell "21/03/2026, 12:24" [ref=e911]
+                - cell "Abrir fase" [ref=e912]:
+                  - link "Abrir fase" [ref=e913] [cursor=pointer]:
+                    - /url: /licitacao/118
+                    - text: Abrir fase
+                    - img [ref=e915]
+              - row "0017/2025 Concorrência Eletrônica SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO Preparação do edital CE-025-2025 21/03/2026, 12:22 Abrir fase" [ref=e917]:
+                - cell "0017/2025 Concorrência Eletrônica" [ref=e918]:
+                  - generic [ref=e919]: 0017/2025
+                  - generic [ref=e920]: Concorrência Eletrônica
+                - cell "SECRETARIA DE INFRAESTRUTURA E SERVIÇOS URBANOS" [ref=e921]
+                - cell "Cadastro inicial fora do fluxo DAVIDSON SILVA ARAUJO" [ref=e922]:
+                  - generic [ref=e923]: Cadastro inicial fora do fluxo
+                  - generic [ref=e924]: DAVIDSON SILVA ARAUJO
+                - cell "Preparação do edital" [ref=e925]:
+                  - generic [ref=e926]: Preparação do edital
+                - cell "CE-025-2025" [ref=e927]
+                - cell "21/03/2026, 12:22" [ref=e928]
+                - cell "Abrir fase" [ref=e929]:
+                  - link "Abrir fase" [ref=e930] [cursor=pointer]:
+                    - /url: /licitacao/114
+                    - text: Abrir fase
+                    - img [ref=e932]
+          - generic [ref=e934]:
+            - paragraph [ref=e935]: Exibindo 12 de 47 processos em Licitação.
+            - generic [ref=e936]:
+              - button "Anterior" [disabled] [ref=e937]:
+                - img [ref=e938]
+                - text: Anterior
+              - button "1" [ref=e940]
+              - button "2" [ref=e941]
+              - button "3" [ref=e942]
+              - button "4" [ref=e943]
+              - button "Proxima" [ref=e944]:
+                - text: Proxima
+                - img [ref=e945]
+  - generic [ref=e556]: Sistema de Registro e Gestão de Licitações - SIREL

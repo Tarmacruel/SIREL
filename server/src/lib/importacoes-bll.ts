@@ -4,7 +4,12 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import type { ImportacaoBllSource } from "@sirel/shared/schemas/importacoes";
 
 import { databaseEnabled, requireDb } from "../db/client.js";
-import { importacaoBllExecucoes, importacaoBllItens, importacaoBllProcessos } from "../db/schema.js";
+import {
+  importacaoBllExecucoes,
+  importacaoBllFornecedores,
+  importacaoBllItens,
+  importacaoBllProcessos,
+} from "../db/schema.js";
 import { refreshConciliationForImportedIds } from "./importacoes-conciliacao.js";
 import { normalizeEnhancedDataset } from "./importacoes-bll-v2.js";
 import { persistEnhancedNormalizedDataset } from "./importacoes-bll-v2-integration.js";
@@ -613,7 +618,7 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
   const lockKey = options.origem;
 
   if (activeSources.has(lockKey)) {
-    throw new Error(`Ja existe uma importacao em andamento para ${remoteImportSources[options.origem].label}.`);
+    throw new Error(`Já existe uma importação em andamento para ${remoteImportSources[options.origem].label}.`);
   }
 
   activeSources.add(lockKey);
@@ -635,6 +640,89 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
   try {
     const totalItens = options.dataset.registros.reduce((acc, registro) => acc + registro.itens.length, 0);
     const importedIds: number[] = [];
+    const fornecedorCache = new Map<string, number>();
+
+    const normalizeDocumento = (value?: string | null) => {
+      const digits = String(value ?? "").replace(/\D+/g, "");
+      if (!digits) return null;
+      if (digits.length === 11 || digits.length === 14) return digits;
+      return null;
+    };
+
+    const normalizeFornecedorKey = (value: string) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+
+    const normalizeFornecedorName = (value?: string | null) => {
+      const text = String(value ?? "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return text ? text : null;
+    };
+
+    const extractDocumentoFromText = (value?: string | null) => {
+      const digits = String(value ?? "").replace(/\D+/g, "");
+      if (digits.length === 11 || digits.length === 14) return digits;
+      return null;
+    };
+
+    const ensureFornecedor = async (
+      tx: any,
+      nomeRaw?: string | null,
+      documentoRaw?: string | null,
+      dadosOriginais?: unknown,
+    ) => {
+      const nome = normalizeFornecedorName(nomeRaw);
+      if (!nome) return null;
+
+      const documento =
+        normalizeDocumento(documentoRaw) ?? extractDocumentoFromText(nomeRaw);
+      const nomeNormalizado = normalizeFornecedorKey(nome);
+      const cacheKey = documento
+        ? `doc:${documento}`
+        : `nome:${nomeNormalizado}`;
+
+      if (fornecedorCache.has(cacheKey)) {
+        return fornecedorCache.get(cacheKey) ?? null;
+      }
+
+      const conflictTarget = documento
+        ? [importacaoBllFornecedores.documento]
+        : [importacaoBllFornecedores.nomeNormalizado];
+
+      const [saved] = await tx
+        .insert(importacaoBllFornecedores)
+        .values({
+          nome,
+          nomeNormalizado,
+          documento,
+          dadosOriginais: dadosOriginais ?? null,
+          atualizadoEm: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: conflictTarget,
+          set: {
+            nome,
+            nomeNormalizado,
+            documento,
+            dadosOriginais: dadosOriginais ?? null,
+            atualizadoEm: new Date(),
+          },
+        })
+        .returning({ id: importacaoBllFornecedores.id });
+
+      if (saved?.id) {
+        fornecedorCache.set(cacheKey, saved.id);
+        return saved.id;
+      }
+
+      return null;
+    };
 
     await db.transaction(async (tx) => {
       for (const registro of options.dataset.registros) {
@@ -707,12 +795,27 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
 
         importedIds.push(savedProcess.id);
 
+        await ensureFornecedor(
+          tx,
+          registro.fornecedorNome,
+          null,
+          registro.dadosOriginais,
+        );
+
         await tx.delete(importacaoBllItens).where(eq(importacaoBllItens.processoImportadoId, savedProcess.id));
 
         if (registro.itens.length) {
-          await tx.insert(importacaoBllItens).values(
-            registro.itens.map((item) => ({
+          const itemRows = [];
+          for (const item of registro.itens) {
+            const fornecedorId = await ensureFornecedor(
+              tx,
+              item.fornecedorNome,
+              null,
+              item.dadosOriginais,
+            );
+            itemRows.push({
               processoImportadoId: savedProcess.id,
+              fornecedorImportadoId: fornecedorId,
               loteNumero: item.loteNumero,
               itemNumero: item.itemNumero,
               descricao: item.descricao,
@@ -728,8 +831,11 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
               faseExterna: item.faseExterna,
               dadosOriginais: item.dadosOriginais,
               atualizadoEm: new Date(),
-            })),
-          );
+            });
+          }
+          if (itemRows.length) {
+            await tx.insert(importacaoBllItens).values(itemRows);
+          }
         }
       }
     });
@@ -742,7 +848,7 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
         status: "CONCLUIDA",
         totalRegistros: options.dataset.registros.length,
         totalItens,
-        mensagem: `Importacao concluida com ${options.dataset.registros.length} registro(s) e ${totalItens} item(ns).`,
+        mensagem: `Importação concluída com ${options.dataset.registros.length} registro(s) e ${totalItens} item(ns).`,
         finalizadoEm: new Date(),
       })
       .where(eq(importacaoBllExecucoes.id, execution.id));
@@ -756,7 +862,7 @@ async function persistNormalizedDataset(options: ExecuteImportOptions): Promise<
       atualizadoFonteEm: options.dataset.atualizadoFonteEm,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha ao processar a importacao.";
+    const message = error instanceof Error ? error.message : "Falha ao processar a importação.";
     await db
       .update(importacaoBllExecucoes)
       .set({
@@ -776,16 +882,9 @@ export async function syncRemoteImport(
   options?: { criadoPor?: number | null; agendada?: boolean; referenciaRotina?: string | null },
 ) {
   const payload = await fetchRemoteDataset(source);
-  
-  // Normalizar com v2 (preservação completa de dados)
-  const datasetV1 = source === "LICITACAO"
-    ? normalizeRemoteLicitacaoDataset(payload)
-    : normalizeRemoteCompraDiretaDataset(payload);
-  
-  const datasetV2 = normalizeEnhancedDataset(
-    { processos: datasetV1.registros, data_atualizacao: datasetV1.atualizadoFonteEm, ...datasetV1.detalhes },
-    source,
-  );
+
+  // Normalizar com v2 direto (preserva lotes/itens completos dos JSONs públicos)
+  const datasetV2 = normalizeEnhancedDataset(payload, source);
 
   // Persistir com v2 (preservação + lotes + itens especificados)
   return persistEnhancedNormalizedDataset({
@@ -893,7 +992,7 @@ async function runScheduledImportTick() {
       criadoPor: null,
     });
   } catch (error) {
-    console.error("Falha na rotina automatica de importacao BLL:", error);
+    console.error("Falha na rotina automática de importação BLL:", error);
   } finally {
     schedulerRunning = false;
   }

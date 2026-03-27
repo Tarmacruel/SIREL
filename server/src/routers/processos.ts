@@ -1,4 +1,4 @@
-import { TRPCError } from "@trpc/server";
+﻿import { TRPCError } from "@trpc/server";
 import { and, asc, count, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 
@@ -49,6 +49,20 @@ function isDispensaModalidade(modalidadeCodigo?: string | null) {
 
 function isObjetoIncisoI(tipoObjeto?: string | null) {
   return tipoObjeto === "OBRA" || tipoObjeto === "SERVICO_ENG";
+}
+
+function parseOptionalTimestamp(value?: string) {
+  if (value === undefined) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Data/hora inválida informada para o processo.",
+    });
+  }
+  return parsed;
 }
 
 async function validateDispensaLimit(params: {
@@ -262,6 +276,8 @@ export const processosRouter = router({
         objeto: processos.objeto,
         valorEstimado: processos.valorEstimado,
         dataAbertura: processos.dataAbertura,
+        dataPublicacao: processos.dataPublicacao,
+        dataDisputaSessao: processos.dataDisputaSessao,
         foraDoFluxo: processos.foraDoFluxo,
         ativo: processos.ativo,
         publicado: processos.publicado,
@@ -321,6 +337,8 @@ export const processosRouter = router({
       tipoObjeto: input.tipoObjeto ?? "PRODUTO",
       valorEstimado: input.valorEstimado ?? null,
     });
+    const dataPublicacao = parseOptionalTimestamp(input.dataPublicacao);
+    const dataDisputaSessao = parseOptionalTimestamp(input.dataDisputaSessao);
     const numeroSirel = await getNextNumeroSirel(db, input.anoReferencia);
     const moduloInicial = input.foraDoFluxo ? input.moduloInicial ?? "DOCUMENTOS" : "PLANEJAMENTO";
 
@@ -345,15 +363,19 @@ export const processosRouter = router({
         tipoObjeto: input.tipoObjeto ?? "PRODUTO",
         tipoContratacao: input.tipoContratacao ?? "AQUISICAO",
         dataAbertura: input.dataAbertura,
+        dataPublicacao,
+        dataDisputaSessao,
         criadoPor: ctx.user?.id ?? null,
       })
       .returning();
 
+    const situacaoInicial = input.situacao ?? "RASCUNHO";
     await db.insert(workflowProcesso).values({
       processoId: created.id,
       moduloAtual: moduloInicial,
-      situacao: "RASCUNHO",
+      situacao: situacaoInicial,
       etapaAtual: input.foraDoFluxo ? "Cadastro inicial fora do fluxo" : "Cadastro inicial no planejamento",
+      dataConclusao: situacaoInicial === "CONCLUIDO" ? new Date().toISOString().slice(0, 10) : null,
     });
 
     await db.insert(movimentacoesWorkflow).values({
@@ -385,7 +407,7 @@ export const processosRouter = router({
     const [before] = await db.select().from(processos).where(eq(processos.id, input.processoId)).limit(1);
 
     if (!before) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "Processo nÃ£o encontrado." });
+      throw new TRPCError({ code: "NOT_FOUND", message: "Processo não encontrado." });
     }
 
     const [updated] = await db
@@ -434,20 +456,23 @@ export const processosRouter = router({
       atualizadoEm: new Date(),
     };
 
+    if (input.foraDoFluxo !== undefined) updateData.foraDoFluxo = input.foraDoFluxo;
     if (input.numeroAdministrativo !== undefined) updateData.numeroAdministrativo = input.numeroAdministrativo;
     if (input.numeroEdital !== undefined) updateData.numeroEdital = input.numeroEdital;
     if (input.dataAbertura !== undefined) updateData.dataAbertura = input.dataAbertura;
-    if (input.secretariaId) updateData.secretariaId = input.secretariaId;
-    if (input.modalidadeId) updateData.modalidadeId = input.modalidadeId;
-    if (input.tipoObjeto) updateData.tipoObjeto = input.tipoObjeto;
-    if (input.tipoContratacao) updateData.tipoContratacao = input.tipoContratacao;
-    if (input.autoridadeCompetenteId) updateData.autoridadeCompetenteId = input.autoridadeCompetenteId;
-    if (input.condutorProcessoId) updateData.condutorProcessoId = input.condutorProcessoId;
-    if (input.objeto) updateData.objeto = input.objeto;
+    if (input.dataPublicacao !== undefined) updateData.dataPublicacao = parseOptionalTimestamp(input.dataPublicacao);
+    if (input.dataDisputaSessao !== undefined) updateData.dataDisputaSessao = parseOptionalTimestamp(input.dataDisputaSessao);
+    if (input.secretariaId !== undefined) updateData.secretariaId = input.secretariaId;
+    if (input.modalidadeId !== undefined) updateData.modalidadeId = input.modalidadeId;
+    if (input.tipoObjeto !== undefined) updateData.tipoObjeto = input.tipoObjeto;
+    if (input.tipoContratacao !== undefined) updateData.tipoContratacao = input.tipoContratacao;
+    if (input.autoridadeCompetenteId !== undefined) updateData.autoridadeCompetenteId = input.autoridadeCompetenteId;
+    if (input.condutorProcessoId !== undefined) updateData.condutorProcessoId = input.condutorProcessoId;
+    if (input.objeto !== undefined) updateData.objeto = input.objeto;
     if (input.valorEstimado !== undefined) updateData.valorEstimado = input.valorEstimado.toFixed(2);
-    if (input.criterioJulgamento) updateData.criterioJulgamento = input.criterioJulgamento;
-    if (input.modoDisputa) updateData.modoDisputa = input.modoDisputa;
-    if (input.escopoDisputa) updateData.escopoDisputa = input.escopoDisputa;
+    if (input.criterioJulgamento !== undefined) updateData.criterioJulgamento = input.criterioJulgamento;
+    if (input.modoDisputa !== undefined) updateData.modoDisputa = input.modoDisputa;
+    if (input.escopoDisputa !== undefined) updateData.escopoDisputa = input.escopoDisputa;
 
     const [updated] = await db
       .update(processos)
@@ -463,6 +488,17 @@ export const processosRouter = router({
       dadosNovos: updated,
       descricao: `Processo ${updated.numeroSirel} atualizado - Dados do processo editados via workflow`,
     });
+
+    if (input.situacao !== undefined) {
+      await db
+        .update(workflowProcesso)
+        .set({
+          situacao: input.situacao,
+          dataConclusao: input.situacao === "CONCLUIDO" ? new Date().toISOString().slice(0, 10) : null,
+          atualizadoEm: new Date(),
+        })
+        .where(eq(workflowProcesso.processoId, input.processoId));
+    }
 
     return updated;
   }),
@@ -551,28 +587,28 @@ export const processosRouter = router({
         chave: "dfd",
         label: "DFD",
         status: dfdRow ? (dfdRow.concluido ? "CONCLUIDO" : "EM_ANDAMENTO") : "PENDENTE",
-        detalhe: dfdRow ? "Documento de FormalizaÃ§Ã£o da Demanda registrado." : "Etapa ainda nÃ£o iniciada.",
+        detalhe: dfdRow ? "Documento de Formalização da Demanda registrado." : "Etapa ainda não iniciada.",
       },
       {
         chave: "etp",
         label: "ETP",
         status: etpRow ? (etpRow.concluido ? "CONCLUIDO" : "EM_ANDAMENTO") : "PENDENTE",
-        detalhe: etpRow ? "Estudo TÃ©cnico Preliminar controlado no Planejamento." : "Etapa ainda nÃ£o iniciada.",
+        detalhe: etpRow ? "Estudo Técnico Preliminar controlado no Planejamento." : "Etapa ainda não iniciada.",
       },
       {
         chave: "cotacoes",
-        label: "CotaÃ§Ãµes preliminares",
+        label: "Cotações preliminares",
         status: Number(cotacaoRow?.total ?? 0) > 0 ? "CONCLUIDO" : etpRow ? "EM_ANDAMENTO" : "PENDENTE",
         detalhe:
           Number(cotacaoRow?.total ?? 0) > 0
-            ? `${Number(cotacaoRow?.total ?? 0)} registro(s) na composiÃ§Ã£o do mapa comparativo.`
-            : "Ainda sem registros vÃ¡lidos para estimativa de valor.",
+            ? `${Number(cotacaoRow?.total ?? 0)} registro(s) na composição do mapa comparativo.`
+            : "Ainda sem registros válidos para estimativa de valor.",
       },
       {
         chave: "tr",
         label: "TR",
         status: trRow ? (trRow.concluido ? "CONCLUIDO" : "EM_ANDAMENTO") : "PENDENTE",
-        detalhe: trRow ? "Etapa do Termo de ReferÃªncia controlada no Planejamento." : "Termo de ReferÃªncia ainda nÃ£o registrado.",
+        detalhe: trRow ? "Etapa do Termo de Referência controlada no Planejamento." : "Termo de Referência ainda não registrado.",
       },
       {
         chave: "publicacao",
@@ -580,15 +616,15 @@ export const processosRouter = router({
         status: baseRow.processo.publicado ? "CONCLUIDO" : baseRow.workflow?.moduloAtual === "LICITACAO" ? "EM_ANDAMENTO" : "PENDENTE",
         detalhe: baseRow.processo.publicado
           ? `Publicado${baseRow.processo.numeroEdital ? ` sob o edital ${baseRow.processo.numeroEdital}` : ""}.`
-          : "A publicaÃ§Ã£o serÃ¡ controlada na LicitaÃ§Ã£o.",
+          : "A publicação será controlada na Licitação.",
       },
       {
         chave: "contrato",
-        label: "ContrataÃ§Ã£o",
+        label: "Contratação",
         status: contratosRows.length ? "CONCLUIDO" : "PENDENTE",
         detalhe: contratosRows.length
           ? `${contratosRows.length} contrato(s) associado(s), sendo ${contratosAtivos} ativo(s).`
-          : "Ainda nÃ£o hÃ¡ contratos vinculados.",
+          : "Ainda não há contratos vinculados.",
       },
     ];
 
@@ -619,4 +655,6 @@ export const processosRouter = router({
     };
   }),
 });
+
+
 

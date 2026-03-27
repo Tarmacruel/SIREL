@@ -8,6 +8,8 @@ import {
   prazosProcessuais,
   processos,
 } from "../db/schema.js";
+import { dispatchNotifications } from "./notificacoes-dispatch.js";
+import { loadNotificationPreferences } from "./notificacoes-preferencias.js";
 
 function formatDateString(date: Date) {
   const year = date.getFullYear();
@@ -40,17 +42,6 @@ function getPrazoPriority(status: string, dataPrevista: string, today: string): 
   if (status === "EM_ATRASO" || dataPrevista < today) return "URGENTE";
   if (dataPrevista === today) return "ALTA";
   return "MEDIA";
-}
-
-function buildActionData(payload: NotificationPayload) {
-  return payload.processoId
-    ? {
-        processoId: payload.processoId,
-        href: payload.href ?? null,
-        documentoId: payload.documentoId ?? null,
-        prazoId: payload.prazoId ?? null,
-      }
-    : null;
 }
 
 export async function syncOperationalNotifications(userId: number) {
@@ -146,45 +137,13 @@ export async function syncOperationalNotifications(userId: number) {
     })),
   ];
 
-  for (const payload of payloads) {
-    await db
-      .insert(notificacoesUsuario)
-      .values({
-        userId: payload.userId,
-        processoId: payload.processoId ?? null,
-        documentoId: payload.documentoId ?? null,
-        prazoId: payload.prazoId ?? null,
-        tipo: payload.tipo,
-        prioridade: payload.prioridade,
-        chave: payload.chave,
-        titulo: payload.titulo,
-        mensagem: payload.mensagem,
-        href: payload.href ?? null,
-        acaoRelacionada: buildActionData(payload),
-        origemAutomatica: true,
-        atualizadoEm: now,
-        dataExpiracao: payload.dataExpiracao ?? null,
-      })
-      .onConflictDoUpdate({
-        target: [notificacoesUsuario.userId, notificacoesUsuario.chave],
-        set: {
-          processoId: payload.processoId ?? null,
-          documentoId: payload.documentoId ?? null,
-          prazoId: payload.prazoId ?? null,
-          tipo: payload.tipo,
-          prioridade: payload.prioridade,
-          titulo: payload.titulo,
-          mensagem: payload.mensagem,
-          href: payload.href ?? null,
-          acaoRelacionada: buildActionData(payload),
-          origemAutomatica: true,
-          atualizadoEm: now,
-          dataExpiracao: payload.dataExpiracao ?? null,
-        },
-      });
-  }
+  const preferences = await loadNotificationPreferences(db, userId);
+  await dispatchNotifications(db, payloads, {
+    scope: "EQUIPE",
+    preferencesMap: new Map([[userId, preferences]]),
+  });
 
-  const activeKeys = payloads.map((item) => item.chave);
+  const activeKeys = preferences.canais.inApp ? payloads.map((item) => item.chave) : [];
   const expireBaseFilters = [
     eq(notificacoesUsuario.userId, userId),
     eq(notificacoesUsuario.origemAutomatica, true),

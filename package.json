@@ -28,7 +28,9 @@
     "backup:local": "powershell -ExecutionPolicy Bypass -File ./scripts/backup-local.ps1",
     "start:local": "powershell -ExecutionPolicy Bypass -File ./Iniciar_SIREL_Local.ps1",
     "format": "prettier --write .",
-    "test": "npm run test --workspace client"
+    "test": "npm run test --workspace client",
+    "test:server": "npm run test --workspace server",
+    "test:all": "npm run test --workspace server && npm run test --workspace client"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

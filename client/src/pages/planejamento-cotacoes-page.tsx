@@ -14,7 +14,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { Tabs } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type EtpCotacaoFormState, validateEtpCotacaoForm, validateEtpForm } from "@/features/planejamento/form";
-import { formatCurrencyBRL, formatDecimalInput, formatNumberBR, formatShortDateBR, normalizeDecimalInput } from "@/lib/formatters";
+import {
+  formatCurrencyBRL,
+  formatDecimalInput,
+  formatNumberBR,
+  formatShortDateBR,
+  maskCurrencyInputBR,
+  normalizeCurrencyInputBR,
+  normalizeDecimalInput,
+} from "@/lib/formatters";
 import {
   buildMapaComparativoHtml,
   navigatePreviewWindow,
@@ -115,7 +123,7 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
   const itemSelecionado = useMemo(() => itens.find((item) => item.id === selectedItemId) ?? null, [itens, selectedItemId]);
   const cotacoesDoItem = useMemo(() => detalhe?.cotacoesPreliminares.filter((cotacao) => cotacao.itemId === selectedItemId) ?? [], [detalhe?.cotacoesPreliminares, selectedItemId]);
   const mediaItem = useMemo(() => average(cotacoesDoItem.filter((cotacao) => cotacao.id !== form.cotacaoId).map((cotacao) => Number(cotacao.valorUnitario)).filter(Number.isFinite)), [cotacoesDoItem, form.cotacaoId]);
-  const analiseAtual = useMemo(() => { const valor = normalizeDecimalInput(form.valorUnitario); if (!valor || mediaItem <= 0) return null; const faixa = classify(valor, mediaItem); return faixa === "OK" ? null : { faixa, media: mediaItem }; }, [form.valorUnitario, mediaItem]);
+  const analiseAtual = useMemo(() => { const valor = normalizeCurrencyInputBR(form.valorUnitario); if (!valor || mediaItem <= 0) return null; const faixa = classify(valor, mediaItem); return faixa === "OK" ? null : { faixa, media: mediaItem }; }, [form.valorUnitario, mediaItem]);
 
   function toggleConsiderada(checked: boolean) {
     if (checked) { setForm((current) => ({ ...current, considerada: true, motivoDesconsideracao: undefined, justificativaDesconsideracao: "" })); return; }
@@ -130,7 +138,7 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
     setSelectedItemId(cotacao.itemId);
     setForm({
       cotacaoId: cotacao.id, itemId: cotacao.itemId, fonte: cotacao.fonte, fornecedorNome: cotacao.fornecedorNome, documento: cotacao.documento ?? "",
-      dataCotacao: cotacao.dataCotacao ?? "", quantidadeConsiderada: formatDecimalInput(cotacao.quantidadeConsiderada, 3), valorUnitario: formatDecimalInput(cotacao.valorUnitario, 2),
+      dataCotacao: cotacao.dataCotacao ?? "", quantidadeConsiderada: formatDecimalInput(cotacao.quantidadeConsiderada, 3), valorUnitario: formatCurrencyBRL(cotacao.valorUnitario),
       considerada: cotacao.considerada, motivoDesconsideracao: cotacao.motivoDesconsideracao ?? undefined, justificativaDesconsideracao: cotacao.justificativaDesconsideracao ?? "", observacao: cotacao.observacao ?? "",
     });
     registroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -146,7 +154,7 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
     event.preventDefault();
     if (!selectedItemId) return;
     const quantidadeConsiderada = normalizeDecimalInput(form.quantidadeConsiderada);
-    const valorUnitario = normalizeDecimalInput(form.valorUnitario);
+    const valorUnitario = normalizeCurrencyInputBR(form.valorUnitario);
     if (!quantidadeConsiderada || !valorUnitario) { setErrorMessage("Informe quantidade considerada e valor unitário válidos."); setMessage(null); return; }
     const parsed = validateEtpCotacaoForm(processoId, {
       cotacaoId: form.cotacaoId, itemId: selectedItemId, fonte: form.fonte, fornecedorNome: form.fornecedorNome, documento: form.documento, dataCotacao: form.dataCotacao,
@@ -223,7 +231,7 @@ export function PlanejamentoCotacoesPage({ processoId }: PlanejamentoCotacoesPag
                 <FormField label="Documento de referência"><Input value={form.documento} onChange={(event) => setForm((current) => ({ ...current, documento: event.target.value }))} /></FormField>
                 <FormField label="Data da cotação"><Input type="date" value={form.dataCotacao} onChange={(event) => setForm((current) => ({ ...current, dataCotacao: event.target.value }))} /></FormField>
                 <FormField label="Quantidade considerada" error={fieldErrors.quantidadeConsiderada}><Input inputMode="decimal" value={form.quantidadeConsiderada} error={Boolean(fieldErrors.quantidadeConsiderada)} onChange={(event) => setForm((current) => ({ ...current, quantidadeConsiderada: event.target.value }))} /></FormField>
-                <FormField label="Valor unitário" error={fieldErrors.valorUnitario}><Input inputMode="decimal" value={form.valorUnitario} error={Boolean(fieldErrors.valorUnitario)} onChange={(event) => setForm((current) => ({ ...current, valorUnitario: event.target.value }))} /></FormField>
+                <FormField label="Valor unitário" error={fieldErrors.valorUnitario}><Input inputMode="decimal" value={form.valorUnitario} error={Boolean(fieldErrors.valorUnitario)} placeholder="R$ 0,00" onChange={(event) => setForm((current) => ({ ...current, valorUnitario: maskCurrencyInputBR(event.target.value) }))} /></FormField>
               </div>
               <div className="rounded-3xl border border-slate-200 bg-white px-4 py-4">
                 <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={form.considerada} onChange={(event) => toggleConsiderada(event.target.checked)} className="h-4 w-4 rounded border-slate-300" />Considerar esta cotação no mapa comparativo</label>

@@ -136,3 +136,60 @@ export const pncpConciliationInputSchema = z.object({
 
 export type PncpSearchInput = z.infer<typeof pncpSearchInputSchema>;
 export type PncpConciliationInput = z.infer<typeof pncpConciliationInputSchema>;
+
+export const pncpStoredEntityOptions = [
+  "CONTRATACOES",
+  "ATAS",
+  "CONTRATOS",
+] as const;
+
+export const pncpStoredListInputSchema = z.object({
+  tipo: z.enum(pncpStoredEntityOptions),
+  search: z.string().trim().optional(),
+  dataInicio: z.string().optional(),
+  dataFim: z.string().optional(),
+  page: z.number().int().positive().default(1),
+  pageSize: z.number().int().positive().max(50).default(12),
+});
+
+export const pncpStoredDetailInputSchema = z.object({
+  tipo: z.enum(pncpStoredEntityOptions),
+  id: z.number().int().positive(),
+});
+
+export const pncpStoredDeleteInputSchema = z.object({
+  tipo: z.enum(pncpStoredEntityOptions),
+  id: z.number().int().positive(),
+});
+
+export const pncpStoredSearchProcessosInputSchema = z.object({
+  tipo: z.enum(pncpStoredEntityOptions),
+  id: z.number().int().positive(),
+  search: z.string().trim().optional(),
+  pageSize: z.number().int().positive().max(20).default(8),
+});
+
+export const pncpStoredLinkProcessoInputSchema = z.object({
+  tipo: z.enum(pncpStoredEntityOptions),
+  id: z.number().int().positive(),
+  processoId: z.number().int().positive(),
+});
+
+export const pncpStoredUnlinkProcessoInputSchema = z.object({
+  tipo: z.enum(pncpStoredEntityOptions),
+  id: z.number().int().positive(),
+});
+
+export type PncpStoredEntity = (typeof pncpStoredEntityOptions)[number];
+export type PncpStoredListInput = z.infer<typeof pncpStoredListInputSchema>;
+export type PncpStoredDetailInput = z.infer<typeof pncpStoredDetailInputSchema>;
+export type PncpStoredDeleteInput = z.infer<typeof pncpStoredDeleteInputSchema>;
+export type PncpStoredSearchProcessosInput = z.infer<
+  typeof pncpStoredSearchProcessosInputSchema
+>;
+export type PncpStoredLinkProcessoInput = z.infer<
+  typeof pncpStoredLinkProcessoInputSchema
+>;
+export type PncpStoredUnlinkProcessoInput = z.infer<
+  typeof pncpStoredUnlinkProcessoInputSchema
+>;

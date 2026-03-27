@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Integração BLL v2.0 - Camada de Ponte
  * 
  * Responsável por conectar:
@@ -14,6 +14,7 @@ import { requireDb } from "../db/client.js";
 import {
   importacaoBllEdicoesAudit,
   importacaoBllExecucoes,
+  importacaoBllFornecedores,
   importacaoBllItens,
   importacaoBllItensEspecificados,
   importacaoBllLotes,
@@ -22,12 +23,9 @@ import {
 import { refreshConciliationForImportedIds } from "./importacoes-conciliacao.js";
 import {
   normalizeEnhancedDataset as normalizeWithV2,
+  normalizeText,
   validateImportQuality,
 } from "./importacoes-bll-v2.js";
-import {
-  calculateCompletenessScore,
-  persistEnhancedProcess as persistV2,
-} from "./importacoes-bll-v2-persist.js";
 import { remoteImportSources } from "./importacoes-bll.js";
 
 /**
@@ -80,6 +78,105 @@ export async function persistEnhancedNormalizedDataset(options: {
     let totalLotes = 0;
     const importedIds: number[] = [];
     const qualityScores: number[] = [];
+    const fornecedorCache = new Map<string, number>();
+
+    const normalizeDocumento = (value?: string | null) => {
+      const digits = String(value ?? "").replace(/\D+/g, "");
+      if (!digits) return null;
+      if (digits.length === 11 || digits.length === 14) return digits;
+      return null;
+    };
+
+    const normalizeFornecedorKey = (value: string) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toUpperCase();
+
+    const clampText = (value: unknown, max: number) => {
+      const text = normalizeText(value);
+      return text ? text.slice(0, max) : null;
+    };
+
+    const MAX_NUMERIC_14_4 = 9999999999.9999;
+    const MAX_NUMERIC_14_2 = 999999999999.99;
+
+    const formatNumeric = (
+      value: number | null | undefined,
+      scale: number,
+      maxAbs: number,
+    ) => {
+      if (value === null || value === undefined) return null;
+      const num = Number(value);
+      if (!Number.isFinite(num) || Math.abs(num) > maxAbs) return null;
+      return num.toFixed(scale);
+    };
+
+    const safeQuantidade = (value: number | null | undefined) =>
+      formatNumeric(value, 4, MAX_NUMERIC_14_4);
+    const safeValor = (value: number | null | undefined) =>
+      formatNumeric(value, 2, MAX_NUMERIC_14_2);
+
+    const extractDocumentoFromText = (value?: string | null) => {
+      const digits = String(value ?? "").replace(/\D+/g, "");
+      if (digits.length === 11 || digits.length === 14) return digits;
+      return null;
+    };
+
+    const ensureFornecedor = async (
+      tx: any,
+      nomeRaw?: string | null,
+      documentoRaw?: string | null,
+      dadosOriginais?: unknown,
+    ) => {
+      const nome = normalizeText(nomeRaw);
+      if (!nome) return null;
+
+      const documento =
+        normalizeDocumento(documentoRaw) ?? extractDocumentoFromText(nomeRaw);
+      const nomeNormalizado = normalizeFornecedorKey(nome);
+      const cacheKey = documento
+        ? `doc:${documento}`
+        : `nome:${nomeNormalizado}`;
+
+      if (fornecedorCache.has(cacheKey)) {
+        return fornecedorCache.get(cacheKey) ?? null;
+      }
+
+      const conflictTarget = documento
+        ? [importacaoBllFornecedores.documento]
+        : [importacaoBllFornecedores.nomeNormalizado];
+
+      const [saved] = await tx
+        .insert(importacaoBllFornecedores)
+        .values({
+          nome,
+          nomeNormalizado,
+          documento,
+          dadosOriginais: dadosOriginais ?? null,
+          atualizadoEm: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: conflictTarget,
+          set: {
+            nome,
+            nomeNormalizado,
+            documento,
+            dadosOriginais: dadosOriginais ?? null,
+            atualizadoEm: new Date(),
+          },
+        })
+        .returning({ id: importacaoBllFornecedores.id });
+
+      if (saved?.id) {
+        fornecedorCache.set(cacheKey, saved.id);
+        return saved.id;
+      }
+
+      return null;
+    };
 
     // Processar cada processo normalizado
     await db.transaction(async (tx) => {
@@ -172,34 +269,61 @@ export async function persistEnhancedNormalizedDataset(options: {
         importedIds.push(savedProcess.id);
         qualityScores.push(processo.dataQuality.completeness);
 
+        await ensureFornecedor(
+          tx,
+          processo.fornecedorNome,
+          null,
+          processo.dadosOriginais,
+        );
+
         // 2. Salvar itens v1 (compatibilidade - lista plana)
         await tx
           .delete(importacaoBllItens)
           .where(
             eq(importacaoBllItens.processoImportadoId, savedProcess.id),
           );
+        await tx
+          .delete(importacaoBllItensEspecificados)
+          .where(
+            eq(importacaoBllItensEspecificados.processoImportadoId, savedProcess.id),
+          );
+        await tx
+          .delete(importacaoBllLotes)
+          .where(eq(importacaoBllLotes.processoImportadoId, savedProcess.id));
 
         if (processo.itens.length) {
-          await tx.insert(importacaoBllItens).values(
-            processo.itens.map((item) => ({
+          const itemRows = [];
+          for (const item of processo.itens) {
+            const fornecedorId = await ensureFornecedor(
+              tx,
+              item.fornecedorHomologado,
+              null,
+              item.dadosOriginais,
+            );
+            itemRows.push({
               processoImportadoId: savedProcess.id,
-              loteNumero: item.descricaoResumida.split(/[:\n]/)[0],
-              itemNumero: item.numero,
+              fornecedorImportadoId: fornecedorId,
+              loteNumero: clampText(item.loteNumero, 128),
+              itemNumero: clampText(item.numero, 128),
               descricao: item.especificacaoTecnica || item.descricaoResumida,
               unidade: item.unidadeMedida,
-              quantidade: item.quantidade ? item.quantidade.toString() : null,
+              quantidade: safeQuantidade(item.quantidade),
               fornecedorNome: item.fornecedorHomologado,
               marca: item.marcaHomologada,
               modelo: item.modeloHomologado,
-              valorReferencia: item.valorReferenciaUnitario ? item.valorReferenciaUnitario.toString() : null,
-              valorUnitario: item.valorHomologadoUnitario ? item.valorHomologadoUnitario.toString() : null,
-              subtotal: item.quantidade && item.valorHomologadoUnitario
-                ? (item.quantidade * item.valorHomologadoUnitario).toFixed(2)
-                : null,
+              valorReferencia: safeValor(item.valorReferenciaUnitario),
+              valorUnitario: safeValor(item.valorHomologadoUnitario),
+              subtotal:
+                item.quantidade && item.valorHomologadoUnitario
+                  ? safeValor(item.quantidade * item.valorHomologadoUnitario)
+                  : null,
               dadosOriginais: item.dadosOriginais,
               atualizadoEm: new Date(),
-            })),
-          );
+            });
+          }
+          if (itemRows.length) {
+            await tx.insert(importacaoBllItens).values(itemRows);
+          }
         }
 
         // 3. NOVA FASE 1: Salvar lotes + itens especificados (preservação completa)
@@ -207,6 +331,12 @@ export async function persistEnhancedNormalizedDataset(options: {
           totalLotes += processo.lotes.length;
 
           for (const lote of processo.lotes) {
+            const vencedorFornecedorId = await ensureFornecedor(
+              tx,
+              lote.vencedor,
+              null,
+              lote.dadosOriginais,
+            );
             const [savedLote] = await tx
               .insert(importacaoBllLotes)
               .values({
@@ -222,6 +352,7 @@ export async function persistEnhancedNormalizedDataset(options: {
                 valorReferencia: lote.valorReferencia,
                 valorHomologado: lote.valorHomologado,
                 vencedor: lote.vencedor,
+                vencedorFornecedorId,
                 dadosOriginais: lote.dadosOriginais,
                 criadoEm: new Date(),
                 atualizadoEm: new Date(),
@@ -230,26 +361,34 @@ export async function persistEnhancedNormalizedDataset(options: {
 
             // Salvar itens com especificações técnicas completas
             if (lote.itens.length) {
-              await tx.insert(importacaoBllItensEspecificados).values(
-                lote.itens.map((item) => ({
+              const itensRows = [];
+              for (const item of lote.itens) {
+                const fornecedorId = await ensureFornecedor(
+                  tx,
+                  item.fornecedorHomologado,
+                  null,
+                  item.dadosOriginais,
+                );
+                itensRows.push({
                   loteImportadoId: savedLote.id,
                   processoImportadoId: savedProcess.id,
+                  fornecedorImportadoId: fornecedorId,
                   numeroItem: item.numero,
                   codigoCatalogo: item.codigoCatalogo,
                   descricaoResumida: item.descricaoResumida,
-                  // ⚠️ CRÍTICO: Preservar especificação técnica completa
+                  // CRÍTICO: Preservar especificação técnica completa
                   especificacaoTecnica: item.especificacaoTecnica,
                   unidadeMedida: item.unidadeMedida,
-                  quantidade: item.quantidade ? item.quantidade.toString() : null,
-                  valorReferenciaUnitario: item.valorReferenciaUnitario ? item.valorReferenciaUnitario.toString() : null,
-                  valorHomologadoUnitario: item.valorHomologadoUnitario ? item.valorHomologadoUnitario.toString() : null,
+                  quantidade: safeQuantidade(item.quantidade),
+                  valorReferenciaUnitario: safeValor(item.valorReferenciaUnitario),
+                  valorHomologadoUnitario: safeValor(item.valorHomologadoUnitario),
                   subtotalReferencia:
                     item.quantidade && item.valorReferenciaUnitario
-                      ? (item.quantidade * item.valorReferenciaUnitario).toFixed(2)
+                      ? safeValor(item.quantidade * item.valorReferenciaUnitario)
                       : null,
                   subtotalHomologado:
                     item.quantidade && item.valorHomologadoUnitario
-                      ? (item.quantidade * item.valorHomologadoUnitario).toFixed(2)
+                      ? safeValor(item.quantidade * item.valorHomologadoUnitario)
                       : null,
                   fornecedorHomologado: item.fornecedorHomologado,
                   marcaHomologada: item.marcaHomologada,
@@ -257,8 +396,11 @@ export async function persistEnhancedNormalizedDataset(options: {
                   dadosOriginais: item.dadosOriginais,
                   criadoEm: new Date(),
                   atualizadoEm: new Date(),
-                })),
-              );
+                });
+              }
+              if (itensRows.length) {
+                await tx.insert(importacaoBllItensEspecificados).values(itensRows);
+              }
             }
           }
         }
@@ -284,7 +426,7 @@ export async function persistEnhancedNormalizedDataset(options: {
         status: "CONCLUIDA",
         totalRegistros: options.dataset.registros.length,
         totalItens,
-        mensagem: `Importacao v2 concluida: ${options.dataset.registros.length} registro(s), ${totalItens} item(ns), ${totalLotes} lote(s), score medio ${scoreMediaQualidade}%`,
+        mensagem: `Importação v2 concluída: ${options.dataset.registros.length} registro(s), ${totalItens} item(ns), ${totalLotes} lote(s), score médio ${scoreMediaQualidade}%`,
         finalizadoEm: new Date(),
       })
       .where(eq(importacaoBllExecucoes.id, execution.id));
@@ -304,7 +446,7 @@ export async function persistEnhancedNormalizedDataset(options: {
     };
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Falha ao processar a importacao.";
+      error instanceof Error ? error.message : "Falha ao processar a importação.";
     await db
       .update(importacaoBllExecucoes)
       .set({
@@ -321,3 +463,5 @@ export async function persistEnhancedNormalizedDataset(options: {
  * Exportar referências para uso em routers
  */
 export { normalizeWithV2, validateImportQuality };
+
+

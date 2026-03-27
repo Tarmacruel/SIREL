@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Persistência de Dados Aprimorados - BLL v2.0
  * 
  * Funções para salvar dados normalizados da BLL v2.0 nas novas tabelas:
@@ -12,6 +12,7 @@ import { and, eq } from "drizzle-orm";
 import { db, requireDb } from "../db/client.js";
 import {
   importacaoBllEdicoesAudit,
+  importacaoBllFornecedores,
   importacaoBllItensEspecificados,
   importacaoBllLotes,
   importacaoBllProcessos,
@@ -37,9 +38,90 @@ export async function persistEnhancedProcess(
   const database = requireDb();
   const lotesIds: number[] = [];
   const itensIds: number[] = [];
+  const fornecedorCache = new Map<string, number>();
+
+  const normalizeDocumento = (value?: string | null) => {
+    const digits = String(value ?? "").replace(/\D+/g, "");
+    if (!digits) return null;
+    if (digits.length === 11 || digits.length === 14) return digits;
+    return null;
+  };
+
+  const normalizeFornecedorKey = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toUpperCase();
+
+  const extractDocumentoFromText = (value?: string | null) => {
+    const digits = String(value ?? "").replace(/\D+/g, "");
+    if (digits.length === 11 || digits.length === 14) return digits;
+    return null;
+  };
+
+  const normalizeFornecedorName = (value?: string | null) => {
+    const text = String(value ?? "")
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return text ? text : null;
+  };
 
   // Start transaction
   const result = await database.transaction(async (tx: any) => {
+    const ensureFornecedor = async (
+      nomeRaw?: string | null,
+      documentoRaw?: string | null,
+      dadosOriginais?: unknown,
+    ) => {
+      const nome = normalizeFornecedorName(nomeRaw);
+      if (!nome) return null;
+
+      const documento =
+        normalizeDocumento(documentoRaw) ?? extractDocumentoFromText(nomeRaw);
+      const nomeNormalizado = normalizeFornecedorKey(nome);
+      const cacheKey = documento
+        ? `doc:${documento}`
+        : `nome:${nomeNormalizado}`;
+
+      if (fornecedorCache.has(cacheKey)) {
+        return fornecedorCache.get(cacheKey) ?? null;
+      }
+
+      const conflictTarget = documento
+        ? [importacaoBllFornecedores.documento]
+        : [importacaoBllFornecedores.nomeNormalizado];
+
+      const [saved] = await tx
+        .insert(importacaoBllFornecedores)
+        .values({
+          nome,
+          nomeNormalizado,
+          documento,
+          dadosOriginais: dadosOriginais ?? null,
+          atualizadoEm: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: conflictTarget,
+          set: {
+            nome,
+            nomeNormalizado,
+            documento,
+            dadosOriginais: dadosOriginais ?? null,
+            atualizadoEm: new Date(),
+          },
+        })
+        .returning({ id: importacaoBllFornecedores.id });
+
+      if (saved?.id) {
+        fornecedorCache.set(cacheKey, saved.id);
+        return saved.id;
+      }
+
+      return null;
+    };
     // 1. Insert or update processo
     const processoValues = {
       origem: processo.origem,
@@ -120,9 +202,20 @@ export async function persistEnhancedProcess(
       processoId = insertResult[0].id;
     }
 
+    await ensureFornecedor(
+      processo.fornecedorNome,
+      null,
+      processo.dadosOriginais,
+    );
+
     // 2. Insert lotes (if any)
     if (processo.lotes.length > 0) {
       for (const lote of processo.lotes) {
+        const vencedorFornecedorId = await ensureFornecedor(
+          lote.vencedor,
+          null,
+          lote.dadosOriginais,
+        );
         const loteInsertResult = await tx
           .insert(importacaoBllLotes)
           .values({
@@ -144,6 +237,7 @@ export async function persistEnhancedProcess(
               ? Number.parseFloat(lote.valorHomologado)
               : null,
             vencedor: lote.vencedor,
+            vencedorFornecedorId,
             dadosOriginais: lote.dadosOriginais,
             criadoEm: new Date(),
             atualizadoEm: new Date(),
@@ -155,11 +249,17 @@ export async function persistEnhancedProcess(
 
         // 3. Insert itens for this lote
         for (const item of lote.itens) {
+          const fornecedorImportadoId = await ensureFornecedor(
+            item.fornecedorHomologado,
+            null,
+            item.dadosOriginais,
+          );
           const itemInsertResult = await tx
             .insert(importacaoBllItensEspecificados)
             .values({
               loteImportadoId: loteId,
               processoImportadoId: processoId,
+              fornecedorImportadoId,
               numeroItem: item.numero,
               codigoCatalogo: item.codigoCatalogo,
               descricaoResumida: item.descricaoResumida,
@@ -264,7 +364,7 @@ export function calculateCompletenessScore(
 
   // Important fields: 40% of score
   for (const field of importantFields) {
-    totalWeight += 6.67; // 6 fields * 6.67 ≈ 40
+    totalWeight += 6.67; // 6 fields * 6.67 â‰ˆ 40
     const value = processo[field as keyof EnhancedNormalizedProcess];
     if (value && String(value).trim()) {
       score += 6.67;
@@ -287,3 +387,4 @@ export function calculateCompletenessScore(
 
   return Math.round(Math.min(100, (score / totalWeight) * 100));
 }
+

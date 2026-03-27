@@ -64,8 +64,37 @@ export function formatCnpjBR(value: string | null | undefined) {
 }
 
 export function normalizeDecimalInput(value: string) {
-  const normalized = value.replace(/\./g, "").replace(",", ".").trim();
-  if (!normalized) return undefined;
+  const raw = String(value ?? "").trim();
+  if (!raw) return undefined;
+
+  const cleaned = raw.replace(/[^\d,.\-]+/g, "");
+  if (!cleaned || cleaned === "-") return undefined;
+
+  const commaIndex = cleaned.lastIndexOf(",");
+  const dotIndex = cleaned.lastIndexOf(".");
+  let normalized = cleaned;
+
+  if (commaIndex >= 0 && dotIndex >= 0) {
+    if (commaIndex > dotIndex) {
+      // pt-BR: 1.234,56
+      normalized = cleaned.replace(/\./g, "").replace(",", ".");
+    } else {
+      // en-US: 1,234.56
+      normalized = cleaned.replace(/,/g, "");
+    }
+  } else if (commaIndex >= 0) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else {
+    const dots = cleaned.match(/\./g)?.length ?? 0;
+    if (dots > 1) {
+      normalized = cleaned.replace(/\./g, "");
+    } else {
+      normalized = cleaned;
+    }
+  }
+
+  normalized = normalized.replace(/(?!^)-/g, "");
+  if (!normalized || normalized === "-") return undefined;
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -75,3 +104,24 @@ export function formatDecimalInput(value: number | string | null | undefined, ma
   const parsed = Number(value);
   return Number.isFinite(parsed) ? numberFormatter.format(parsed) : "";
 }
+
+export function maskCurrencyInputBR(value: string) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  let parsed: number | undefined;
+  if (/^\d+$/.test(raw)) {
+    // Mantém experiência de digitação progressiva (centavos).
+    parsed = Number(raw) / 100;
+  } else {
+    parsed = normalizeDecimalInput(raw);
+  }
+
+  if (parsed === undefined || !Number.isFinite(parsed)) return "";
+  return currencyFormatter.format(parsed);
+}
+
+export function normalizeCurrencyInputBR(value: string) {
+  return normalizeDecimalInput(value);
+}
+

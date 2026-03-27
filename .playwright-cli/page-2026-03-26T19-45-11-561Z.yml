@@ -1,0 +1,27 @@
+- main [ref=e51]:
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - button [ref=e55]:
+        - img [ref=e56]
+      - generic [ref=e57]:
+        - img "Prefeitura Municipal de Teixeira de Freitas" [ref=e58]
+        - paragraph [ref=e59]: MUNICIPIO DE TEIXEIRA DE FREITAS
+        - heading "SIREL - Gestão integrada de licitações" [level=2] [ref=e60]
+        - paragraph [ref=e61]: "Prefeitura Municipal de Teixeira de Freitas · CNPJ: 13.650.403/0001-28"
+        - paragraph [ref=e62]: Av. Marechal Castelo Branco, 100, Centro, 45985-000, Teixeira de Freitas, BA
+    - generic [ref=e63]:
+      - link "2" [ref=e64] [cursor=pointer]:
+        - /url: /notificacoes
+        - img [ref=e65]
+        - generic [ref=e70]: "2"
+      - generic [ref=e71]:
+        - paragraph [ref=e72]: Sessão autenticada
+        - paragraph [ref=e73]: JONATAS DA SILVA SOUSA
+        - paragraph [ref=e74]: admin | jonatas.sousa
+      - button "Sair" [ref=e75]:
+        - img [ref=e76]
+        - text: Sair
+  - generic [ref=e80]:
+    - img [ref=e82]
+    - generic [ref=e85]: Não foi possível carregar a etapa da Licitação para este processo.
+  - generic [ref=e86]: Sistema de Registro e Gestão de Licitações - SIREL

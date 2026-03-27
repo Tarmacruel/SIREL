@@ -1,0 +1,627 @@
+- main [ref=e7]:
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - button [ref=e11]:
+        - img [ref=e12]
+      - generic [ref=e13]:
+        - img "Prefeitura Municipal de Teixeira de Freitas" [ref=e14]
+        - paragraph [ref=e15]: MUNICIPIO DE TEIXEIRA DE FREITAS
+        - heading "SIREL - Gestão integrada de licitações" [level=2] [ref=e16]
+        - paragraph [ref=e17]: "Prefeitura Municipal de Teixeira de Freitas · CNPJ: 13.650.403/0001-28"
+        - paragraph [ref=e18]: Av. Marechal Castelo Branco, 100, Centro, 45985-000, Teixeira de Freitas, BA
+    - generic [ref=e19]:
+      - link "2" [ref=e20] [cursor=pointer]:
+        - /url: /notificacoes
+        - img [ref=e21]
+        - generic [ref=e26]: "2"
+      - generic [ref=e27]:
+        - paragraph [ref=e28]: Sessão autenticada
+        - paragraph [ref=e29]: JONATAS DA SILVA SOUSA
+        - paragraph [ref=e30]: admin | jonatas.sousa
+      - button "Sair" [ref=e31]:
+        - img [ref=e32]
+        - text: Sair
+  - generic [ref=e35]:
+    - navigation "Breadcrumb" [ref=e36]:
+      - generic [ref=e37]:
+        - link "Licitação" [ref=e38] [cursor=pointer]:
+          - /url: /licitacao
+        - img [ref=e39]
+      - generic [ref=e42]: 0045/2026
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - heading "Licitação do processo 0045/2026" [level=3] [ref=e46]
+        - generic [ref=e48]:
+          - button "Documentos do processo" [ref=e49]:
+            - img [ref=e50]
+            - text: Documentos do processo
+          - button "Voltar à fila" [ref=e55]:
+            - img [ref=e56]
+            - text: Voltar à fila
+      - generic [ref=e58]:
+        - paragraph [ref=e59]: Tela operacional da fase licitatória com checklist documental interno, acervo completo do processo e cronograma automático de publicação.
+        - generic [ref=e60]:
+          - generic [ref=e61]: Processo fora do fluxo
+          - generic [ref=e62]: Auditoria reforçada ativa. Alterações críticas exigem justificativa e ficam registradas campo a campo.
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - text: Justificativa de auditoria (obrigatória)
+              - textbox "Justificativa de auditoria (obrigatória)" [ref=e65]:
+                - /placeholder: Explique o motivo das alterações extemporâneas.
+            - generic [ref=e66]: Use esta justificativa para as próximas ações críticas.
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - generic [ref=e70]: Modalidade
+            - generic [ref=e71]: Pregão Eletrônico
+          - generic [ref=e72]:
+            - generic [ref=e73]: Fluxo
+            - generic [ref=e74]: Competitivo completo
+          - generic [ref=e75]:
+            - generic [ref=e76]: Disputa
+            - generic [ref=e77]: Com disputa
+          - generic [ref=e78]:
+            - generic [ref=e79]: Inversão de fases
+            - generic [ref=e80]: Ativada
+        - generic [ref=e81]:
+          - complementary [ref=e82]:
+            - generic [ref=e83]:
+              - generic [ref=e84]:
+                - paragraph [ref=e85]: Navegação
+                - button [ref=e86]:
+                  - img [ref=e87]
+              - generic [ref=e89]:
+                - button "Visão geral" [ref=e90]:
+                  - generic [ref=e91]: Visão geral
+                  - img [ref=e92]
+                - button "Fase interna" [ref=e94]:
+                  - generic [ref=e95]: Fase interna
+                  - img [ref=e96]
+                - button "Documentos do processo" [ref=e98]:
+                  - generic [ref=e99]: Documentos do processo
+                  - img [ref=e100]
+                - button "Publicação" [ref=e102]:
+                  - generic [ref=e103]: Publicação
+                  - img [ref=e104]
+                - button "Habilitação" [ref=e122]:
+                  - generic [ref=e123]: Habilitação
+                  - img [ref=e124]
+                - button "Licitantes" [ref=e106]:
+                  - generic [ref=e107]: Licitantes
+                  - img [ref=e108]
+                - button "Propostas" [ref=e110]:
+                  - generic [ref=e111]: Propostas
+                  - img [ref=e112]
+                - button "Lances" [ref=e114]:
+                  - generic [ref=e115]: Lances
+                  - img [ref=e116]
+                - button "Julgamento" [ref=e118]:
+                  - generic [ref=e119]: Julgamento
+                  - img [ref=e120]
+                - button "Recursos" [ref=e126]:
+                  - generic [ref=e127]: Recursos
+                  - img [ref=e128]
+                - button "Homologação" [ref=e130]:
+                  - generic [ref=e131]: Homologação
+                  - img [ref=e132]
+                - button "Movimentações" [ref=e134]:
+                  - generic [ref=e135]: Movimentações
+                  - img [ref=e136]
+            - generic [ref=e138]:
+              - paragraph [ref=e139]: Andamento da etapa
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - generic [ref=e142]: Status da Licitação
+                  - generic [ref=e143]: PREPARACAO
+                - generic [ref=e144]:
+                  - generic [ref=e145]: Checklist interno
+                  - generic [ref=e146]: 0/12 concluídos
+                - generic [ref=e147]:
+                  - generic [ref=e148]: Documentos no processo
+                  - generic [ref=e149]: "0"
+          - generic [ref=e150]:
+            - generic [ref=e152]:
+              - generic [ref=e153]:
+                - heading "Visão geral da Licitação" [level=3] [ref=e155]
+                - button "Ocultar seção" [ref=e158]:
+                  - img [ref=e159]
+                  - text: Ocultar seção
+              - generic [ref=e161]:
+                - paragraph [ref=e162]: Resumo do processo, da fase atual e das próximas etapas da Lei nº 14.133/2021.
+                - generic [ref=e163]:
+                  - article [ref=e164]:
+                    - paragraph [ref=e165]: Processo
+                    - paragraph [ref=e166]: 0045/2026
+                    - paragraph [ref=e167]: SECRETARIA DE ADMINISTRAÇÃO
+                  - article [ref=e168]:
+                    - paragraph [ref=e169]: Modalidade
+                    - paragraph [ref=e170]: Pregão Eletrônico
+                    - paragraph [ref=e171]: PE-039-2026
+                  - article [ref=e172]:
+                    - paragraph [ref=e173]: Critério / modo
+                    - paragraph [ref=e174]: MENOR PRECO
+                    - paragraph [ref=e175]: Aberto-fechado
+                  - article [ref=e176]:
+                    - paragraph [ref=e177]: Valor estimado
+                    - paragraph [ref=e178]: R$ 174.703,20
+                    - paragraph [ref=e179]: "Condutor: JONATAS DA SILVA SOUSA"
+                - generic [ref=e180]:
+                  - article [ref=e181] [cursor=pointer]:
+                    - paragraph [ref=e183]: Preparação interna
+                    - paragraph [ref=e184]: Checklist documental interno obrigatório antes da publicidade.
+                  - article [ref=e185] [cursor=pointer]:
+                    - paragraph [ref=e187]: Publicação
+                    - paragraph [ref=e188]: Edital, aviso e cronograma oficial da licitação.
+                  - article [ref=e201] [cursor=pointer]:
+                    - paragraph [ref=e203]: Habilitação
+                    - paragraph [ref=e204]: Verificação documental do licitante classificado.
+                  - article [ref=e189] [cursor=pointer]:
+                    - paragraph [ref=e191]: Propostas
+                    - paragraph [ref=e192]: Cadastro dos licitantes e recebimento das propostas.
+                  - article [ref=e193] [cursor=pointer]:
+                    - paragraph [ref=e195]: Lances
+                    - paragraph [ref=e196]: Fase competitiva aplicável às modalidades que admitem lances.
+                  - article [ref=e197] [cursor=pointer]:
+                    - paragraph [ref=e199]: Julgamento
+                    - paragraph [ref=e200]: Análise, classificação e definição das propostas vencedoras.
+                  - article [ref=e205] [cursor=pointer]:
+                    - paragraph [ref=e207]: Recursos
+                    - paragraph [ref=e208]: Interposição, análise e decisão recursal.
+                  - article [ref=e209] [cursor=pointer]:
+                    - paragraph [ref=e211]: Homologação
+                    - paragraph [ref=e212]: Encerramento da fase licitatória e aprovação do resultado.
+            - generic [ref=e214]:
+              - generic [ref=e215]:
+                - heading "Fase interna documental" [level=3] [ref=e217]
+                - generic [ref=e219]:
+                  - generic [ref=e220]:
+                    - img [ref=e221]
+                    - text: 0/12 concluídos
+                  - button "Ocultar seção" [ref=e406]:
+                    - img [ref=e407]
+                    - text: Ocultar seção
+              - generic [ref=e227]:
+                - paragraph [ref=e228]: Checklist orientativo com auditoria reforçada para processos fora do fluxo.
+                - generic [ref=e409]:
+                  - generic [ref=e410]:
+                    - generic [ref=e411]:
+                      - text: Critério de julgamento
+                      - textbox "Critério de julgamento" [ref=e412]:
+                        - /placeholder: "Ex.: Menor preço por lote"
+                        - text: MENOR PRECO
+                    - generic [ref=e413]:
+                      - text: Modo de disputa
+                      - combobox "Modo de disputa" [ref=e414]:
+                        - option "Não se aplica"
+                        - option "Aberto"
+                        - option "Fechado"
+                        - option "Aberto-fechado" [selected]
+                        - option "Fechado-aberto"
+                  - generic [ref=e415]:
+                    - generic [ref=e416]:
+                      - checkbox "Exigir declaração de não fracionamento" [ref=e417]
+                      - text: Exigir declaração de não fracionamento
+                    - generic [ref=e418]:
+                      - checkbox "Publicar também no DOU" [ref=e419]
+                      - text: Publicar também no DOU
+                    - generic [ref=e420]:
+                      - checkbox "Publicar também em jornal" [ref=e421]
+                      - text: Publicar também em jornal
+                  - generic [ref=e422]:
+                    - generic [ref=e423]: Configuração de fluxo
+                    - generic [ref=e424]:
+                      - checkbox "Inverter ordem das fases (habilitação antes da disputa)" [checked] [active] [ref=e425]
+                      - text: Inverter ordem das fases (habilitação antes da disputa)
+                    - generic [ref=e729]:
+                      - text: Justificativa da inversão
+                      - textbox "Justificativa da inversão" [ref=e730]:
+                        - /placeholder: Explique o motivo e o impacto esperado da inversão.
+                    - generic [ref=e426]: Ao ativar a inversão, o sistema reordena a navegação para iniciar a habilitação antes das fases competitivas.
+                  - generic [ref=e428]:
+                    - text: Observações internas
+                    - textbox "Observações internas" [ref=e429]
+                  - button "Salvar configuração interna" [ref=e431]
+                - generic [ref=e433]:
+                  - img [ref=e435]
+                  - generic [ref=e437]:
+                    - paragraph [ref=e438]: Checklist orientativo
+                    - generic [ref=e439]: "Há documentos pendentes nesta fase, mas o processo fora do fluxo pode seguir com justificativa registrada. Pendências: Decreto da comissão, Decreto da equipe de apoio, Comunicação interna para solicitar reserva orçamentária, Reserva orçamentária, Decreto do Ordenador de Despesas, Ato de autorização da autoridade competente, Minuta do aviso de licitação, Comunicação para solicitar parecer jurídico, Parecer jurídico, Aviso de licitação, Termo de autuação pelo agente de contratação/pregoeiro, Decreto do Agente de Contratação."
+                - generic [ref=e440]:
+                  - article [ref=e441]:
+                    - generic [ref=e442]:
+                      - generic [ref=e443]:
+                        - generic [ref=e444]:
+                          - heading "Decreto da comissão" [level=4] [ref=e445]
+                          - generic [ref=e446]: Pendente
+                        - paragraph [ref=e447]: Documento de designação da comissão aplicável à fase licitatória.
+                      - img [ref=e449]
+                    - generic [ref=e453]:
+                      - generic [ref=e454]:
+                        - text: Título
+                        - textbox "Título" [ref=e455]:
+                          - /placeholder: Decreto da comissão
+                      - generic [ref=e456]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e457]:
+                          - /placeholder: Documento de designação da comissão aplicável à fase licitatória.
+                      - generic [ref=e458]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e459]
+                    - button "Anexar documento" [ref=e461]:
+                      - img [ref=e462]
+                      - text: Anexar documento
+                  - article [ref=e465]:
+                    - generic [ref=e466]:
+                      - generic [ref=e467]:
+                        - generic [ref=e468]:
+                          - heading "Decreto da equipe de apoio" [level=4] [ref=e469]
+                          - generic [ref=e470]: Pendente
+                        - paragraph [ref=e471]: Ato da equipe de apoio vinculada ao processo.
+                      - img [ref=e473]
+                    - generic [ref=e477]:
+                      - generic [ref=e478]:
+                        - text: Título
+                        - textbox "Título" [ref=e479]:
+                          - /placeholder: Decreto da equipe de apoio
+                      - generic [ref=e480]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e481]:
+                          - /placeholder: Ato da equipe de apoio vinculada ao processo.
+                      - generic [ref=e482]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e483]
+                    - button "Anexar documento" [ref=e485]:
+                      - img [ref=e486]
+                      - text: Anexar documento
+                  - article [ref=e489]:
+                    - generic [ref=e490]:
+                      - generic [ref=e491]:
+                        - generic [ref=e492]:
+                          - heading "Comunicação interna para solicitar reserva orçamentária" [level=4] [ref=e493]
+                          - generic [ref=e494]: Pendente
+                        - paragraph [ref=e495]: Comunicação formal para abertura da reserva orçamentária.
+                      - img [ref=e497]
+                    - generic [ref=e501]:
+                      - generic [ref=e502]:
+                        - text: Título
+                        - textbox "Título" [ref=e503]:
+                          - /placeholder: Comunicação interna para solicitar reserva orçamentária
+                      - generic [ref=e504]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e505]:
+                          - /placeholder: Comunicação formal para abertura da reserva orçamentária.
+                      - generic [ref=e506]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e507]
+                    - button "Anexar documento" [ref=e509]:
+                      - img [ref=e510]
+                      - text: Anexar documento
+                  - article [ref=e513]:
+                    - generic [ref=e514]:
+                      - generic [ref=e515]:
+                        - generic [ref=e516]:
+                          - heading "Reserva orçamentária" [level=4] [ref=e517]
+                          - generic [ref=e518]: Pendente
+                        - paragraph [ref=e519]: Comprovante da reserva orçamentária do processo.
+                      - img [ref=e521]
+                    - generic [ref=e525]:
+                      - generic [ref=e526]:
+                        - text: Título
+                        - textbox "Título" [ref=e527]:
+                          - /placeholder: Reserva orçamentária
+                      - generic [ref=e528]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e529]:
+                          - /placeholder: Comprovante da reserva orçamentária do processo.
+                      - generic [ref=e530]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e531]
+                    - button "Anexar documento" [ref=e533]:
+                      - img [ref=e534]
+                      - text: Anexar documento
+                  - article [ref=e537]:
+                    - generic [ref=e538]:
+                      - generic [ref=e539]:
+                        - generic [ref=e540]:
+                          - heading "Decreto do Ordenador de Despesas" [level=4] [ref=e541]
+                          - generic [ref=e542]: Pendente
+                        - paragraph [ref=e543]: Ato do Ordenador de Despesas aplicável ao processo.
+                      - img [ref=e545]
+                    - generic [ref=e549]:
+                      - generic [ref=e550]:
+                        - text: Título
+                        - textbox "Título" [ref=e551]:
+                          - /placeholder: Decreto do Ordenador de Despesas
+                      - generic [ref=e552]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e553]:
+                          - /placeholder: Ato do Ordenador de Despesas aplicável ao processo.
+                      - generic [ref=e554]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e555]
+                    - button "Anexar documento" [ref=e557]:
+                      - img [ref=e558]
+                      - text: Anexar documento
+                  - article [ref=e561]:
+                    - generic [ref=e562]:
+                      - generic [ref=e563]:
+                        - generic [ref=e564]:
+                          - heading "Ato de autorização da autoridade competente" [level=4] [ref=e565]
+                          - generic [ref=e566]: Pendente
+                        - paragraph [ref=e567]: Autorização formal da autoridade competente para o prosseguimento.
+                      - img [ref=e569]
+                    - generic [ref=e573]:
+                      - generic [ref=e574]:
+                        - text: Título
+                        - textbox "Título" [ref=e575]:
+                          - /placeholder: Ato de autorização da autoridade competente
+                      - generic [ref=e576]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e577]:
+                          - /placeholder: Autorização formal da autoridade competente para o prosseguimento.
+                      - generic [ref=e578]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e579]
+                    - button "Anexar documento" [ref=e581]:
+                      - img [ref=e582]
+                      - text: Anexar documento
+                  - article [ref=e585]:
+                    - generic [ref=e586]:
+                      - generic [ref=e587]:
+                        - generic [ref=e588]:
+                          - heading "Minuta do aviso de licitação" [level=4] [ref=e589]
+                          - generic [ref=e590]: Pendente
+                        - paragraph [ref=e591]: Minuta interna do aviso antes da publicação oficial.
+                      - img [ref=e593]
+                    - generic [ref=e597]:
+                      - generic [ref=e598]:
+                        - text: Título
+                        - textbox "Título" [ref=e599]:
+                          - /placeholder: Minuta do aviso de licitação
+                      - generic [ref=e600]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e601]:
+                          - /placeholder: Minuta interna do aviso antes da publicação oficial.
+                      - generic [ref=e602]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e603]
+                    - button "Anexar documento" [ref=e605]:
+                      - img [ref=e606]
+                      - text: Anexar documento
+                  - article [ref=e609]:
+                    - generic [ref=e610]:
+                      - generic [ref=e611]:
+                        - generic [ref=e612]:
+                          - heading "Comunicação para solicitar parecer jurídico" [level=4] [ref=e613]
+                          - generic [ref=e614]: Pendente
+                        - paragraph [ref=e615]: Solicitação formal de manifestação jurídica.
+                      - img [ref=e617]
+                    - generic [ref=e621]:
+                      - generic [ref=e622]:
+                        - text: Título
+                        - textbox "Título" [ref=e623]:
+                          - /placeholder: Comunicação para solicitar parecer jurídico
+                      - generic [ref=e624]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e625]:
+                          - /placeholder: Solicitação formal de manifestação jurídica.
+                      - generic [ref=e626]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e627]
+                    - button "Anexar documento" [ref=e629]:
+                      - img [ref=e630]
+                      - text: Anexar documento
+                  - article [ref=e633]:
+                    - generic [ref=e634]:
+                      - generic [ref=e635]:
+                        - generic [ref=e636]:
+                          - heading "Parecer jurídico" [level=4] [ref=e637]
+                          - generic [ref=e638]: Pendente
+                        - paragraph [ref=e639]: Parecer jurídico emitido para a fase interna.
+                      - img [ref=e641]
+                    - generic [ref=e645]:
+                      - generic [ref=e646]:
+                        - text: Título
+                        - textbox "Título" [ref=e647]:
+                          - /placeholder: Parecer jurídico
+                      - generic [ref=e648]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e649]:
+                          - /placeholder: Parecer jurídico emitido para a fase interna.
+                      - generic [ref=e650]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e651]
+                    - button "Anexar documento" [ref=e653]:
+                      - img [ref=e654]
+                      - text: Anexar documento
+                  - article [ref=e657]:
+                    - generic [ref=e658]:
+                      - generic [ref=e659]:
+                        - generic [ref=e660]:
+                          - heading "Aviso de licitação" [level=4] [ref=e661]
+                          - generic [ref=e662]: Pendente
+                        - paragraph [ref=e663]: Versão final do aviso preparada para publicação.
+                      - img [ref=e665]
+                    - generic [ref=e669]:
+                      - generic [ref=e670]:
+                        - text: Título
+                        - textbox "Título" [ref=e671]:
+                          - /placeholder: Aviso de licitação
+                      - generic [ref=e672]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e673]:
+                          - /placeholder: Versão final do aviso preparada para publicação.
+                      - generic [ref=e674]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e675]
+                    - button "Anexar documento" [ref=e677]:
+                      - img [ref=e678]
+                      - text: Anexar documento
+                  - article [ref=e681]:
+                    - generic [ref=e682]:
+                      - generic [ref=e683]:
+                        - generic [ref=e684]:
+                          - heading "Termo de autuação pelo agente de contratação/pregoeiro" [level=4] [ref=e685]
+                          - generic [ref=e686]: Pendente
+                        - paragraph [ref=e687]: Registro formal de autuação da fase licitatória.
+                      - img [ref=e689]
+                    - generic [ref=e693]:
+                      - generic [ref=e694]:
+                        - text: Título
+                        - textbox "Título" [ref=e695]:
+                          - /placeholder: Termo de autuação pelo agente de contratação/pregoeiro
+                      - generic [ref=e696]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e697]:
+                          - /placeholder: Registro formal de autuação da fase licitatória.
+                      - generic [ref=e698]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e699]
+                    - button "Anexar documento" [ref=e701]:
+                      - img [ref=e702]
+                      - text: Anexar documento
+                  - article [ref=e705]:
+                    - generic [ref=e706]:
+                      - generic [ref=e707]:
+                        - generic [ref=e708]:
+                          - heading "Decreto do Agente de Contratação" [level=4] [ref=e709]
+                          - generic [ref=e710]: Pendente
+                        - paragraph [ref=e711]: Ato de designação do agente de contratação/pregoeiro.
+                      - img [ref=e713]
+                    - generic [ref=e717]:
+                      - generic [ref=e718]:
+                        - text: Título
+                        - textbox "Título" [ref=e719]:
+                          - /placeholder: Decreto do Agente de Contratação
+                      - generic [ref=e720]:
+                        - text: Descrição
+                        - textbox "Descrição" [ref=e721]:
+                          - /placeholder: Ato de designação do agente de contratação/pregoeiro.
+                      - generic [ref=e722]:
+                        - text: Arquivo
+                        - button "Arquivo" [ref=e723]
+                    - button "Anexar documento" [ref=e725]:
+                      - img [ref=e726]
+                      - text: Anexar documento
+            - generic [ref=e236]:
+              - generic [ref=e237]:
+                - heading "Documentos do processo" [level=3] [ref=e239]
+                - generic [ref=e241]:
+                  - button "Abrir em destaque" [ref=e242]:
+                    - img [ref=e243]
+                    - text: Abrir em destaque
+                  - button "Exibir seção" [ref=e245]:
+                    - img [ref=e246]
+                    - text: Exibir seção
+              - generic [ref=e248]:
+                - paragraph [ref=e249]: Acervo completo recebido pelo setor, na ordem em que os documentos foram adicionados ao processo.
+                - generic [ref=e252]: 0 documento(s)
+            - generic [ref=e254]:
+              - generic [ref=e255]:
+                - heading "Cronograma manual (processo fora do fluxo)" [level=3] [ref=e257]
+                - generic [ref=e259]:
+                  - generic [ref=e260]:
+                    - img [ref=e261]
+                    - text: Modo manual
+                  - button "Exibir seção" [ref=e265]:
+                    - img [ref=e266]
+                    - text: Exibir seção
+              - generic [ref=e268]:
+                - paragraph [ref=e269]: Edite manualmente todas as datas críticas e registre a justificativa no modo fora do fluxo.
+                - generic [ref=e271]:
+                  - generic [ref=e272]:
+                    - text: Sem data
+                    - generic [ref=e273]: Publicação (manual)
+                  - generic [ref=e274]:
+                    - text: Sem data
+                    - generic [ref=e275]: Recebimento inicial
+                  - generic [ref=e276]:
+                    - text: Sem data
+                    - generic [ref=e277]: Recebimento final
+                  - generic [ref=e278]:
+                    - text: Sem data
+                    - generic [ref=e279]: Disputa
+            - generic [ref=e732]:
+              - generic [ref=e733]:
+                - heading "Habilita??o" [level=3] [ref=e735]
+                - generic [ref=e737]:
+                  - button "Definir etapa atual" [ref=e738]
+                  - button "Exibir seção" [ref=e739]:
+                    - img [ref=e740]
+                    - text: Exibir seção
+              - generic [ref=e742]:
+                - paragraph [ref=e743]: Registro da situa??o documental do licitante classificado e observa??es da comiss?o.
+                - generic [ref=e746]: 0 licitante(s) para confer?ncia
+            - generic [ref=e281]:
+              - generic [ref=e282]:
+                - heading "Licitantes" [level=3] [ref=e284]
+                - button "Exibir seção" [ref=e287]:
+                  - img [ref=e288]
+                  - text: Exibir seção
+              - generic [ref=e290]:
+                - paragraph [ref=e291]: Controle dos participantes habilitados a apresentar propostas nesta licitação.
+                - generic [ref=e294]: 0 licitante(s)
+            - generic [ref=e296]:
+              - generic [ref=e297]:
+                - heading "Propostas" [level=3] [ref=e299]
+                - generic [ref=e301]:
+                  - button "Definir etapa atual" [ref=e302]
+                  - button "Exibir seção" [ref=e303]:
+                    - img [ref=e304]
+                    - text: Exibir seção
+              - generic [ref=e306]:
+                - paragraph [ref=e307]: Recebimento, classificação inicial e situação das propostas por item e por licitante.
+                - generic [ref=e310]: 0 proposta(s)
+            - generic [ref=e312]:
+              - generic [ref=e313]:
+                - heading "Lances" [level=3] [ref=e315]
+                - generic [ref=e317]:
+                  - button "Definir etapa atual" [ref=e318]
+                  - button "Exibir seção" [ref=e319]:
+                    - img [ref=e320]
+                    - text: Exibir seção
+              - generic [ref=e322]:
+                - paragraph [ref=e323]: Registro operacional dos lances apresentados durante a sessão pública.
+                - generic [ref=e326]: 0 lance(s)
+            - generic [ref=e328]:
+              - generic [ref=e329]:
+                - heading "Julgamento" [level=3] [ref=e331]
+                - generic [ref=e333]:
+                  - button "Definir etapa atual" [ref=e334]
+                  - button "Exibir seção" [ref=e335]:
+                    - img [ref=e336]
+                    - text: Exibir seção
+              - generic [ref=e338]:
+                - paragraph [ref=e339]: Definição visual da etapa de julgamento e conferência da classificação das propostas.
+                - generic [ref=e342]: "Status: Preparação do edital"
+            - generic [ref=e360]:
+              - generic [ref=e361]:
+                - heading "Recursos" [level=3] [ref=e363]
+                - generic [ref=e365]:
+                  - button "Definir etapa atual" [ref=e366]
+                  - button "Exibir seção" [ref=e367]:
+                    - img [ref=e368]
+                    - text: Exibir seção
+              - generic [ref=e370]:
+                - paragraph [ref=e371]: Registro de interposição, julgamento e resultado recursal dentro da fase licitatória.
+                - generic [ref=e374]: 0 recurso(s)
+            - generic [ref=e376]:
+              - generic [ref=e377]:
+                - heading "Homologação" [level=3] [ref=e379]
+                - button "Exibir seção" [ref=e382]:
+                  - img [ref=e383]
+                  - text: Exibir seção
+              - generic [ref=e385]:
+                - paragraph [ref=e386]: Encerramento formal da fase licitatória com atualização do status final do processo.
+                - generic [ref=e389]: Homologação pendente
+            - generic [ref=e391]:
+              - generic [ref=e392]:
+                - heading "Movimentações recentes" [level=3] [ref=e394]
+                - button "Exibir seção" [ref=e397]:
+                  - img [ref=e398]
+                  - text: Exibir seção
+              - generic [ref=e400]:
+                - paragraph [ref=e401]: Rastro operacional da fase licitatória para acompanhamento do setor e da gestão.
+                - generic [ref=e403]:
+                  - text: Processo fora do fluxo criado em LICITACAO
+                  - generic [ref=e404]: 26/03/2026, 09:26
+  - generic [ref=e405]: Sistema de Registro e Gestão de Licitações - SIREL

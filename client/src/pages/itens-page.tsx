@@ -14,7 +14,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { Tabs, type TabItem } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type ContratoItemFormState, type ItemFormState, validateContratoItemForm, validateItemForm } from "@/features/itens/form";
-import { formatCurrencyBRL, formatNumberBR, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
+import {
+  formatCurrencyBRL,
+  formatNumberBR,
+  formatShortDateBR,
+  formatShortDateTimeBR,
+  maskCurrencyInputBR,
+} from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -155,7 +161,7 @@ export function ItensPage() {
     setItemForm({
       descricao: selectedItem.item.descricao,
       unidadePadrao: selectedItem.item.unidadePadrao,
-      valorReferencia: selectedItem.item.valorReferencia ? formatNumberBR(selectedItem.item.valorReferencia, 2) : "",
+      valorReferencia: selectedItem.item.valorReferencia ? formatCurrencyBRL(selectedItem.item.valorReferencia) : "",
       ativo: selectedItem.item.ativo,
     });
   }
@@ -169,7 +175,7 @@ export function ItensPage() {
       unidade: selectedItem.item.unidadePadrao,
       quantidadeContratada: row?.quantidadeContratada ? formatNumberBR(row.quantidadeContratada, 3) : "",
       quantidadeConsumida: row?.quantidadeConsumida ? formatNumberBR(row.quantidadeConsumida, 3) : "0",
-      valorUnitario: row?.valorUnitario ? formatNumberBR(row.valorUnitario, 2) : "",
+      valorUnitario: row?.valorUnitario ? formatCurrencyBRL(row.valorUnitario) : "",
       ativo: row?.ativoControle ?? true,
     });
     setControleErrors({});
@@ -453,9 +459,9 @@ export function ItensPage() {
               <FormField label="Unidade padrão" error={itemErrors.unidadePadrao}>
                 <Input value={itemForm.unidadePadrao} error={Boolean(itemErrors.unidadePadrao)} onChange={(event) => setItemForm((current) => ({ ...current, unidadePadrao: event.target.value.toUpperCase() }))} />
               </FormField>
-              <FormField label="Valor de referência" error={itemErrors.valorReferencia}>
-                <Input value={itemForm.valorReferencia} error={Boolean(itemErrors.valorReferencia)} placeholder="0,00" onChange={(event) => setItemForm((current) => ({ ...current, valorReferencia: event.target.value }))} />
-              </FormField>
+            <FormField label="Valor de referência" error={itemErrors.valorReferencia}>
+              <Input value={itemForm.valorReferencia} error={Boolean(itemErrors.valorReferencia)} placeholder="R$ 0,00" onChange={(event) => setItemForm((current) => ({ ...current, valorReferencia: maskCurrencyInputBR(event.target.value) }))} />
+            </FormField>
               <FormField label="Situação">
                 <Select value={itemForm.ativo ? "true" : "false"} onChange={(event) => setItemForm((current) => ({ ...current, ativo: event.target.value === "true" }))}>
                   <option value="true">Ativo</option>
@@ -510,7 +516,7 @@ export function ItensPage() {
               <Input value={controleForm.quantidadeConsumida} error={Boolean(controleErrors.quantidadeConsumida)} onChange={(event) => setControleForm((current) => ({ ...current, quantidadeConsumida: event.target.value }))} />
             </FormField>
             <FormField label="Valor unitário" error={controleErrors.valorUnitario}>
-              <Input value={controleForm.valorUnitario} error={Boolean(controleErrors.valorUnitario)} placeholder="0,00" onChange={(event) => setControleForm((current) => ({ ...current, valorUnitario: event.target.value }))} />
+              <Input value={controleForm.valorUnitario} error={Boolean(controleErrors.valorUnitario)} placeholder="R$ 0,00" onChange={(event) => setControleForm((current) => ({ ...current, valorUnitario: maskCurrencyInputBR(event.target.value) }))} />
             </FormField>
           </div>
           {controleErrorMessage ? <Alert variant="error">{controleErrorMessage}</Alert> : null}

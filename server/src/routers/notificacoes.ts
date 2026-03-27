@@ -2,9 +2,21 @@
 import { z } from "zod";
 
 import { requireDb } from "../db/client.js";
-import { notificacoesUsuario } from "../db/schema.js";
+import {
+  notificacoesPreferencias,
+  notificacoesPushSubscriptions,
+  notificacoesUsuario,
+} from "../db/schema.js";
 import { syncOperationalNotifications } from "../lib/notificacoes.js";
+import {
+  defaultNotificationPreferences,
+  loadNotificationPreferences,
+} from "../lib/notificacoes-preferencias.js";
 import { protectedProcedure, router } from "../trpc.js";
+import {
+  notificationPreferencesSchema,
+  pushSubscriptionSchema,
+} from "@sirel/shared/schemas/notificacoes";
 
 const notificationTypeSchema = z.enum(["PRAZO", "MOVIMENTACAO", "DOCUMENTO", "SISTEMA"]);
 const notificationPrioritySchema = z.enum(["BAIXA", "MEDIA", "ALTA", "URGENTE"]);
@@ -17,6 +29,119 @@ function buildBaseFilters(userId: number, now: Date) {
 }
 
 export const notificacoesRouter = router({
+  preferences: protectedProcedure.query(async ({ ctx }) => {
+    const db = requireDb();
+    const userId = ctx.user?.id;
+    if (!userId) {
+      throw new Error("Usuário não autenticado para notificações.");
+    }
+
+    const preferences = await loadNotificationPreferences(db, userId);
+    return preferences ?? defaultNotificationPreferences;
+  }),
+
+  savePreferences: protectedProcedure
+    .input(notificationPreferencesSchema)
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+      const userId = ctx.user?.id;
+      if (!userId) {
+        throw new Error("Usuário não autenticado para notificações.");
+      }
+
+      const now = new Date();
+      await db
+        .insert(notificacoesPreferencias)
+        .values({
+          userId,
+          frequencia: input.frequencia,
+          escopo: input.escopo,
+          canalInApp: input.canais.inApp,
+          canalEmail: input.canais.email,
+          canalPush: input.canais.push,
+          criadoEm: now,
+          atualizadoEm: now,
+        })
+        .onConflictDoUpdate({
+          target: [notificacoesPreferencias.userId],
+          set: {
+            frequencia: input.frequencia,
+            escopo: input.escopo,
+            canalInApp: input.canais.inApp,
+            canalEmail: input.canais.email,
+            canalPush: input.canais.push,
+            atualizadoEm: now,
+          },
+        });
+
+      return { success: true };
+    }),
+
+  registerPush: protectedProcedure
+    .input(pushSubscriptionSchema)
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+      const userId = ctx.user?.id;
+      if (!userId) {
+        throw new Error("Usuário não autenticado para notificações.");
+      }
+
+      const now = new Date();
+      const expirationTime = input.expirationTime
+        ? new Date(input.expirationTime)
+        : null;
+      await db
+        .insert(notificacoesPushSubscriptions)
+        .values({
+          userId,
+          endpoint: input.endpoint,
+          p256dh: input.keys.p256dh,
+          auth: input.keys.auth,
+          expirationTime,
+          userAgent:
+            String(ctx.req.headers["user-agent"] ?? "").slice(0, 255) || null,
+          criadoEm: now,
+          atualizadoEm: now,
+        })
+        .onConflictDoUpdate({
+          target: [
+            notificacoesPushSubscriptions.userId,
+            notificacoesPushSubscriptions.endpoint,
+          ],
+          set: {
+            p256dh: input.keys.p256dh,
+            auth: input.keys.auth,
+            expirationTime,
+            userAgent:
+              String(ctx.req.headers["user-agent"] ?? "").slice(0, 255) || null,
+            atualizadoEm: now,
+          },
+        });
+
+      return { success: true };
+    }),
+
+  unregisterPush: protectedProcedure
+    .input(z.object({ endpoint: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const db = requireDb();
+      const userId = ctx.user?.id;
+      if (!userId) {
+        throw new Error("Usuário não autenticado para notificações.");
+      }
+
+      await db
+        .delete(notificacoesPushSubscriptions)
+        .where(
+          and(
+            eq(notificacoesPushSubscriptions.userId, userId),
+            eq(notificacoesPushSubscriptions.endpoint, input.endpoint),
+          ),
+        );
+
+      return { success: true };
+    }),
+
   summary: protectedProcedure.query(async ({ ctx }) => {
     const db = requireDb();
     const userId = ctx.user?.id;

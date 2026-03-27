@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Normalizador BLL v2.0 - Enhanced Data Preservation Module
  * 
  * Phase 1: Preserves critical fields that were being lost:
@@ -39,6 +39,7 @@ export interface EnhancedNormalizedLote {
 
 export interface EnhancedNormalizedItem {
   numero: string;
+  loteNumero: string | null;
   codigoCatalogo: string | null;
   descricaoResumida: string;
   especificacaoTecnica: string | null;
@@ -177,6 +178,7 @@ export function extractCatalogCode(text: string | null): string | null {
 export function normalizeEnhancedLote(
   loteData: Record<string, unknown>,
   processoOrigin: "LICITACAO" | "COMPRA_DIRETA",
+  index = 0,
 ): EnhancedNormalizedLote {
   // Extrair itens do lote (estrutura específica da BLL)
   const itensRaw = Array.isArray(loteData.itens) ? loteData.itens : [];
@@ -186,7 +188,7 @@ export function normalizeEnhancedLote(
   );
 
   return {
-    numero: normalizeText(loteData.numero) || `LOTE-${Date.now()}`,
+    numero: normalizeText(loteData.numero) || `LOTE-${index + 1}`,
     titulo: normalizeText(loteData.titulo) || 
             normalizeText(loteData.especificacao?.toString().slice(0, 200)) ||
             "Lote sem descrição",
@@ -218,6 +220,10 @@ export function normalizeEnhancedItem(
       normalizeText(itemData.itemNumero) ||
       normalizeText(itemData.numeroItem) ||
       `ITEM-${Date.now()}`,
+    loteNumero:
+      normalizeText(itemData.loteNumero) ||
+      normalizeText(itemData.lote) ||
+      normalizeText(lotePaiData.numero),
     codigoCatalogo: extractCatalogCode(especificacao),
     descricaoResumida:
       normalizeText(
@@ -226,7 +232,7 @@ export function normalizeEnhancedItem(
           itemData.descricaoResumida ||
           "Item sem descrição",
       ) || "Item sem descrição",
-    // ⚠️ CRITICAL: Preserve complete technical specification
+    // CRÍTICO: Preserve complete technical specification
     especificacaoTecnica: especificacao,
     unidadeMedida:
       normalizeText(itemData.unidade) ||
@@ -275,6 +281,7 @@ function normalizeEnhancedItemFromFlat(
 ): EnhancedNormalizedItem {
   return normalizeEnhancedItem(
     {
+      loteNumero: itemData.loteNumero ?? itemData.lote,
       numero: itemData.itemNumero ?? itemData.numeroItem ?? itemData.numero,
       descricao: itemData.descricao,
       especificacao: itemData.especificacao,
@@ -303,9 +310,20 @@ export function normalizeEnhancedProcess(
 ): EnhancedNormalizedProcess {
   // Extract lotes structure (exists only for licitações)
   const lotesRaw = Array.isArray(processoJson.lotes) ? processoJson.lotes : [];
-  const lotes = lotesRaw.map((lote: Record<string, unknown>) =>
-    normalizeEnhancedLote(lote, origem),
-  );
+  const seenLoteNumbers = new Set<string>();
+  const lotes = lotesRaw.map((lote: Record<string, unknown>, index: number) => {
+    const normalized = normalizeEnhancedLote(lote, origem, index);
+    let numero = normalized.numero;
+    if (seenLoteNumbers.has(numero)) {
+      let suffix = 2;
+      while (seenLoteNumbers.has(`${numero}-${suffix}`)) {
+        suffix += 1;
+      }
+      numero = `${numero}-${suffix}`;
+    }
+    seenLoteNumbers.add(numero);
+    return { ...normalized, numero };
+  });
 
   const lotesItens = lotes.flatMap((lote) => lote.itens);
 
@@ -357,8 +375,8 @@ export function normalizeEnhancedProcess(
       normalizeText(
         processoJson.numeroEdital ??
           processoJson.numero_edital ??
-          processoJson.numero_adm ??
-          processoJson.id,
+          processoJson.id ??
+          processoJson.numero_adm,
       ),
     numeroAdministrativo:
       normalizeText(
@@ -420,11 +438,17 @@ export function normalizeEnhancedProcess(
       parseBrazilianNumber(processoJson.valorTotal ?? processoJson.valor_total),
     publicacaoEm:
       parseBrazilianDateTime(
-        processoJson.publicacaoEm ?? processoJson.data_publicacao,
+        processoJson.publicacaoEm ??
+          processoJson.data_publicacao ??
+          processoJson.publicacao ??
+          processoJson.dataPublicacao,
       ),
     conclusaoEm:
       parseBrazilianDateTime(
-        processoJson.conclusaoEm ?? processoJson.data_conclusao,
+        processoJson.conclusaoEm ??
+          processoJson.data_conclusao ??
+          processoJson.conclusao ??
+          processoJson.dataConclusao,
       ),
     inicioRecepcaoEm:
       parseBrazilianDateTime(
@@ -622,7 +646,11 @@ export function normalizeEnhancedDataset(
 
   return {
     origem,
-    atualizadoFonteEm: parseBrazilianDateTime(payload.data_atualizacao),
+    atualizadoFonteEm: parseBrazilianDateTime(
+      payload.data_atualizacao ??
+        (payload as Record<string, any>)?.metadata?.atualizado_em ??
+        (payload as Record<string, any>)?.atualizado_em,
+    ),
     detalhes: (payload.detalhes || {}) as Record<string, unknown>,
     registros: normalized,
     qualityReport: {
@@ -640,3 +668,7 @@ export function normalizeEnhancedDataset(
     },
   };
 }
+
+
+
+

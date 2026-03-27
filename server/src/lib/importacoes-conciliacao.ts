@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNull, ne, or, SQL } from "drizzle-orm";
+﻿import { and, desc, eq, ilike, inArray, isNull, ne, or, SQL } from "drizzle-orm";
 
 import type { ImportacaoBllSource } from "@sirel/shared/schemas/importacoes";
 
@@ -14,6 +14,7 @@ import {
   lotes,
   modalidades,
   pessoas,
+  prazosProcessuais,
   processos,
   secretarias,
   statusProcesso,
@@ -512,6 +513,12 @@ export async function linkImportedProcessToInternal(
   if (suggestedDataAbertura && !process.dataAbertura) {
     updateData.dataAbertura = suggestedDataAbertura;
   }
+  if (record.publicacaoEm && !process.dataPublicacao) {
+    updateData.dataPublicacao = record.publicacaoEm;
+  }
+  if (record.inicioDisputaEm && !process.dataDisputaSessao) {
+    updateData.dataDisputaSessao = record.inicioDisputaEm;
+  }
 
   if (record.objeto && !process.objeto) {
     updateData.objeto = record.objeto;
@@ -565,6 +572,20 @@ export async function linkImportedProcessToInternal(
   if (Object.keys(updateData).length) {
     await db.update(processos).set({ ...updateData, atualizadoEm: new Date() }).where(eq(processos.id, processoId));
   }
+
+  const openingDate =
+    parseFlexibleDate(record.inicioDisputaEm) ??
+    parseFlexibleDate(updateData.dataDisputaSessao ?? process.dataDisputaSessao) ??
+    parseFlexibleDate(record.inicioRecepcaoEm) ??
+    parseFlexibleDate(updateData.dataAbertura ?? process.dataAbertura) ??
+    parseFlexibleDate(record.publicacaoEm);
+
+  await ensureFutureOpeningAgendaEntry({
+    processoId,
+    numeroSirel: process.numeroSirel,
+    userId,
+    openingDate,
+  });
 
   // Link items and suppliers from the imported process
   await linkImportedItemsAndSuppliers(importedId, processoId, userId);
@@ -712,6 +733,92 @@ function mapModoDisputa(value: string | null | undefined): "NAO_SE_APLICA" | "AB
   if (normalized.includes("aberto")) return "ABERTO";
   if (normalized.includes("fechado")) return "FECHADO";
   return "NAO_SE_APLICA";
+}
+
+function startOfDay(value = new Date()) {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function parseFlexibleDate(value: unknown) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsedDateOnly = new Date(`${value}T12:00:00`);
+    return Number.isNaN(parsedDateOnly.getTime()) ? null : parsedDateOnly;
+  }
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function toDateOnly(value: Date) {
+  return value.toISOString().slice(0, 10);
+}
+
+async function ensureFutureOpeningAgendaEntry(params: {
+  processoId: number;
+  numeroSirel: string;
+  userId: number | null;
+  openingDate: Date | null;
+}) {
+  if (!params.openingDate) return;
+
+  const openingDay = startOfDay(params.openingDate);
+  const db = requireDb();
+  const [existing] = await db
+    .select({
+      id: prazosProcessuais.id,
+      dataPrevista: prazosProcessuais.dataPrevista,
+    })
+    .from(prazosProcessuais)
+    .where(
+      and(
+        eq(prazosProcessuais.processoId, params.processoId),
+        eq(prazosProcessuais.tipo, "SESSAO_PUBLICA"),
+        ne(prazosProcessuais.status, "CONCLUIDO"),
+      ),
+    )
+    .limit(1);
+
+  const nextDate = toDateOnly(openingDay);
+  if (existing) {
+    if (existing.dataPrevista !== nextDate) {
+      const now = new Date();
+      const status = openingDay < startOfDay() ? "EM_ATRASO" : "PENDENTE";
+      await db
+        .update(prazosProcessuais)
+        .set({
+          dataPrevista: nextDate,
+          status,
+          observacao:
+            "Prazo reagendado automaticamente por atualização da data de abertura na importação.",
+          atualizadoEm: now,
+        })
+        .where(eq(prazosProcessuais.id, existing.id));
+    }
+    return;
+  }
+
+  if (openingDay <= startOfDay()) return;
+
+  const now = new Date();
+  await db.insert(prazosProcessuais).values({
+    processoId: params.processoId,
+    tipo: "SESSAO_PUBLICA",
+    titulo: `Sessão pública • ${params.numeroSirel}`,
+    dataPrevista: nextDate,
+    status: "PENDENTE",
+    responsavelId: params.userId ?? null,
+    observacao:
+      "Prazo criado automaticamente durante o vínculo da importação por conter data futura de abertura/disputa.",
+    alertasConfig: { lembretes: [7, 3, 1], canais: ["sistema"] },
+    criadoPor: params.userId ?? null,
+    criadoEm: now,
+    atualizadoEm: now,
+  });
 }
 
 async function linkImportedItemsAndSuppliers(

@@ -18,7 +18,12 @@ import {
   contratoItens,
   aditivosContratos,
   notificacoesUsuario,
+  notificacoesEnvios,
+  notificacoesPreferencias,
+  notificacoesPushSubscriptions,
+  prazosAgendaCompartilhamentos,
   prazosProcessuais,
+  tarefasEquipe,
   alertas,
   workflowProcesso,
   movimentacoesWorkflow,
@@ -46,12 +51,12 @@ import {
 async function main() {
   const { db } = await import("../db/client.js");
   if (!db) {
-    throw new Error("Banco de dados nÃ£o configurado.");
+    throw new Error("Banco de dados não configurado.");
   }
 
   const [admin] = await db.select().from(users).where(eq(users.username, "jonatas.sousa")).limit(1);
   if (!admin) {
-    throw new Error('UsuÃ¡rio administrador "jonatas.sousa" nÃ£o encontrado. Reset abortado para evitar perda de acesso.');
+    throw new Error('Usuário administrador "jonatas.sousa" não encontrado. Reset abortado para evitar perda de acesso.');
   }
 
   await db.transaction(async (tx) => {
@@ -60,9 +65,14 @@ async function main() {
     await tx.delete(importacaoBllExecucoes);
     await tx.delete(authLog);
     await tx.delete(auditoriaLog);
+    await tx.delete(prazosAgendaCompartilhamentos);
+    await tx.delete(tarefasEquipe);
     await tx.delete(prazosProcessuais);
     await tx.delete(alertas);
     await tx.delete(notificacoesUsuario);
+    await tx.delete(notificacoesEnvios);
+    await tx.delete(notificacoesPreferencias);
+    await tx.delete(notificacoesPushSubscriptions);
     await tx.delete(aditivosContratos);
     await tx.delete(contratoItens);
     await tx.delete(contratos);
@@ -99,10 +109,10 @@ async function main() {
       .where(and(eq(users.username, "jonatas.sousa"), eq(users.id, admin.id)));
   });
 
-  console.log('Base operacional zerada. Mantidos: secretarias, modalidades, status de processo e usuÃ¡rio "jonatas.sousa".');
+  console.log('Base operacional zerada. Mantidos: secretarias, modalidades, status de processo e Usuário "jonatas.sousa".');
 }
 
 main().catch((error) => {
-  console.error("Falha ao resetar a base de produÃ§Ã£o:", error);
+  console.error("Falha ao resetar a base de produção:", error);
   process.exit(1);
 });

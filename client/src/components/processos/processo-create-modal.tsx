@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState, type FormEvent } from "react";
 import { CalendarDays, PlusCircle, TimerReset } from "lucide-react";
 
-import { workflowModuleOptions } from "@sirel/shared/const";
+import { workflowModuleOptions, workflowSituacaoOptions } from "@sirel/shared/const";
 
 import { Modal } from "@/components/shared/modal";
 import { Alert } from "@/components/ui/alert";
@@ -16,6 +16,10 @@ import {
   type ProcessoFormState,
   validateProcessoForm,
 } from "@/features/processos/form";
+import {
+  formatShortDateTimeBR,
+  maskCurrencyInputBR,
+} from "@/lib/formatters";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
 
@@ -36,15 +40,69 @@ const initialProcessoForm: ProcessoFormState = {
   tipoContratacao: "AQUISICAO",
   condutorProcessoId: "",
   dataAbertura: "",
+  dataPublicacao: "",
+  dataDisputaSessao: "",
+  situacao: "RASCUNHO",
   foraDoFluxo: false,
   moduloInicial: "DOCUMENTOS",
 };
 
+const workflowSituacaoLabels: Record<(typeof workflowSituacaoOptions)[number], string> = {
+  RASCUNHO: "Rascunho",
+  EM_ANDAMENTO: "Em andamento",
+  AGUARDANDO: "Aguardando",
+  CONCLUIDO: "Concluído",
+  SUSPENSO: "Suspenso",
+};
+
+function toDateInputValue(value?: string | Date | null) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function toDateTimeInputValue(value?: string | Date | null) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 function buildInitialProcessoForm(
   initialValues?: Partial<ProcessoFormState>,
+  externalDates?: {
+    publicacaoEm?: string | Date | null;
+    disputaEm?: string | Date | null;
+    recebimentoInicialEm?: string | Date | null;
+  },
 ): ProcessoFormState {
+  const prefilledFromImport = {
+    dataPublicacao: toDateInputValue(externalDates?.publicacaoEm),
+    dataDisputaSessao: toDateTimeInputValue(externalDates?.disputaEm),
+    dataAbertura: toDateInputValue(
+      externalDates?.disputaEm ??
+        externalDates?.recebimentoInicialEm ??
+        externalDates?.publicacaoEm,
+    ),
+  };
+
   return {
     ...initialProcessoForm,
+    ...(prefilledFromImport.dataPublicacao
+      ? { dataPublicacao: prefilledFromImport.dataPublicacao }
+      : {}),
+    ...(prefilledFromImport.dataDisputaSessao
+      ? { dataDisputaSessao: prefilledFromImport.dataDisputaSessao }
+      : {}),
+    ...(prefilledFromImport.dataAbertura
+      ? { dataAbertura: prefilledFromImport.dataAbertura }
+      : {}),
     ...initialValues,
   };
 }
@@ -54,6 +112,13 @@ interface ProcessoCreateModalProps {
   onClose: () => void;
   onCreated?: (created: { id: number; numeroSirel: string }) => void;
   initialValues?: Partial<ProcessoFormState>;
+  externalDates?: {
+    publicacaoEm?: string | Date | null;
+    disputaEm?: string | Date | null;
+    recebimentoInicialEm?: string | Date | null;
+    recebimentoFinalEm?: string | Date | null;
+    sourceLabel?: string;
+  };
   title?: string;
   description?: string;
   submitLabel?: string;
@@ -64,6 +129,7 @@ export function ProcessoCreateModal({
   onClose,
   onCreated,
   initialValues,
+  externalDates,
   title = "Novo processo",
   description =
     "Crie processos regulares do fluxo ou registros excepcionais fora do fluxo sem poluir a tela principal.",
@@ -71,7 +137,7 @@ export function ProcessoCreateModal({
 }: ProcessoCreateModalProps) {
   const utils = trpc.useUtils();
   const [form, setForm] = useState<ProcessoFormState>(() =>
-    buildInitialProcessoForm(initialValues),
+    buildInitialProcessoForm(initialValues, externalDates),
   );
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -106,10 +172,10 @@ export function ProcessoCreateModal({
       return;
     }
 
-    setForm(buildInitialProcessoForm(initialValues));
+    setForm(buildInitialProcessoForm(initialValues, externalDates));
     setFieldErrors({});
     setFormError(null);
-  }, [initialValues, open]);
+  }, [externalDates, initialValues, open]);
 
   useEffect(() => {
     if (!open || !catalogQuery.data) {
@@ -137,7 +203,7 @@ export function ProcessoCreateModal({
   }, [catalogQuery.data, open]);
 
   function resetForm() {
-    setForm(buildInitialProcessoForm(initialValues));
+    setForm(buildInitialProcessoForm(initialValues, externalDates));
     setFieldErrors({});
     setFormError(null);
   }
@@ -156,6 +222,13 @@ export function ProcessoCreateModal({
     setFieldErrors({});
     await createMutation.mutateAsync(buildProcessoPayload(form));
   }
+
+  const datasReferencia = [
+    { label: "Publicação", value: externalDates?.publicacaoEm },
+    { label: "Disputa / sessão", value: externalDates?.disputaEm },
+    { label: "Recebimento inicial", value: externalDates?.recebimentoInicialEm },
+    { label: "Recebimento final", value: externalDates?.recebimentoFinalEm },
+  ].filter((item) => item.value);
 
   return (
     <Modal
@@ -176,6 +249,22 @@ export function ProcessoCreateModal({
             </li>
           </ul>
         </Alert>
+
+        {datasReferencia.length ? (
+          <Alert
+            variant="info"
+            title={`Datas de referência ${externalDates?.sourceLabel ? `(${externalDates.sourceLabel})` : "da importação"}`}
+          >
+            <div className="grid gap-2 md:grid-cols-2">
+              {datasReferencia.map((item) => (
+                <p key={item.label} className="text-sm">
+                  <span className="font-semibold">{item.label}:</span>{" "}
+                  {formatShortDateTimeBR(item.value)}
+                </p>
+              ))}
+            </div>
+          </Alert>
+        ) : null}
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <FormField label="Ano de referência" error={fieldErrors.anoReferencia}>
@@ -282,15 +371,33 @@ export function ProcessoCreateModal({
               ))}
             </Select>
           </FormField>
+          <FormField label="Situação do workflow" error={fieldErrors.situacao}>
+            <Select
+              value={form.situacao}
+              error={Boolean(fieldErrors.situacao)}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  situacao: event.target.value,
+                }))
+              }
+            >
+              {workflowSituacaoOptions.map((item) => (
+                <option key={item} value={item}>
+                  {workflowSituacaoLabels[item]}
+                </option>
+              ))}
+            </Select>
+          </FormField>
           <FormField label="Valor estimado" error={fieldErrors.valorEstimado}>
             <Input
               value={form.valorEstimado}
               error={Boolean(fieldErrors.valorEstimado)}
-              placeholder="0,00"
+              placeholder="R$ 0,00"
               onChange={(event) =>
                 setForm((current) => ({
                   ...current,
-                  valorEstimado: event.target.value,
+                  valorEstimado: maskCurrencyInputBR(event.target.value),
                 }))
               }
             />
@@ -440,25 +547,62 @@ export function ProcessoCreateModal({
           />
         </FormField>
 
-        <FormField
-          label="Data prevista de abertura"
-          error={fieldErrors.dataAbertura}
-        >
-          <div className="flex items-center gap-2 rounded-[18px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2.5">
-            <CalendarDays className="h-4 w-4 text-[var(--color-neutral-400)]" />
-            <input
-              type="date"
-              value={form.dataAbertura}
-              onChange={(event) =>
-                setForm((current) => ({
-                  ...current,
-                  dataAbertura: event.target.value,
-                }))
-              }
-              className="w-full border-none bg-transparent text-sm outline-none"
-            />
-          </div>
-        </FormField>
+        <div className="grid gap-3 md:grid-cols-3">
+          <FormField
+            label="Data prevista de abertura"
+            error={fieldErrors.dataAbertura}
+          >
+            <div className="flex items-center gap-2 rounded-[18px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2.5">
+              <CalendarDays className="h-4 w-4 text-[var(--color-neutral-400)]" />
+              <input
+                type="date"
+                value={form.dataAbertura}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    dataAbertura: event.target.value,
+                  }))
+                }
+                className="w-full border-none bg-transparent text-sm outline-none"
+              />
+            </div>
+          </FormField>
+          <FormField label="Data de publicação" error={fieldErrors.dataPublicacao}>
+            <div className="flex items-center gap-2 rounded-[18px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2.5">
+              <CalendarDays className="h-4 w-4 text-[var(--color-neutral-400)]" />
+              <input
+                type="date"
+                value={form.dataPublicacao}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    dataPublicacao: event.target.value,
+                  }))
+                }
+                className="w-full border-none bg-transparent text-sm outline-none"
+              />
+            </div>
+          </FormField>
+          <FormField
+            label="Data e hora de disputa/sessão"
+            error={fieldErrors.dataDisputaSessao}
+          >
+            <div className="flex items-center gap-2 rounded-[18px] border border-[rgba(209,213,219,0.92)] bg-white px-3 py-2.5">
+              <CalendarDays className="h-4 w-4 text-[var(--color-neutral-400)]" />
+              <input
+                type="datetime-local"
+                value={form.dataDisputaSessao}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    dataDisputaSessao: event.target.value,
+                  }))
+                }
+                className="w-full border-none bg-transparent text-sm outline-none"
+              />
+            </div>
+          </FormField>
+        </div>
 
         <div className="rounded-3xl border border-[rgba(204,225,255,0.88)] bg-[var(--color-primary-50)] px-4 py-4">
           <label className="flex items-start gap-3">

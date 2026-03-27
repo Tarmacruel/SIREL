@@ -18,6 +18,9 @@ const baseForm = {
   tipoObjeto: "PRODUTO",
   tipoContratacao: "AQUISICAO",
   dataAbertura: "2026-04-01",
+  dataPublicacao: "2026-03-20",
+  dataDisputaSessao: "2026-04-01T09:00",
+  situacao: "RASCUNHO",
   foraDoFluxo: false,
   moduloInicial: "DOCUMENTOS",
 } as const;

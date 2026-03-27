@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { modoDisputaOptions, workflowModuleOptions } from "../const.js";
+import {
+  modoDisputaOptions,
+  workflowModuleOptions,
+  workflowSituacaoOptions,
+} from "../const.js";
 
 export const processoListInputSchema = z.object({
   page: z.number().int().positive().default(1),
@@ -33,6 +37,9 @@ export const processoCreateInputSchema = z
     tipoContratacao: z.enum(["AQUISICAO", "REGISTRO_PRECO", "AQUISICAO_PARCELADA"]).optional(),
     condutorProcessoId: z.number().int().positive().optional(),
     dataAbertura: z.string().optional(),
+    dataPublicacao: z.string().optional(),
+    dataDisputaSessao: z.string().optional(),
+    situacao: z.enum(workflowSituacaoOptions).optional(),
     foraDoFluxo: z.boolean().default(false),
     moduloInicial: z.enum(workflowModuleOptions).optional(),
   })
@@ -60,9 +67,13 @@ export const processoSetAtivoInputSchema = z.object({
 
 export const processoUpdateDataInputSchema = z.object({
   processoId: z.number().int().positive(),
+  foraDoFluxo: z.boolean().optional(),
   numeroAdministrativo: z.string().max(64).optional(),
   numeroEdital: z.string().max(64).optional(),
   dataAbertura: z.string().optional(),
+  dataPublicacao: z.string().optional(),
+  dataDisputaSessao: z.string().optional(),
+  situacao: z.enum(workflowSituacaoOptions).optional(),
   secretariaId: z.number().int().positive().optional(),
   modalidadeId: z.number().int().positive().optional(),
   tipoObjeto: z.enum(["PRODUTO", "SERVICO", "OBRA", "SERVICO_ENG"]).optional(),

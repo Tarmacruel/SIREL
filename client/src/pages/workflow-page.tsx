@@ -7,6 +7,7 @@ import { Modal } from "@/components/shared/modal";
 import { SectionCard } from "@/components/shared/section-card";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/pagination";
@@ -15,7 +16,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { validateWorkflowMoveForm } from "@/features/workflow/form";
-import { formatCurrencyBRL, formatShortDateBR, formatShortDateTimeBR } from "@/lib/formatters";
+import {
+  formatCurrencyBRL,
+  formatShortDateBR,
+  formatShortDateTimeBR,
+  maskCurrencyInputBR,
+  normalizeCurrencyInputBR,
+} from "@/lib/formatters";
 import { resolveServerAssetUrl } from "@/lib/document-upload";
 import { trpc } from "@/lib/trpc";
 import { mapZodFieldErrors } from "@/lib/zod-errors";
@@ -51,6 +58,7 @@ export function WorkflowPage() {
     escopoDisputa: "",
     tipoObjeto: "",
     tipoContratacao: "",
+    foraDoFluxo: false,
   });
   const [editDataErrors, setEditDataErrors] = useState<Record<string, string>>({});
   const [moveForm, setMoveForm] = useState({
@@ -132,12 +140,15 @@ export function WorkflowPage() {
       autoridadeCompetenteId: String(detail.processo?.autoridadeCompetenteId ?? ""),
       condutorProcessoId: String(detail.processo?.condutorProcessoId ?? ""),
       objeto: detail.processo?.objeto ?? "",
-      valorEstimado: detail.processo?.valorEstimado ? String(detail.processo.valorEstimado) : "",
+      valorEstimado: detail.processo?.valorEstimado
+        ? formatCurrencyBRL(detail.processo.valorEstimado)
+        : "",
       criterioJulgamento: detail.processo?.criterioJulgamento ?? "",
       modoDisputa: detail.processo?.modoDisputa ?? "",
       escopoDisputa: detail.processo?.escopoDisputa ?? "",
       tipoObjeto: detail.processo?.tipoObjeto ?? "",
       tipoContratacao: detail.processo?.tipoContratacao ?? "",
+      foraDoFluxo: Boolean(detail.processo?.foraDoFluxo),
     }));
   }, [detailQuery.data]);
 
@@ -239,6 +250,7 @@ export function WorkflowPage() {
 
     const updatePayload: any = {
       processoId: selectedProcessId,
+      foraDoFluxo: Boolean(editDataForm.foraDoFluxo),
     };
 
     if (editDataForm.numeroAdministrativo?.trim()) updatePayload.numeroAdministrativo = editDataForm.numeroAdministrativo.trim();
@@ -251,7 +263,18 @@ export function WorkflowPage() {
     if (editDataForm.autoridadeCompetenteId) updatePayload.autoridadeCompetenteId = Number(editDataForm.autoridadeCompetenteId);
     if (editDataForm.condutorProcessoId) updatePayload.condutorProcessoId = Number(editDataForm.condutorProcessoId);
     if (editDataForm.objeto?.trim()) updatePayload.objeto = editDataForm.objeto.trim();
-    if (editDataForm.valorEstimado?.trim()) updatePayload.valorEstimado = Number(editDataForm.valorEstimado);
+    if (editDataForm.valorEstimado?.trim()) {
+      const valorEstimado = normalizeCurrencyInputBR(editDataForm.valorEstimado);
+      if (valorEstimado === undefined) {
+        setEditDataErrors((current) => ({
+          ...current,
+          valorEstimado: "Informe um valor válido em reais (R$).",
+        }));
+        setErrorMessage("Revise o valor estimado antes de salvar.");
+        return;
+      }
+      updatePayload.valorEstimado = valorEstimado;
+    }
     if (editDataForm.criterioJulgamento?.trim()) updatePayload.criterioJulgamento = editDataForm.criterioJulgamento.trim();
     if (editDataForm.modoDisputa) updatePayload.modoDisputa = editDataForm.modoDisputa;
     if (editDataForm.escopoDisputa) updatePayload.escopoDisputa = editDataForm.escopoDisputa;
@@ -858,6 +881,30 @@ export function WorkflowPage() {
             </FormField>
           </div>
 
+          <div className="rounded-3xl border border-[rgba(204,225,255,0.88)] bg-[var(--color-primary-50)] px-4 py-4">
+            <label className="flex items-start gap-3">
+              <Checkbox
+                checked={editDataForm.foraDoFluxo}
+                onChange={(event) =>
+                  setEditDataForm((current) => ({
+                    ...current,
+                    foraDoFluxo: event.target.checked,
+                  }))
+                }
+                className="mt-1"
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-semibold text-[var(--color-primary-900)]">
+                  Processo fora do fluxo
+                </span>
+                <span className="block text-sm text-[var(--color-neutral-600)]">
+                  Marque para classificar este processo como excepcional e fora
+                  do fluxo regular.
+                </span>
+              </span>
+            </label>
+          </div>
+
           <div className="grid gap-3 md:grid-cols-2">
             <FormField label="Tipo de contratação">
               <Select
@@ -898,8 +945,13 @@ export function WorkflowPage() {
               <Input
                 value={editDataForm.valorEstimado}
                 error={Boolean(editDataErrors.valorEstimado)}
-                placeholder="0,00"
-                onChange={(event) => setEditDataForm((current) => ({ ...current, valorEstimado: event.target.value }))}
+                placeholder="R$ 0,00"
+                onChange={(event) =>
+                  setEditDataForm((current) => ({
+                    ...current,
+                    valorEstimado: maskCurrencyInputBR(event.target.value),
+                  }))
+                }
               />
             </FormField>
             <FormField label="Critério de julgamento" error={editDataErrors.criterioJulgamento}>

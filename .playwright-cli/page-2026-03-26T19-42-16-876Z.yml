@@ -1,0 +1,39 @@
+- generic [ref=e5]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - img "Prefeitura Municipal de Teixeira de Freitas" [ref=e9]
+        - generic [ref=e10]:
+          - paragraph [ref=e11]: Sistema oficial
+          - heading "SIREL" [level=1] [ref=e12]
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: Gestão transparente de licitações e contratações públicas.
+        - paragraph [ref=e15]: Prefeitura Municipal de Teixeira de Freitas
+        - paragraph [ref=e16]: "CNPJ: 13.650.403/0001-28 · Av. Marechal Castelo Branco, 100, Centro, 45985-000, Teixeira de Freitas, BA"
+    - generic [ref=e17]:
+      - article [ref=e18]:
+        - img [ref=e20]
+        - paragraph [ref=e23]: Segurança robusta
+        - paragraph [ref=e24]: Autenticação segura com sessões assinadas e controle de acesso por perfil de operação.
+      - article [ref=e25]:
+        - img [ref=e27]
+        - paragraph [ref=e29]: Performance
+        - paragraph [ref=e30]: Interface responsiva e otimizada para desktop, tablet e smartphone com operação contínua.
+  - generic [ref=e32]:
+    - generic [ref=e33]:
+      - paragraph [ref=e35]: 🔐 Acesso seguro
+      - heading "Entrar no SIREL" [level=2] [ref=e36]
+      - paragraph [ref=e37]: Informe seus dados de acesso para explorar o sistema de gestão de licitações.
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - text: Usuário ou e-mail
+        - textbox "Usuário ou e-mail" [active] [ref=e40]:
+          - /placeholder: seu.usuario
+      - generic [ref=e41]:
+        - text: Senha
+        - textbox "Senha" [ref=e42]:
+          - /placeholder: ••••••••
+      - button "Entrar" [ref=e43]:
+        - img [ref=e44]
+        - text: Entrar
+    - paragraph [ref=e48]: Sistema seguro de gestão de licitações da Prefeitura Municipal de Teixeira de Freitas. Todos os acessos são registrados.

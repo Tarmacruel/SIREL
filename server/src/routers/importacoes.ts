@@ -47,7 +47,6 @@ import {
   getImportSummaryCounts,
   importCsvBundle,
   remoteImportSources,
-  syncAllRemoteImports,
   syncRemoteImport,
 } from "../lib/importacoes-bll.js";
 import { operadorProcedure, protectedProcedure, router } from "../trpc.js";
@@ -227,29 +226,63 @@ export const importacoesRouter = router({
         });
       }
 
-      const items = await db
-        .select()
-        .from(importacaoBllItens)
-        .where(eq(importacaoBllItens.processoImportadoId, input.id))
-        .orderBy(
-          importacaoBllItens.loteNumero,
-          importacaoBllItens.itemNumero,
-          importacaoBllItens.id,
-        );
+      const warnings: string[] = [];
 
-      const execution = record.ultimaExecucaoId
-        ? ((
-            await db
-              .select()
-              .from(importacaoBllExecucoes)
-              .where(eq(importacaoBllExecucoes.id, record.ultimaExecucaoId))
-              .limit(1)
-          )[0] ?? null)
-        : null;
-      const linkedProcess = await getLinkedInternalProcess(input.id);
-      const suggestions = await getConciliationSuggestions(input.id, {
-        limit: 8,
-      });
+      let items: typeof importacaoBllItens.$inferSelect[] = [];
+      try {
+        items = await db
+          .select()
+          .from(importacaoBllItens)
+          .where(eq(importacaoBllItens.processoImportadoId, input.id))
+          .orderBy(
+            importacaoBllItens.loteNumero,
+            importacaoBllItens.itemNumero,
+            importacaoBllItens.id,
+          );
+      } catch (error) {
+        warnings.push(
+          "Não foi possível carregar os itens importados. Verifique se as migrations estão atualizadas.",
+        );
+      }
+
+      let execution = null;
+      if (record.ultimaExecucaoId) {
+        try {
+          execution =
+            ((
+              await db
+                .select()
+                .from(importacaoBllExecucoes)
+                .where(eq(importacaoBllExecucoes.id, record.ultimaExecucaoId))
+                .limit(1)
+            )[0] ?? null);
+        } catch (error) {
+          warnings.push(
+            "Não foi possível carregar os dados da execução desta importação.",
+          );
+        }
+      }
+
+      let linkedProcess = null;
+      try {
+        linkedProcess = await getLinkedInternalProcess(input.id);
+      } catch (error) {
+        warnings.push(
+          "Não foi possível carregar o vínculo com o processo interno.",
+        );
+      }
+
+      let suggestions: Awaited<ReturnType<typeof getConciliationSuggestions>> =
+        [];
+      try {
+        suggestions = await getConciliationSuggestions(input.id, {
+          limit: 8,
+        });
+      } catch (error) {
+        warnings.push(
+          "Não foi possível carregar sugestões de conciliação automática.",
+        );
+      }
 
       return {
         record: {
@@ -273,6 +306,7 @@ export const importacoesRouter = router({
         execution,
         linkedProcess,
         suggestions,
+        warnings,
       };
     }),
 
@@ -551,9 +585,50 @@ export const importacoesRouter = router({
   syncRemote: operadorProcedure
     .input(importacaoBllRemoteSyncInputSchema)
     .mutation(async ({ ctx, input }) => {
-      const results = input.source
-        ? [await syncRemoteImport(input.source, { criadoPor: ctx.user!.id })]
-        : await syncAllRemoteImports({ criadoPor: ctx.user!.id });
+      const results: Array<{
+        executionId: number;
+        origem: "LICITACAO" | "COMPRA_DIRETA";
+        totalRegistros: number;
+        totalItens: number;
+      }> = [];
+      const errors: string[] = [];
+
+      if (input.source) {
+        try {
+          const result = await syncRemoteImport(input.source, {
+            criadoPor: ctx.user!.id,
+          });
+          results.push(result);
+        } catch (error) {
+          errors.push(
+            `${input.source}: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+          );
+        }
+      } else {
+        for (const source of Object.keys(remoteImportSources) as Array<
+          "LICITACAO" | "COMPRA_DIRETA"
+        >) {
+          try {
+            const result = await syncRemoteImport(source, {
+              criadoPor: ctx.user!.id,
+            });
+            results.push(result);
+          } catch (error) {
+            errors.push(
+              `${source}: ${error instanceof Error ? error.message : "falha desconhecida"}`,
+            );
+          }
+        }
+      }
+
+      if (!results.length) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            errors[0] ??
+            "Não foi possível concluir a sincronização remota para nenhuma origem.",
+        });
+      }
 
       for (const result of results) {
         await logAuditoria(ctx, {
@@ -565,9 +640,30 @@ export const importacoesRouter = router({
         });
       }
 
+      if (errors.length) {
+        await logAuditoria(ctx, {
+          tabela: "importacao_bll_execucoes",
+          registroId: 0,
+          acao: "UPDATE",
+          dadosNovos: { errors },
+          descricao: "Sincronização remota concluída com falhas parciais em uma ou mais origens.",
+        });
+      }
+
+      const resumo = results
+        .map(
+          (result) =>
+            `${result.origem}: ${result.totalRegistros} registro(s), ${result.totalItens} item(ns)`,
+        )
+        .join(" • ");
+
       return {
-        message: `Sincronização concluída para ${results.length} origem(ns).`,
+        message:
+          errors.length > 0
+            ? `Sincronização parcial concluída (${results.length}/${results.length + errors.length} origem(ns)). ${resumo}. Falhas: ${errors.join(" | ")}`
+            : `Sincronização concluída para ${results.length} origem(ns). ${resumo}`,
         results,
+        errors,
       };
     }),
 
